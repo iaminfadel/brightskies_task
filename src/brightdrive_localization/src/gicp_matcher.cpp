@@ -24,7 +24,8 @@ using Registration = small_gicp::Registration<
     small_gicp::GICPFactor,
     small_gicp::SerialReduction,
     small_gicp::NullFactor,
-    small_gicp::DistanceRejector>;
+    small_gicp::DistanceRejector,
+    small_gicp::GaussNewtonOptimizer>;
 
 double degrees_to_radians(double degrees) { return degrees * M_PI / 180.0; }
 
@@ -76,9 +77,6 @@ MatchResult GicpMatcher::align(const std::vector<Eigen::Vector3f>& raw_scan,
   result.source_points = downsampled->size();
 
   Registration registration;
-  // small_gicp defaults to LM, whose damped steps are accepted on flat-cost
-  // scans (stationary corridor) and never fall under the convergence eps.
-  registration.optimizer = small_gicp::GaussNewtonOptimizer();
   registration.optimizer.max_iterations = settings_.max_iterations;
   registration.optimizer.verbose = settings_.debug_optimizer;
   registration.criteria.translation_eps = settings_.convergence_eps;
