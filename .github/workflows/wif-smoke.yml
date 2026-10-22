@@ -1,0 +1,28 @@
+name: wif-smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  wif:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/330586358676/locations/global/workloadIdentityPools/github/providers/github-oidc
+          service_account: brightskies-ci@project-e038f785-ff95-4654-ba6.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Verify WIF without a JSON key
+        run: |
+          gcloud config set project project-e038f785-ff95-4654-ba6
+          gcloud auth list --filter=status:ACTIVE --format='value(account)'
+          gcloud compute instances list --format='table(name,zone,status)'
+          gcloud storage ls gs://brightskies-artifacts-330586358676/ >/dev/null
