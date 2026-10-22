@@ -69,6 +69,8 @@ def main():
     parser.add_argument("--lookahead-m", type=float, default=8.0)
     parser.add_argument("--seconds", type=float, default=600.0)
     parser.add_argument("--start-delay-s", type=float, default=2.0)
+    parser.add_argument("--stuck-grace-s", type=float, default=8.0)
+    parser.add_argument("--no-teleport", action="store_true")
     parser.add_argument("--log-period-s", type=float, default=5.0)
     args = parser.parse_args()
 
@@ -90,9 +92,10 @@ def main():
     )
 
     hero.set_autopilot(False)
-    hero.set_transform(spawns[indices[0]])
-    hero.set_target_velocity(carla.Vector3D(0.0, 0.0, 0.0))
-    hero.set_target_angular_velocity(carla.Vector3D(0.0, 0.0, 0.0))
+    if not args.no_teleport:
+        hero.set_transform(spawns[indices[0]])
+        hero.set_target_velocity(carla.Vector3D(0.0, 0.0, 0.0))
+        hero.set_target_angular_velocity(carla.Vector3D(0.0, 0.0, 0.0))
     for _ in range(10):
         hero.apply_control(carla.VehicleControl(brake=1.0))
         world.wait_for_tick(2.0)
@@ -174,7 +177,7 @@ def main():
                 carla.VehicleControl(throttle=0.4, steer=-steer, brake=0.0, reverse=True)
             )
         else:
-            if speed < 0.25 and desired > 1.0:
+            if speed < 0.25 and desired > 1.0 and now - started > args.stuck_grace_s:
                 if stuck_since is None:
                     stuck_since = now
                 elif now - stuck_since > 4.0:
