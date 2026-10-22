@@ -24,6 +24,30 @@ class ImuContractCovariance(Node):
         self.create_subscription(Imu, "/carla/hero/imu", self._on_imu, qos_profile_sensor_data)
 
     def _on_imu(self, msg: Imu) -> None:
+        orientation = msg.orientation
+        norm = math.sqrt(
+            orientation.x * orientation.x
+            + orientation.y * orientation.y
+            + orientation.z * orientation.z
+            + orientation.w * orientation.w
+        )
+        if not math.isfinite(norm) or norm < 1e-6:
+            # CARLA emits a zero quaternion before the first physics tick;
+            # forwarding it would poison the EKF state with NaNs.
+            return
+        if not all(
+            math.isfinite(value)
+            for value in (
+                msg.angular_velocity.x,
+                msg.angular_velocity.y,
+                msg.angular_velocity.z,
+                msg.linear_acceleration.x,
+                msg.linear_acceleration.y,
+                msg.linear_acceleration.z,
+            )
+        ):
+            return
+
         out = Imu()
         out.header = msg.header
         out.orientation = msg.orientation
