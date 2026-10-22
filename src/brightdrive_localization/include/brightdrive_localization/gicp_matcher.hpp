@@ -31,6 +31,7 @@ struct GicpSettings {
 
 struct MatchResult {
   bool converged = false;
+  std::size_t iterations = 0;
   bool accepted = false;
   std::string reject_reason;
   Eigen::Isometry3d T_target_source = Eigen::Isometry3d::Identity();

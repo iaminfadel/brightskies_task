@@ -89,6 +89,7 @@ MatchResult GicpMatcher::align(const std::vector<Eigen::Vector3f>& raw_scan,
   auto fine = registration.align(*map_cloud_, *downsampled, *map_tree_, coarse.T_target_source);
 
   result.converged = fine.converged;
+  result.iterations = fine.iterations;
   result.T_target_source = fine.T_target_source;
 
   // Geometric quality: nearest-neighbour residual of every downsampled source

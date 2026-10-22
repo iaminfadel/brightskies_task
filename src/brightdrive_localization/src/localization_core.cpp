@@ -519,9 +519,9 @@ class LocalizationCore : public rclcpp::Node {
       last_scan_accepted_ = false;
       last_match_ = match;
       RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                           "SCAN_REJECT reason=%s rmse=%.3f inliers=%.2f cond=%.1f",
+                           "SCAN_REJECT reason=%s rmse=%.3f inliers=%.2f cond=%.1f iter=%zu",
                            match.reject_reason.c_str(), match.rmse_m, match.inlier_ratio,
-                           match.hessian_condition);
+                           match.hessian_condition, match.iterations);
       publish_quality(match, kNoMeasurement, false);
       return;
     }
