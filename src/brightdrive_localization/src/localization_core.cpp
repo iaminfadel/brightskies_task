@@ -148,8 +148,12 @@ class LocalizationCore : public rclcpp::Node {
                 bundle.cloud->size(), metadata_.voxel_size_m);
 
     const auto sensor_qos = rclcpp::SensorDataQoS();
+    // Keep only the newest scan: in faster-than-real-time simulation a
+    // multi-message backlog would age in simulation time and every scan would
+    // be rejected by the staleness gate.
+    const rclcpp::QoS latest_scan_qos = rclcpp::QoS(rclcpp::KeepLast(1)).best_effort();
     lidar_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
-        declare_parameter<std::string>("topics.lidar", "/carla/hero/lidar"), sensor_qos,
+        declare_parameter<std::string>("topics.lidar", "/carla/hero/lidar"), latest_scan_qos,
         std::bind(&LocalizationCore::on_lidar, this, std::placeholders::_1));
     gnss_sub_ = create_subscription<sensor_msgs::msg::NavSatFix>(
         declare_parameter<std::string>("topics.gnss", "/carla/hero/gnss"), sensor_qos,
