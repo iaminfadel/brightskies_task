@@ -660,8 +660,6 @@ class LocalizationCore : public rclcpp::Node {
 
   void publish_quality(const MatchResult& match, double d2, bool accepted) {
     diagnostic_msgs::msg::DiagnosticStatus status;
-    status.header.stamp = to_time_msg(scan_stamp_);
-    status.header.frame_id = map_frame_;
     status.level = accepted ? diagnostic_msgs::msg::DiagnosticStatus::OK
                             : diagnostic_msgs::msg::DiagnosticStatus::WARN;
     status.name = "localization/scan_match";
