@@ -76,6 +76,9 @@ MatchResult GicpMatcher::align(const std::vector<Eigen::Vector3f>& raw_scan,
   result.source_points = downsampled->size();
 
   Registration registration;
+  // small_gicp defaults to LM, whose damped steps are accepted on flat-cost
+  // scans (stationary corridor) and never fall under the convergence eps.
+  registration.optimizer = small_gicp::GaussNewtonOptimizer();
   registration.optimizer.max_iterations = settings_.max_iterations;
   registration.optimizer.verbose = settings_.debug_optimizer;
   registration.criteria.translation_eps = settings_.convergence_eps;
