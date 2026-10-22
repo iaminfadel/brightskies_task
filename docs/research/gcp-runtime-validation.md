@@ -83,6 +83,17 @@ Spot). Result: **PASS** — the go/no-go criteria are met.
   crashes proto commands with `Metaclasses with custom tp_new are not
   supported`. `infra/common.sh` now exports `PYTHONNOUSERSITE=1`; the IAP
   tunnel itself was unaffected.
+- The idle-stop guard powered the VM down at 20:17:22Z while the validation
+  stack was meant to be left running for Foxglove (`journalctl` shows the
+  idle-stop service run followed by "System is powering down"; no API stop
+  event). All three activity signals were quiet by then: the heartbeat is only
+  touched at boot, the IAP tunnel's SSH sessions had timed out, and CARLA's
+  GPU utilization reads low when nothing drives the world. The guard behaved
+  as designed on an effectively idle VM, but "leave the stack running" is not
+  safe for unattended runs: `run_validation.sh` now refreshes
+  `/var/lib/brightskies/heartbeat` every 2 minutes during a run, and a connected
+  Foxglove viewer holds an established port-22 session that keeps the VM alive
+  while watched. The #19 orchestrator must heartbeat for the whole job.
 
 ## Go/no-go
 
