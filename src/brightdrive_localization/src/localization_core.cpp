@@ -119,6 +119,7 @@ class LocalizationCore : public rclcpp::Node {
     gicp.rmse_gate_m = declare_parameter<double>("gicp.rmse_gate_m", 0.20);
     gicp.inlier_gate = declare_parameter<double>("gicp.inlier_gate", 0.60);
     gicp.condition_gate = declare_parameter<double>("gicp.condition_gate", 1e6);
+    gicp.debug_optimizer = declare_parameter<bool>("gicp.debug_optimizer", false);
     gicp_settings_ = gicp;
 
     HealthParams health;

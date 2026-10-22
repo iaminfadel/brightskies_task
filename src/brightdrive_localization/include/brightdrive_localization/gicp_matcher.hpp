@@ -28,6 +28,7 @@ struct GicpSettings {
   double rmse_gate_m = 0.20;
   double inlier_gate = 0.60;
   double condition_gate = 1e6;
+  bool debug_optimizer = false;
 };
 
 struct MatchResult {
