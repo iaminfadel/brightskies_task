@@ -1,0 +1,6 @@
+# Pinned container images for validation runs (scripts/validation/run_on_vm.sh).
+# Source this file; do not execute.
+# CARLA server image pinned by digest (multi-arch index).
+CARLA_IMAGE=carlasim/carla:0.9.15@sha256:1af47c314443f4a2d0869ac399c5b5eabde138a5bc39dd31dcbb1540e22f5588
+# Deps image built from docker/deps.Dockerfile on 2026-10-22, pushed to GHCR.
+DEPS_IMAGE=ghcr.io/iaminfadel/brightdrive-deps@sha256:263332dd8da9b062726d15953ccddce1a11cb9754779840289e059792cd60c64

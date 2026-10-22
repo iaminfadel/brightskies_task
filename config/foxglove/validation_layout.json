@@ -1,0 +1,338 @@
+{
+  "configById": {
+    "Image!rgrxah": {
+      "imageMode": {
+        "imageTopic": "/carla/hero/camera_live/image",
+        "calibrationTopic": "/carla/hero/camera_live/camera_info"
+      },
+      "cameraState": {
+        "distance": 20,
+        "perspective": true,
+        "phi": 60,
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOffset": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "thetaOffset": 60,
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "scene": {},
+      "transforms": {},
+      "topics": {},
+      "layers": {},
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "synchronize": false,
+      "foxglovePanelTitle": "Camera (640x360)"
+    },
+    "Tab!33xe9og": {
+      "activeTabIdx": 0,
+      "tabs": [
+        {
+          "title": "Scene",
+          "layout": "3D!11k3uuj"
+        },
+        {
+          "title": "Transforms",
+          "layout": "TransformTree!3h72oaw"
+        }
+      ]
+    },
+    "Plot!2m7529r": {
+      "paths": [
+        {
+          "value": "/kiss/odometry.twist.twist.linear.x",
+          "enabled": true,
+          "color": "#4e98e2",
+          "id": "b052e714-a041-4d8c-8f2c-9a82abbef838"
+        },
+        {
+          "value": "/odometry/filtered.twist.twist.linear.x",
+          "enabled": true,
+          "color": "#f5774d",
+          "id": "41fcb82d-2e85-4215-ae3f-3f6c6ccabaef"
+        },
+        {
+          "value": "/carla/hero/vehicle_status.velocity",
+          "enabled": true,
+          "color": "#f7df71",
+          "id": "c49e4aa1-86a6-4790-99f8-326a077b0d18"
+        }
+      ],
+      "showLegend": true,
+      "foxglovePanelTitle": "Speed (m/s)"
+    },
+    "Plot!1bgw7u3": {
+      "paths": [
+        {
+          "value": "/kiss/odometry.pose.pose.position.x",
+          "enabled": true,
+          "color": "#5cd6a9",
+          "id": "a15d203a-2676-4081-9a12-3ca91c7793f7"
+        },
+        {
+          "value": "/kiss/odometry.pose.pose.position.y",
+          "enabled": true,
+          "color": "#61cbff",
+          "id": "b530fdf3-130e-459d-aea4-3672fa5cccc9"
+        },
+        {
+          "value": "/odometry/filtered.pose.pose.position.x",
+          "enabled": true,
+          "color": "#f5774d",
+          "id": "04f71924-c3e2-468b-974b-8906ab4da52f"
+        },
+        {
+          "value": "/odometry/filtered.pose.pose.position.y",
+          "enabled": true,
+          "color": "#f7df71",
+          "id": "37b4fb3f-d718-4c26-9bd7-acc75fcfc515"
+        }
+      ],
+      "showLegend": true,
+      "foxglovePanelTitle": "Position (m)"
+    },
+    "Plot!2uqdf6v": {
+      "paths": [
+        {
+          "value": "/carla/hero/imu.linear_acceleration.x",
+          "enabled": true,
+          "color": "#a395e2",
+          "id": "fa3f358a-4f2e-4383-85af-f966dfaf79e7"
+        },
+        {
+          "value": "/carla/hero/imu.angular_velocity.z",
+          "enabled": true,
+          "color": "#4e98e2",
+          "id": "8c5fa849-41d3-428b-bcbd-9eaae6b376fc"
+        }
+      ],
+      "showLegend": true,
+      "foxglovePanelTitle": "IMU accel x / yaw rate"
+    },
+    "3D!11k3uuj": {
+      "topics": {
+        "/kiss/keypoints": {
+          "visible": true,
+          "colorField": "z",
+          "colorMode": "colormap",
+          "colorMap": "turbo"
+        },
+        "/carla/debug_marker": {
+          "visible": true
+        },
+        "/carla/hero/lidar": {
+          "visible": false
+        },
+        "/kiss/frame": {
+          "visible": false
+        },
+        "/kiss/local_map": {
+          "visible": false
+        },
+        "/carla/hero/camera_front/camera_info": {
+          "visible": false
+        }
+      },
+      "layers": {
+        "57eadb79-38ae-4719-ad6c-6660f0427b93": {
+          "layerId": "foxglove.Grid",
+          "instanceId": "57eadb79-38ae-4719-ad6c-6660f0427b93"
+        }
+      },
+      "cameraState": {
+        "distance": 28.63945562104675,
+        "perspective": true,
+        "phi": 76.64669340637882,
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOffset": [
+          8.376830786048869,
+          -0.7176333420772615,
+          -9.206625149444755e-17
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "thetaOffset": 6.41250183428125,
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "scene": {},
+      "transforms": {},
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "synchronize": false,
+      "imageMode": {},
+      "fixedFrame": "odom_lidar",
+      "followTf": "hero/lidar"
+    },
+    "TransformTree!3h72oaw": {},
+    "3D!1jl9rjc": {
+      "cameraState": {
+        "perspective": true,
+        "distance": 28.639455621041265,
+        "phi": 79.87147659888075,
+        "thetaOffset": 78.91257699898372,
+        "targetOffset": [
+          5.51231507278728,
+          6.322763981934858,
+          4.009571074770989e-17
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "followTf": "hero/lidar",
+      "fixedFrame": "hero/lidar",
+      "scene": {},
+      "transforms": {},
+      "topics": {
+        "/kiss/keypoints": {
+          "visible": true,
+          "colorField": "z",
+          "colorMode": "colormap",
+          "colorMap": "turbo"
+        }
+      },
+      "layers": {
+        "grid": {
+          "visible": true,
+          "drawBehind": false,
+          "instanceId": "4570c87d-ddc2-4b0e-a92f-c69134292c56",
+          "layerId": "foxglove.Grid",
+          "size": 10,
+          "divisions": 10,
+          "lineWidth": 1,
+          "color": "#248eff",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "synchronize": false,
+      "imageMode": {}
+    },
+    "Tab!4x7a76": {
+      "activeTabIdx": 0,
+      "tabs": [
+        {
+          "title": "Overview",
+          "layout": {
+            "direction": "column",
+            "first": "Image!rgrxah",
+            "second": {
+              "direction": "row",
+              "first": "Tab!33xe9og",
+              "second": {
+                "direction": "column",
+                "first": "Plot!2m7529r",
+                "second": {
+                  "direction": "column",
+                  "first": "Plot!1bgw7u3",
+                  "second": "Plot!2uqdf6v",
+                  "splitPercentage": 50
+                },
+                "splitPercentage": 50
+              },
+              "splitPercentage": 60
+            },
+            "splitPercentage": 42
+          }
+        },
+        {
+          "title": "Diagnostics",
+          "layout": {
+            "direction": "row",
+            "first": "RawMessages!status",
+            "second": "RawMessages!vehicle",
+            "splitPercentage": 50
+          }
+        }
+      ]
+    },
+    "RawMessages!os6rgs": {
+      "topicPath": "/localization/status",
+      "foxglovePanelTitle": "Localization status"
+    },
+    "RawMessages!status": {
+      "topicPath": "/localization/status",
+      "foxglovePanelTitle": "Localization status"
+    },
+    "RawMessages!vehicle": {
+      "topicPath": "/carla/hero/vehicle_status",
+      "foxglovePanelTitle": "Vehicle status"
+    }
+  },
+  "layout": "Tab!4x7a76",
+  "globalVariables": {},
+  "playbackConfig": {
+    "speed": 1
+  },
+  "userNodes": {}
+}
