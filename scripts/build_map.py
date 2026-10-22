@@ -314,9 +314,9 @@ def main():
         "map_id": args.map_id,
         "map_frame": "map",
         "anchor": {
-            "latitude": float(anchor_lat),
-            "longitude": float(anchor_lon),
-            "altitude": float(anchor_alt),
+            "lat_deg": float(anchor_lat),
+            "lon_deg": float(anchor_lon),
+            "alt_m": float(anchor_alt),
             "stamp": float(anchor_stamp),
         },
         "T_map_slam": T_map_slam.reshape(-1).tolist(),
