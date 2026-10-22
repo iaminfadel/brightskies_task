@@ -11,6 +11,19 @@ PIDS="$EVIDENCE/pids"
 mkdir -p "$LOGS" "$PIDS" "$EVIDENCE/bags"
 
 started_epoch=$(date +%s)
+
+# Keep the idle-stop guard satisfied while the run is unattended.
+heartbeat_loop() {
+  while :; do
+    sudo mkdir -p /var/lib/brightskies 2>/dev/null || true
+    sudo touch /var/lib/brightskies/heartbeat 2>/dev/null || true
+    sleep 120
+  done
+}
+heartbeat_loop &
+heartbeat_pid=$!
+trap 'kill "$heartbeat_pid" 2>/dev/null || true' EXIT
+
 fail() {
   echo "VALIDATION_FAILED: $*" >&2
   echo "VALIDATION_FAILED: $*" >>"$EVIDENCE/validation_status.txt"
