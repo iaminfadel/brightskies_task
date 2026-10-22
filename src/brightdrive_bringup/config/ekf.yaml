@@ -1,0 +1,62 @@
+ekf_filter_node:
+  ros__parameters:
+    use_sim_time: true
+    frequency: 50.0
+    sensor_timeout: 0.2
+    two_d_mode: false
+    transform_time_offset: 0.0
+    transform_timeout: 0.0
+    print_diagnostics: true
+    debug: false
+    publish_tf: true
+
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: map
+
+    # KISS-ICP odometry: relative motion (x, y, z, yaw, body vx).
+    odom0: /kiss/odometry
+    odom0_config: [true, true, true,
+                   false, false, true,
+                   true, false, false,
+                   false, false, false,
+                   false, false, false]
+    odom0_differential: true
+    odom0_relative: false
+    odom0_queue_size: 10
+    odom0_nodelay: true
+
+    # IMU relayed with the contract covariance (0.5 deg, 0.01 rad/s).
+    imu0: /localization/imu
+    imu0_config: [false, false, false,
+                  false, false, true,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+    imu0_differential: false
+    imu0_relative: false
+    imu0_queue_size: 20
+    imu0_nodelay: true
+
+    # GICP scan-to-map pose, map frame.
+    pose0: /localization/scan_pose
+    pose0_config: [true, true, true,
+                   false, false, true,
+                   false, false, false,
+                   false, false, false,
+                   false, false, false]
+    pose0_differential: false
+    pose0_relative: false
+    pose0_queue_size: 10
+
+    # GNSS ENU pose, map frame, adaptive covariance set by the node.
+    pose1: /localization/gnss_pose
+    pose1_config: [true, true, true,
+                   false, false, false,
+                   false, false, false,
+                   false, false, false,
+                   false, false, false]
+    pose1_differential: false
+    pose1_relative: false
+    pose1_queue_size: 10

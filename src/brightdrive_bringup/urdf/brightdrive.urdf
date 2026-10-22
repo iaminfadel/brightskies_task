@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<robot name="brightdrive">
+  <!-- base_link: rear-axle centre on the ground, REP-103.
+       hero: CARLA actor origin (bounding-box centre, 0.30 m above ground).
+       Values probed from vehicle.lincoln.mkz_2017: rear axle x=-1.394 m,
+       wheel radius 0.355 m, actor origin z=+0.30 m above the contact patch. -->
+  <link name="base_link"/>
+
+  <link name="hero"/>
+
+  <joint name="base_link_to_hero" type="fixed">
+    <parent link="base_link"/>
+    <child link="hero"/>
+    <origin xyz="1.394 0.0 0.30" rpy="0.0 0.0 0.0"/>
+  </joint>
+</robot>

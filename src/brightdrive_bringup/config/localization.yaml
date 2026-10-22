@@ -1,0 +1,76 @@
+localization_core:
+  ros__parameters:
+    use_sim_time: true
+
+    frames:
+      map: map
+      base_link: base_link
+      lidar: hero/lidar
+      gnss: hero/gnss
+      imu: hero/imu
+
+    map:
+      dir: /ws/maps/current/town05-v1
+      voxel_size_m: 0.25
+
+    pipeline:
+      scan_stride: 2          # GICP at 5 Hz from the 10 Hz LiDAR
+      stale_scan_s: 0.3
+
+    lidar:
+      min_range_m: 0.0
+      max_range_m: 50.0
+
+    initialization:
+      attempt_period_s: 0.5
+      fail_after_s: 5.0
+      yaw_span_deg: 45.0
+      yaw_steps: 7
+      gnss_baseline_m: 1.0
+
+    relocalization:
+      period_s: 1.0
+      yaw_span_deg: 30.0
+      yaw_steps: 7
+
+    gnss:
+      fresh_s: 1.0
+      sigma_xy_m: 1.5
+      sigma_z_m: 3.0
+      innovation_window: 50
+
+    innovation:
+      gate_chi2: 18.47        # 4 dof, 99.9 %
+      sigma_xy_m: 1.0
+      sigma_z_m: 2.0
+      sigma_yaw_deg: 10.0
+
+    covariance:
+      degraded_scale: 10.0
+      degraded_trace_gate: 1.5
+
+    gicp:
+      max_iterations: 30
+      convergence_eps: 0.0001
+      num_threads: 2
+      num_neighbors: 10
+      crop_radius_m: 80.0
+      max_correspondence_init_m: 1.0
+      max_correspondence_final_m: 0.5
+      rmse_gate_m: 0.20
+      inlier_gate: 0.60
+      condition_gate: 1000000.0
+
+    health:
+      degraded_after_bad_s: 0.6
+      failed_after_bad_s: 2.0
+      gnss_timeout_s: 1.0
+      sources_stale_s: 2.0
+      recover_after_good_s: 2.0
+      scan_stale_s: 0.6
+
+    topics:
+      lidar: /carla/hero/lidar
+      gnss: /carla/hero/gnss
+      imu: /localization/imu
+      filtered: /odometry/filtered
