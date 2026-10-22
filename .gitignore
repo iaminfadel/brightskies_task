@@ -49,3 +49,6 @@ qtcreator-*
 
 # Catkin custom files
 CATKIN_IGNORE
+
+# Task statement (kept local)
+Amin_Fadel_Localization_Mapping_CICD_Task.pdf
