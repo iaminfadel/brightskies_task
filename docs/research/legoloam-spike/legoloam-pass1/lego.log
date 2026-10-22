@@ -1,0 +1,4 @@
+[INFO] [1792664363.408046523] [image_projection]: [1;32m---->[0m Started.
+[INFO] [1792664363.408358878] [feature_association]: [1;32m---->[0m Started.
+[INFO] [1792664363.408428215] [map_optimization]: [1;32m---->[0m Started.
+[INFO] [1792664363.408454201] [transform_fusion]: [1;32m---->[0m Started.

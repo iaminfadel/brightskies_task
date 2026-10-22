@@ -1,0 +1,33 @@
+[INFO] [1792664363.746941927] [wayfinder_map_saver]: saving to /data/run_full
+[INFO] [1792664368.663784863] [wayfinder_map_saver]: map messages=0 points=0 traj=0 input=0 projected=0
+[INFO] [1792664373.664282452] [wayfinder_map_saver]: map messages=0 points=0 traj=2 input=16 projected=10
+[INFO] [1792664378.665333024] [wayfinder_map_saver]: map messages=0 points=0 traj=8 input=43 projected=29
+[INFO] [1792664383.665347575] [wayfinder_map_saver]: map messages=1 points=5626 traj=12 input=68 projected=49
+[INFO] [1792664388.664417885] [wayfinder_map_saver]: map messages=1 points=5626 traj=17 input=88 projected=64
+[INFO] [1792664393.666809147] [wayfinder_map_saver]: map messages=2 points=11252 traj=20 input=108 projected=80
+[INFO] [1792664398.665886328] [wayfinder_map_saver]: map messages=2 points=11252 traj=26 input=134 projected=95
+[INFO] [1792664403.665728844] [wayfinder_map_saver]: map messages=3 points=16878 traj=31 input=160 projected=110
+[INFO] [1792664408.667170175] [wayfinder_map_saver]: map messages=3 points=16878 traj=36 input=188 projected=127
+[INFO] [1792664413.663716406] [wayfinder_map_saver]: map messages=4 points=22504 traj=40 input=214 projected=140
+[INFO] [1792664418.663707927] [wayfinder_map_saver]: map messages=4 points=22504 traj=45 input=241 projected=159
+[INFO] [1792664423.664094079] [wayfinder_map_saver]: map messages=5 points=28130 traj=50 input=267 projected=178
+[INFO] [1792664428.664066845] [wayfinder_map_saver]: map messages=5 points=28130 traj=56 input=294 projected=197
+[INFO] [1792664433.663314631] [wayfinder_map_saver]: map messages=6 points=33756 traj=61 input=321 projected=215
+[INFO] [1792664438.663429562] [wayfinder_map_saver]: map messages=6 points=33756 traj=66 input=348 projected=240
+[INFO] [1792664443.755928941] [wayfinder_map_saver]: map messages=7 points=39382 traj=70 input=366 projected=255
+[INFO] [1792664448.665922610] [wayfinder_map_saver]: map messages=7 points=39382 traj=75 input=400 projected=279
+[INFO] [1792664453.662837420] [wayfinder_map_saver]: map messages=8 points=45008 traj=81 input=426 projected=301
+[INFO] [1792664458.667002874] [wayfinder_map_saver]: map messages=8 points=45008 traj=86 input=453 projected=322
+[INFO] [1792664463.663565828] [wayfinder_map_saver]: map messages=9 points=50634 traj=91 input=480 projected=349
+[INFO] [1792664468.663587422] [wayfinder_map_saver]: map messages=9 points=50634 traj=97 input=507 projected=372
+[INFO] [1792664473.663073215] [wayfinder_map_saver]: map messages=10 points=64830 traj=102 input=534 projected=393
+[INFO] [1792664478.665658095] [wayfinder_map_saver]: map messages=10 points=64830 traj=107 input=560 projected=416
+[INFO] [1792664483.664280304] [wayfinder_map_saver]: map messages=10 points=64830 traj=112 input=584 projected=437
+[INFO] [1792664488.666292768] [wayfinder_map_saver]: map messages=10 points=64830 traj=118 input=612 projected=462
+[INFO] [1792664493.663517271] [wayfinder_map_saver]: map messages=10 points=64830 traj=123 input=639 projected=488
+[INFO] [1792664498.665336277] [wayfinder_map_saver]: map messages=10 points=64830 traj=129 input=666 projected=512
+[INFO] [1792664503.662776958] [wayfinder_map_saver]: map messages=10 points=64830 traj=130 input=672 projected=519
+[INFO] [1792664508.664257196] [wayfinder_map_saver]: stopping
+[INFO] [1792664508.693083083] [wayfinder_map_saver]: wrote /data/run_full/map_raw.pcd with 64830 points
+[INFO] [1792664508.933299981] [wayfinder_map_saver]: wrote map_0p1.pcd with 14539 points
+[INFO] [1792664508.949529123] [wayfinder_map_saver]: saved trajectory and counts

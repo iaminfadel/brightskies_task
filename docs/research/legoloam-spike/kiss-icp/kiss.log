@@ -1,0 +1,14 @@
+[INFO] [1792665758.698871313] [rosbag2_storage]: Opened database '/data/bag/bag_0.db3' for READ_ONLY.
+frames 200
+frames 400
+frames 600
+frames 800
+frames 1000
+frames 1200
+frames 1400
+frames 1600
+frames 1800
+frames 2000
+frames 2112 poses (2112, 4, 4)
+map points (241955, 3)
+wrote map /data/run_full/kiss_poses_map.pcd

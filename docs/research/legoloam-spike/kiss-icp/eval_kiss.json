@@ -1,0 +1,17 @@
+{
+  "gt_file": "/data/gt_full.csv",
+  "est_file": "/data/run_full/kiss_poses.csv",
+  "samples": 512,
+  "t_start": 29.3524,
+  "t_end": 80.6524,
+  "gt_path_m": 134.8325569263663,
+  "est_path_m": 133.32182048742308,
+  "path_length_error_pct": -1.1204537489919766,
+  "ate_rmse_m": 1.3279353271787213,
+  "ate_mean_m": 0.9102081643188848,
+  "ate_max_m": 6.913082961821336,
+  "ate_final_m": 5.904975297952404,
+  "scale": 1.0,
+  "gt_speed_mean_kmh": 31.490592903225807,
+  "gt_speed_max_kmh": 70.5095
+}

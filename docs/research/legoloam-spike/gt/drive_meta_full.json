@@ -1,0 +1,16 @@
+{
+  "map": "Carla/Maps/Town10HD",
+  "frames": 1801,
+  "start_frame": 70039,
+  "end_frame": 71839,
+  "start_abs": 29.352423913776875,
+  "duration_s": 180.0,
+  "max_speed_kmh": 70.5095,
+  "mean_speed_kmh": 2.7425468628539775,
+  "npcs": 8,
+  "hero_id": 109,
+  "hero_type": "vehicle.tesla.model3",
+  "tm_port": 8000,
+  "spawn_index": 12,
+  "error": null
+}

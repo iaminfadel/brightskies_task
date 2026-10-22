@@ -1,0 +1,17 @@
+{
+  "gt_file": "/data/gt_full.csv",
+  "est_file": "/data/run_full_00/trajectory.csv",
+  "samples": 102,
+  "t_start": 29.3524,
+  "t_end": 80.6524,
+  "gt_path_m": 131.68677879197423,
+  "est_path_m": 8.253804326548996,
+  "path_length_error_pct": -93.73224525478936,
+  "ate_rmse_m": 37.29692099085964,
+  "ate_mean_m": 29.40906854187645,
+  "ate_max_m": 104.69047437383993,
+  "ate_final_m": 104.69047437383993,
+  "scale": 1.0,
+  "gt_speed_mean_kmh": 31.490592903225807,
+  "gt_speed_max_kmh": 70.5095
+}
