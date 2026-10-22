@@ -22,12 +22,20 @@ def main() -> None:
 
     client = carla.Client(args.host, args.port)
     client.set_timeout(30.0)
-    world = client.get_world()
     hero = None
-    for actor in world.get_actors():
-        if actor.attributes.get("role_name") == args.role:
-            hero = actor
-            break
+    deadline = time.time() + 60.0
+    while hero is None and time.time() < deadline:
+        try:
+            world = client.get_world()
+            world.wait_for_tick(2.0)
+            for actor in world.get_actors():
+                if actor.attributes.get("role_name") == args.role:
+                    hero = actor
+                    break
+        except RuntimeError:
+            pass
+        if hero is None:
+            time.sleep(1.0)
     if hero is None:
         raise SystemExit(f"no actor with role_name={args.role}")
 
