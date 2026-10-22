@@ -522,9 +522,11 @@ class LocalizationCore : public rclcpp::Node {
       last_scan_accepted_ = false;
       last_match_ = match;
       RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
-                           "SCAN_REJECT reason=%s rmse=%.3f inliers=%.2f cond=%.1f iter=%zu",
+                           "SCAN_REJECT reason=%s rmse=%.3f inliers=%.2f cond=%.1f iter=%zu "
+                           "fine_move=%.4fm fine_rot=%.4frad err=%.2f/%.2f",
                            match.reject_reason.c_str(), match.rmse_m, match.inlier_ratio,
-                           match.hessian_condition, match.iterations);
+                           match.hessian_condition, match.iterations, match.fine_motion_m,
+                           match.fine_rotation_rad, match.coarse_error, match.fine_error);
       publish_quality(match, kNoMeasurement, false);
       return;
     }

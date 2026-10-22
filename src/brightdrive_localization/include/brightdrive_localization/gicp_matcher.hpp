@@ -42,6 +42,10 @@ struct MatchResult {
   std::size_t inliers = 0;
   std::size_t source_points = 0;
   double hessian_condition = 0.0;
+  double fine_motion_m = 0.0;
+  double fine_rotation_rad = 0.0;
+  double coarse_error = 0.0;
+  double fine_error = 0.0;
   Eigen::Matrix<double, 6, 6> covariance = Eigen::Matrix<double, 6, 6>::Zero();
 };
 

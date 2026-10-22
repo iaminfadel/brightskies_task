@@ -93,6 +93,13 @@ MatchResult GicpMatcher::align(const std::vector<Eigen::Vector3f>& raw_scan,
   result.converged = fine.converged;
   result.iterations = fine.iterations;
   result.T_target_source = fine.T_target_source;
+  const Eigen::Isometry3d fine_motion =
+      coarse.T_target_source.inverse() * fine.T_target_source;
+  result.fine_motion_m = fine_motion.translation().norm();
+  result.fine_rotation_rad =
+      Eigen::AngleAxisd(fine_motion.linear()).angle();
+  result.coarse_error = coarse.error;
+  result.fine_error = fine.error;
 
   // Geometric quality: nearest-neighbour residual of every downsampled source
   // point after alignment. This is the RMSE the KPI gate refers to, not the
