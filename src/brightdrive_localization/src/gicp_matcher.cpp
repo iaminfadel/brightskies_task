@@ -90,7 +90,6 @@ MatchResult GicpMatcher::align(const std::vector<Eigen::Vector3f>& raw_scan,
       settings_.max_correspondence_final_m * settings_.max_correspondence_final_m;
   auto fine = registration.align(*map_cloud_, *downsampled, *map_tree_, coarse.T_target_source);
 
-  result.converged = fine.converged;
   result.iterations = fine.iterations;
   result.T_target_source = fine.T_target_source;
   const Eigen::Isometry3d fine_motion =
@@ -100,6 +99,14 @@ MatchResult GicpMatcher::align(const std::vector<Eigen::Vector3f>& raw_scan,
       Eigen::AngleAxisd(fine_motion.linear()).angle();
   result.coarse_error = coarse.error;
   result.fine_error = fine.error;
+  // small_gicp's step-size criterion never fires on the flat along-road
+  // direction of noise-free corridor scans. A fine stage that exhausted its
+  // budget without materially moving off the coarse solution is converged in
+  // pose space; accuracy is still enforced by the RMSE/inlier/condition gates.
+  const bool fine_stalled =
+      result.fine_motion_m <= settings_.fine_motion_gate_m &&
+      result.fine_rotation_rad <= settings_.fine_rotation_gate_rad;
+  result.converged = fine.converged || fine_stalled;
 
   // Geometric quality: nearest-neighbour residual of every downsampled source
   // point after alignment. This is the RMSE the KPI gate refers to, not the
