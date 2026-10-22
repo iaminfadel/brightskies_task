@@ -39,6 +39,7 @@ def _launch(context, *args, **kwargs):
             executable="kiss_icp_node",
             name="kiss_icp_node",
             parameters=[kiss_params, {"use_sim_time": use_sim_time}],
+            remappings=[("pointcloud_topic", "/carla/hero/lidar")],
             output="screen",
         ),
         Node(
