@@ -8,6 +8,8 @@ if ! command -v gcloud >/dev/null 2>&1 && [[ -x "$HOME/google-cloud-sdk/bin/gclo
   export PATH="$HOME/google-cloud-sdk/bin:$PATH"
 fi
 
+export PYTHONNOUSERSITE=1
+
 command -v gcloud >/dev/null 2>&1 || {
   echo "gcloud not found; install the Google Cloud CLI first" >&2
   exit 1
