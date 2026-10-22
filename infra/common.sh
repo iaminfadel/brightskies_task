@@ -15,7 +15,7 @@ command -v gcloud >/dev/null 2>&1 || {
   exit 1
 }
 
-gcloud config set project "$PROJECT_ID" >/dev/null
+gcloud config set project "$PROJECT_ID" >/dev/null 2>&1
 
 exists_instance() {
   gcloud compute instances describe "$VM_NAME" --zone="$ZONE" >/dev/null 2>&1
