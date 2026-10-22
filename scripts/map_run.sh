@@ -1,6 +1,6 @@
 #!/bin/bash
 # Empty-town Town05 mapping run: teleport, record sensor-only bag, drive one loop.
-set -u
+set +u
 BAG=${1:-/ws/bags/map_full}
 DRIVE_SECONDS=${2:-600}
 LOG=/ws/map_run.log
