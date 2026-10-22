@@ -51,6 +51,8 @@ def main() -> None:
             raise SystemExit("map has no spawn points")
         spawn = spawn_points[args.spawn_index % len(spawn_points)]
         hero.set_transform(spawn)
+        hero.set_target_velocity(carla.Vector3D(0.0, 0.0, 0.0))
+        hero.set_target_angular_velocity(carla.Vector3D(0.0, 0.0, 0.0))
         world.wait_for_tick(5.0)
     start = time.time()
     last = start

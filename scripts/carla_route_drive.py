@@ -95,8 +95,8 @@ def main():
     hero.set_autopilot(False)
     if not args.no_teleport:
         hero.set_transform(spawns[indices[0]])
-        hero.set_target_velocity(carla.Vector3D(0.0, 0.0, 0.0))
-        hero.set_target_angular_velocity(carla.Vector3D(0.0, 0.0, 0.0))
+    hero.set_target_velocity(carla.Vector3D(0.0, 0.0, 0.0))
+    hero.set_target_angular_velocity(carla.Vector3D(0.0, 0.0, 0.0))
     for _ in range(10):
         hero.apply_control(carla.VehicleControl(brake=1.0))
         world.wait_for_tick(2.0)
