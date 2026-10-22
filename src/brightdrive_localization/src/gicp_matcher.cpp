@@ -76,9 +76,6 @@ MatchResult GicpMatcher::align(const std::vector<Eigen::Vector3f>& raw_scan,
   result.source_points = downsampled->size();
 
   Registration registration;
-  // The Gauss-Newton update limit-cycles on the near-flat along-road direction
-  // of this corridor map; LM damping converges without changing the factors.
-  registration.optimizer = small_gicp::LevenbergMarquardtOptimizer();
   registration.optimizer.max_iterations = settings_.max_iterations;
   registration.optimizer.verbose = settings_.debug_optimizer;
   registration.criteria.translation_eps = settings_.convergence_eps;

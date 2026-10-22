@@ -21,7 +21,7 @@ struct GicpSettings {
   double max_correspondence_final_m = 0.5;
   int max_iterations = 30;
   double convergence_eps = 1e-4;
-  double convergence_rotation_rad = 1e-3;
+  double convergence_rotation_rad = 1e-4;
   int num_threads = 2;
   int num_neighbors = 10;
   double crop_radius_m = 80.0;
