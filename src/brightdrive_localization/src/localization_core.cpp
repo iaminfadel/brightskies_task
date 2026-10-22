@@ -111,6 +111,8 @@ class LocalizationCore : public rclcpp::Node {
         declare_parameter<double>("gicp.max_correspondence_final_m", 0.5);
     gicp.max_iterations = declare_parameter<int>("gicp.max_iterations", 30);
     gicp.convergence_eps = declare_parameter<double>("gicp.convergence_eps", 1e-4);
+    gicp.convergence_rotation_rad =
+        declare_parameter<double>("gicp.convergence_rotation_deg", 0.06) * M_PI / 180.0;
     gicp.num_threads = declare_parameter<int>("gicp.num_threads", 2);
     gicp.num_neighbors = declare_parameter<int>("gicp.num_neighbors", 10);
     gicp.crop_radius_m = declare_parameter<double>("gicp.crop_radius_m", 80.0);

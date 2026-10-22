@@ -78,7 +78,7 @@ MatchResult GicpMatcher::align(const std::vector<Eigen::Vector3f>& raw_scan,
   Registration registration;
   registration.optimizer.max_iterations = settings_.max_iterations;
   registration.criteria.translation_eps = settings_.convergence_eps;
-  registration.criteria.rotation_eps = settings_.convergence_eps;
+  registration.criteria.rotation_eps = settings_.convergence_rotation_rad;
 
   registration.rejector.max_dist_sq =
       settings_.max_correspondence_init_m * settings_.max_correspondence_init_m;
