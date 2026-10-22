@@ -71,6 +71,7 @@ def main():
     parser.add_argument("--start-delay-s", type=float, default=2.0)
     parser.add_argument("--stuck-grace-s", type=float, default=8.0)
     parser.add_argument("--no-teleport", action="store_true")
+    parser.add_argument("--ignore-lights", action="store_true")
     parser.add_argument("--log-period-s", type=float, default=5.0)
     args = parser.parse_args()
 
@@ -159,7 +160,7 @@ def main():
         elif turn > math.radians(20.0):
             desired = min(desired, 6.5)
 
-        light = hero.get_traffic_light()
+        light = None if args.ignore_lights else hero.get_traffic_light()
         if light is not None:
             state = hero.get_traffic_light_state()
             lx = light.get_location().x - loc.x
