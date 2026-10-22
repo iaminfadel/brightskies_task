@@ -78,7 +78,11 @@ TEST(Health, GnssTimeoutDegradesImmediately) {
 TEST(Health, SourcesStaleFail) {
   HealthMonitor monitor;
   monitor.update(scan_input(0.0, true, false));
-  HealthInput input = scan_input(1.0, false, true);
+  HealthInput input = scan_input(1.0, true, false);
+  input.gnss_age = 1.2;
+  input.imu_age = 1.2;
+  ASSERT_EQ(monitor.update(input).state, HealthState::DEGRADED);
+  input.now = 1.2;
   input.gnss_age = 2.5;
   input.imu_age = 2.5;
   const HealthOutput output = monitor.update(input);
