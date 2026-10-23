@@ -136,9 +136,21 @@ int main(int argc, char** argv) {
       std::snprintf(name, sizeof(name), "/validation/heldout/scans/scan_%04d.pcd",
                     pose.index);
       const auto cloud = brightdrive::read_pcd_xyz(map_dir + name);
-      const auto result = matcher.align(cloud.points, Eigen::Isometry3d::Identity(),
-                                        pose.position);
-      const double d2 = innovation_d2(result.T_target_source);
+      // The stored scan is already in the map frame. Re-centre it on the
+      // recorded sensor position so small_gicp linearizes near the origin, as
+      // the live pipeline does, and initialise at the recorded pose. The
+      // estimate is the matching result relative to that recorded pose.
+      std::vector<Eigen::Vector3f> centred;
+      centred.reserve(cloud.points.size());
+      for (const auto& point : cloud.points) {
+        centred.emplace_back(point.x() - static_cast<float>(pose.position.x()),
+                             point.y() - static_cast<float>(pose.position.y()),
+                             point.z() - static_cast<float>(pose.position.z()));
+      }
+      Eigen::Isometry3d recorded = Eigen::Isometry3d::Identity();
+      recorded.translation() = pose.position;
+      const auto result = matcher.align(centred, recorded, pose.position);
+      const double d2 = innovation_d2(result.T_target_source * recorded.inverse());
       const bool ok = result.accepted && d2 < 18.47;
       if (ok) {
         ++accepted;
