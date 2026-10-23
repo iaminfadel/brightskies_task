@@ -91,7 +91,7 @@ def quaternion_from_matrix(matrix):
     return x, y, z, w
 
 
-def read_bag(bag_dir):
+def read_bag(bag_dir, max_scans=0):
     typestore = get_typestore(Stores.ROS2_HUMBLE)
     scans, gnss, imu = [], [], []
     scan_stamps = []
@@ -105,6 +105,8 @@ def read_bag(bag_dir):
             if topic == LIDAR_TOPIC:
                 scans.append(pointcloud2_xyz(msg))
                 scan_stamps.append(stamp)
+                if max_scans and len(scans) >= max_scans:
+                    break
             elif topic == GNSS_TOPIC:
                 if msg.status.status == 2:  # STATUS_NO_FIX
                     continue
@@ -124,12 +126,25 @@ def read_bag(bag_dir):
     return scans, np.asarray(scan_stamps), np.asarray(gnss), np.asarray(imu)
 
 
+def gnss_enu_path_length(gnss, stamp_min, stamp_max):
+    window = gnss[(gnss[:, 0] >= stamp_min) & (gnss[:, 0] <= stamp_max)]
+    if len(window) < 2:
+        return 0.0
+    radius = 6378137.0
+    east = np.radians(window[:, 2] - window[0, 2]) * radius * math.cos(
+        math.radians(window[0, 1])
+    )
+    north = np.radians(window[:, 1] - window[0, 1]) * radius
+    steps = np.linalg.norm(np.diff(np.stack([east, north], axis=1), axis=0), axis=1)
+    return float(np.sum(steps))
+
+
 def nearest_imu(imu, stamp):
     index = int(np.argmin(np.abs(imu[:, 0] - stamp)))
     return imu[index]
 
 
-def run_kiss(scans, voxel_size, max_range):
+def run_kiss(scans, voxel_size, max_range, min_motion_th=0.1):
     config = KISSConfig()
     config.data.max_range = float(max_range)
     config.data.min_range = 0.0
@@ -139,7 +154,7 @@ def run_kiss(scans, voxel_size, max_range):
     config.registration.max_num_iterations = 100
     config.registration.convergence_criterion = 1e-4
     config.adaptive_threshold.initial_threshold = 2.0
-    config.adaptive_threshold.min_motion_th = 0.1
+    config.adaptive_threshold.min_motion_th = float(min_motion_th)
     kiss = KissICP(config)
     poses = []
     timestamps = np.zeros(1)
@@ -222,6 +237,9 @@ def main():
     parser.add_argument("--base-gnss", default="2.394,0.0,2.300")
     parser.add_argument("--outlier-k", type=int, default=16)
     parser.add_argument("--outlier-sigma", type=float, default=1.0)
+    parser.add_argument("--min-motion-th", type=float, default=0.1)
+    parser.add_argument("--max-scans", type=int, default=0)
+    parser.add_argument("--kiss-only", action="store_true")
     args = parser.parse_args()
 
     out_dir = Path(args.out)
@@ -233,11 +251,28 @@ def main():
     base_gnss = [float(value) for value in args.base_gnss.split(",")]
 
     print("reading bag", flush=True)
-    scans, scan_stamps, gnss, imu = read_bag(args.bag)
+    scans, scan_stamps, gnss, imu = read_bag(args.bag, args.max_scans)
     print(f"scans={len(scans)} gnss={len(gnss)} imu={len(imu)}", flush=True)
 
     print("running kiss-icp", flush=True)
-    slam_poses = run_kiss(scans, args.kiss_voxel, args.max_range)
+    slam_poses = run_kiss(
+        scans, args.kiss_voxel, args.max_range, args.min_motion_th
+    )
+    if args.kiss_only:
+        positions = np.asarray([pose[:3, 3] for pose in slam_poses])
+        steps = np.linalg.norm(np.diff(positions, axis=0), axis=1)
+        kiss_path = float(np.sum(steps))
+        gnss_path = gnss_enu_path_length(
+            gnss, float(scan_stamps[0]), float(scan_stamps[-1])
+        )
+        ratio = kiss_path / gnss_path if gnss_path else 0.0
+        print(
+            f"KISS_ONLY scans={len(scans)} min_motion_th={args.min_motion_th} "
+            f"kiss_path_m={kiss_path:.2f} gnss_path_m={gnss_path:.2f} "
+            f"ratio={ratio:.3f} median_step_m={float(np.median(steps)):.4f}",
+            flush=True,
+        )
+        return
 
     anchor_stamp, anchor_lat, anchor_lon, anchor_alt = gnss[0]
     _, anchor_yaw = nearest_imu(imu, anchor_stamp)
