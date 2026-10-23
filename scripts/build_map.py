@@ -144,7 +144,22 @@ def nearest_imu(imu, stamp):
     return imu[index]
 
 
-def run_kiss(scans, voxel_size, max_range, min_motion_th=0.1, fixed_threshold=None):
+def yaw_delta(imu, stamp0, stamp1):
+    _, yaw0 = nearest_imu(imu, stamp0)
+    _, yaw1 = nearest_imu(imu, stamp1)
+    return math.atan2(math.sin(yaw1 - yaw0), math.cos(yaw1 - yaw0))
+
+
+def run_kiss(
+    scans,
+    scan_stamps,
+    imu,
+    voxel_size,
+    max_range,
+    min_motion_th=0.1,
+    fixed_threshold=None,
+    imu_delta=False,
+):
     config = KISSConfig()
     config.data.max_range = float(max_range)
     config.data.min_range = 0.0
@@ -160,7 +175,15 @@ def run_kiss(scans, voxel_size, max_range, min_motion_th=0.1, fixed_threshold=No
     kiss = KissICP(config)
     poses = []
     timestamps = np.zeros(1)
-    for scan in scans:
+    for index, scan in enumerate(scans):
+        if imu_delta and index > 0:
+            delta = kiss.last_delta.copy()
+            dyaw = yaw_delta(imu, scan_stamps[index - 1], scan_stamps[index])
+            cosine, sine = math.cos(dyaw), math.sin(dyaw)
+            delta[:3, :3] = np.array(
+                [[cosine, -sine, 0.0], [sine, cosine, 0.0], [0.0, 0.0, 1.0]]
+            )
+            kiss.last_delta = delta
         kiss.register_frame(scan, timestamps)
         poses.append(kiss.last_pose.copy())
     return np.asarray(poses)
@@ -243,6 +266,7 @@ def main():
     parser.add_argument("--fixed-threshold", type=float, default=None)
     parser.add_argument("--max-scans", type=int, default=0)
     parser.add_argument("--kiss-only", action="store_true")
+    parser.add_argument("--imu-delta", action="store_true")
     args = parser.parse_args()
 
     out_dir = Path(args.out)
@@ -260,10 +284,13 @@ def main():
     print("running kiss-icp", flush=True)
     slam_poses = run_kiss(
         scans,
+        scan_stamps,
+        imu,
         args.kiss_voxel,
         args.max_range,
         args.min_motion_th,
         args.fixed_threshold,
+        args.imu_delta,
     )
     if args.kiss_only:
         positions = np.asarray([pose[:3, 3] for pose in slam_poses])
@@ -275,7 +302,7 @@ def main():
         ratio = kiss_path / gnss_path if gnss_path else 0.0
         print(
             f"KISS_ONLY scans={len(scans)} min_motion_th={args.min_motion_th} "
-            f"fixed_threshold={args.fixed_threshold} "
+            f"fixed_threshold={args.fixed_threshold} imu_delta={args.imu_delta} "
             f"kiss_path_m={kiss_path:.2f} gnss_path_m={gnss_path:.2f} "
             f"ratio={ratio:.3f} median_step_m={float(np.median(steps)):.4f}",
             flush=True,
