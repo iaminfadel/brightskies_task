@@ -64,7 +64,7 @@ def main():
     fig, ax = plt.subplots(figsize=(15, 12), dpi=150)
     stride = max(1, len(cloud) // 900000)
     shown = cloud[::stride]
-    ax.scatter(shown[:, 0], shown[:, 1], s=0.05, c=shown[:, 2], cmap="viridis",
+    ax.scatter(shown[:, 0], shown[:, 1], s=0.08, c=shown[:, 2], cmap="viridis",
                vmin=-3, vmax=3, linewidths=0, rasterized=True, alpha=0.9)
     ax.plot(trajectory[:, 0], trajectory[:, 1], color="#ffb000", linewidth=2.0,
             label="trajectory")
@@ -172,31 +172,41 @@ def main():
     plt.close(fig)
 
     # 5. Held-out scan against the map -----------------------------------
-    scan_files = sorted((bundle / "validation" / "heldout" / "scans").glob("*.pcd"))
-    picks = scan_files[:: max(1, len(scan_files) // 2)][:2]
-    fig, axes = plt.subplots(1, len(picks), figsize=(14, 7), dpi=150)
+    scan_files = {int(path.stem.split("_")[1]): path
+                  for path in (bundle / "validation" / "heldout" / "scans").glob("*.pcd")}
+    wanted = [min(scan_files), sorted(scan_files)[len(scan_files) // 2],
+              max(scan_files)]
+    picks = [scan_files[index] for index in wanted if index in scan_files]
+    fig, axes = plt.subplots(1, len(picks), figsize=(15, 6.2), dpi=150)
     for ax, scan_path in zip(np.atleast_1d(axes), picks):
         scan = read_pcd(scan_path)
         centre = scan[:, :2].mean(axis=0)
-        mask = (np.abs(cloud[:, 0] - centre[0]) < 22) & (
-            np.abs(cloud[:, 1] - centre[1]) < 22
+        half = 18.0
+        mask = (np.abs(cloud[:, 0] - centre[0]) < half) & (
+            np.abs(cloud[:, 1] - centre[1]) < half
         )
-        local = cloud[mask]
-        ax.scatter(local[:, 0], local[:, 1], s=2.5, c="#596273", linewidths=0,
-                   label="map")
-        ax.scatter(scan[:, 0], scan[:, 1], s=1.5, c="#39ff88", linewidths=0,
-                   alpha=0.8, label="held-out scan")
-        item = next((s for s in scans if scan_path.stem == f"scan_{s['index']:04d}"), None)
-        title = scan_path.stem
+        local = cloud[mask][:, :2] - centre
+        ax.scatter(local[:, 0], local[:, 1], s=0.6, c="#7d879b", linewidths=0,
+                   alpha=0.7, label="map")
+        ax.scatter(scan[:, 0] - centre[0], scan[:, 1] - centre[1], s=0.9,
+                   c="#39ff88", linewidths=0, alpha=0.75, label="held-out scan")
+        index = int(scan_path.stem.split("_")[1])
+        item = next((s for s in scans if s["index"] == index), None)
+        title = f"scan {index:04d}"
         if item:
-            title += f"  RMSE {item['rmse_m']:.3f} m  inliers {item['inlier_ratio']:.2f}"
+            title += (f"  RMSE {item['rmse_m']:.3f} m  "
+                      f"inliers {item['inlier_ratio']:.2f}")
         ax.set_title(title, fontsize=11)
         ax.set_aspect("equal")
-        ax.set_xlabel("x [m]")
-        ax.set_ylabel("y [m]")
+        ax.set_xlim(-half, half)
+        ax.set_ylim(-half, half)
+        ax.set_xlabel("x - scan centre [m]")
+        ax.set_ylabel("y - scan centre [m]")
+        ax.grid(color="#1d2430", linewidth=0.5)
     axes = np.atleast_1d(axes)
-    axes[0].legend(loc="upper right", framealpha=0.2, markerscale=6)
-    fig.suptitle("Held-out scans registered against the saved map", fontsize=14)
+    axes[0].legend(loc="upper right", framealpha=0.2, markerscale=8)
+    fig.suptitle("Held-out scans (green) registered against the saved map (grey)",
+                 fontsize=14)
     fig.tight_layout()
     fig.savefig(out / "scan_vs_map.png")
     plt.close(fig)
