@@ -12,9 +12,11 @@ known base->sensor extrinsics, and writes the map bundle consumed by
   map.yaml           anchor, T_map_slam, checksum and provenance
   map_eval.yaml      evaluator-only T_map_carla and spawn metadata
   trajectory.tum     base_link poses in the map frame
-  heldout/           held-out scans (map frame) and their poses
-  coverage.json      coverage and map statistics
-  manifest.json      bundle file list and hashes
+  validation/heldout/scans   held-out scans (map frame) and poses.csv
+  validation/heldout.yaml     held-out selection and GICP settings
+  validation/coverage.json    coverage and map statistics
+  validation/overlay.png      map plus trajectory overlay
+  manifest.json               bundle file list and hashes
 
 No CARLA ground-truth topics are read.
 """
@@ -30,6 +32,7 @@ from kiss_icp.kiss_icp import KissICP, KISSConfig
 from rosbags.rosbag2 import Reader
 from rosbags.typesys import Stores, get_typestore
 from scipy.spatial import cKDTree
+from scipy.spatial.transform import Rotation
 
 LIDAR_TOPIC = "/carla/hero/lidar"
 GNSS_TOPIC = "/carla/hero/gnss"
@@ -312,7 +315,7 @@ def main():
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "heldout" / "scans").mkdir(parents=True, exist_ok=True)
+    (out_dir / "validation" / "heldout" / "scans").mkdir(parents=True, exist_ok=True)
 
     spawn = [float(value) for value in args.spawn.split(",")]
     base_lidar = [float(value) for value in args.base_lidar.split(",")]
@@ -416,7 +419,7 @@ def main():
 
     write_tum(out_dir / "trajectory.tum", scan_stamps, T_map_base_poses)
 
-    heldout_dir = out_dir / "heldout"
+    heldout_dir = out_dir / "validation" / "heldout"
     heldout_poses = []
     for index in sorted(heldout_indices):
         pose = T_map_lidar[index]
@@ -432,9 +435,27 @@ def main():
                 "T_map_lidar": pose.reshape(-1).tolist(),
             }
         )
-    (heldout_dir / "poses.json").write_text(
-        json.dumps(heldout_poses, indent=2), encoding="utf-8"
-    )
+
+    def pose_row(item):
+        pose = np.asarray(item["T_map_lidar"], dtype=np.float64).reshape(4, 4)
+        quat = Rotation.from_matrix(pose[:3, :3]).as_quat()
+        x, y, z = pose[:3, 3]
+        return [
+            item["index"],
+            f"{item['stamp']:.9f}",
+            f"{x:.6f}",
+            f"{y:.6f}",
+            f"{z:.6f}",
+            f"{quat[0]:.9f}",
+            f"{quat[1]:.9f}",
+            f"{quat[2]:.9f}",
+            f"{quat[3]:.9f}",
+        ]
+
+    with (heldout_dir / "poses.csv").open("w", encoding="utf-8") as handle:
+        handle.write("index,stamp,x,y,z,qx,qy,qz,qw\n")
+        for item in heldout_poses:
+            handle.write(",".join(str(value) for value in pose_row(item)) + "\n")
 
     first_stamp = float(scan_stamps[0])
     last_stamp = float(scan_stamps[-1])
@@ -490,6 +511,37 @@ def main():
     }
     (out_dir / "map_eval.yaml").write_text(json.dumps(map_eval, indent=2), encoding="utf-8")
 
+    gicp_settings = {
+        "voxel_m": 0.25,
+        "coarse_correspondence_m": 1.0,
+        "fine_correspondence_m": 0.5,
+        "max_iterations": 30,
+        "convergence_eps": 1e-4,
+        "num_threads": 2,
+        "num_neighbors": 10,
+        "crop_m": 80.0,
+    }
+    gicp_sha = hashlib.sha256(
+        json.dumps(gicp_settings, sort_keys=True).encode()
+    ).hexdigest()
+    heldout_yaml = {
+        "schema_version": 1,
+        "map_id": args.map_id,
+        "count": len(heldout_indices),
+        "selection": "same_bag_arc_length",
+        "directory": "validation/heldout",
+        "first_stamp": first_stamp,
+        "last_stamp": last_stamp,
+        "scan_indices": sorted(int(index) for index in heldout_indices),
+        "excluded_from_accumulation": True,
+        "gicp": gicp_settings,
+        "gicp_settings_sha256": gicp_sha,
+        "source_run_id": out_dir.name,
+    }
+    (out_dir / "validation" / "heldout.yaml").write_text(
+        json.dumps(heldout_yaml, indent=2), encoding="utf-8"
+    )
+
     coverage = {
         "map_id": args.map_id,
         "point_count": point_count,
@@ -499,8 +551,31 @@ def main():
         "scan_count": scan_count,
         "heldout_count": len(heldout_indices),
         "mean_scan_points": float(np.mean([len(scan) for scan in scans])),
+        "scenarios": {},
+        "note": "per-scenario coverage is filled once scenario routes are pinned",
     }
-    (out_dir / "coverage.json").write_text(json.dumps(coverage, indent=2), encoding="utf-8")
+    (out_dir / "validation" / "coverage.json").write_text(
+        json.dumps(coverage, indent=2), encoding="utf-8"
+    )
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    trajectory_xy = T_map_base_poses[:, :2, 3]
+    stride = max(1, len(cloud) // 400000)
+    shown = cloud[::stride]
+    fig, ax = plt.subplots(figsize=(12, 12), dpi=120)
+    ax.scatter(shown[:, 0], shown[:, 1], s=0.05, c=shown[:, 2],
+               cmap="viridis", linewidths=0, rasterized=True)
+    ax.plot(trajectory_xy[:, 0], trajectory_xy[:, 1], color="tab:red", linewidth=1.5)
+    ax.set_aspect("equal")
+    ax.set_xlabel("x [m]")
+    ax.set_ylabel("y [m]")
+    ax.set_title(f"{args.map_id}: {point_count} points, {trajectory_length:.0f} m")
+    fig.tight_layout()
+    fig.savefig(out_dir / "validation" / "overlay.png")
+    plt.close(fig)
 
     manifest = {
         "schema_version": 1,

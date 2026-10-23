@@ -59,7 +59,10 @@ target_link_libraries(localization_core
   tf2_eigen::tf2_eigen
 )
 
-install(TARGETS localization_core
+add_executable(map_check src/map_check.cpp)
+target_link_libraries(map_check brightdrive_localization_core)
+
+install(TARGETS localization_core map_check
   DESTINATION lib/${PROJECT_NAME}
 )
 install(DIRECTORY include/
