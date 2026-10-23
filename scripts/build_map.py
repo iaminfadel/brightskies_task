@@ -175,7 +175,7 @@ def scan_priors(gnss, imu, scan_stamps, lever_m):
     return yaws, positions
 
 
-def gnss_course_priors(gnss, scan_stamps, lever_m):
+def gnss_course_priors(gnss, imu, scan_stamps, lever_m):
     """LiDAR yaw from GNSS course over ground and GNSS-derived positions."""
     radius = 6378137.0
     lat0 = float(gnss[0, 1])
@@ -184,8 +184,10 @@ def gnss_course_priors(gnss, scan_stamps, lever_m):
     north = np.radians(gnss[:, 1] - lat0) * radius / 0.9933056
     count = len(gnss)
     courses = np.zeros(count)
-    previous = None
-    last_step = None
+    # While the vehicle is stationary the GNSS course is undefined; seed with
+    # the IMU yaw and keep it until motion produces a valid course.
+    previous = float(nearest_imu(imu, scan_stamps[0])[1])
+    locked = False
     for j in range(count):
         de = dn = 0.0
         for window in (2, 5, 10, 20):
@@ -197,12 +199,11 @@ def gnss_course_priors(gnss, scan_stamps, lever_m):
                 break
         if de * de + dn * dn >= 0.01:
             candidate = math.atan2(dn, de)
-            if previous is None or abs(wrap_angle(candidate - previous)) < math.radians(20.0):
-                previous = candidate if previous is None else previous + wrap_angle(
-                    candidate - previous
-                )
-        if previous is None:
-            previous = 0.0
+            if not locked:
+                previous = candidate
+                locked = True
+            elif abs(wrap_angle(candidate - previous)) < math.radians(20.0):
+                previous = previous + wrap_angle(candidate - previous)
         courses[j] = previous
     indices = np.searchsorted(gnss[:, 0], scan_stamps)
     indices = np.clip(indices, 0, count - 1)
@@ -415,7 +416,7 @@ def main():
     if args.gnss_pose:
         lever = float(base_gnss[0]) - float(base_lidar[0])
         if args.gnss_yaw:
-            yaws, positions = gnss_course_priors(gnss, scan_stamps, lever)
+            yaws, positions = gnss_course_priors(gnss, imu, scan_stamps, lever)
         else:
             _, positions = scan_priors(gnss, imu, scan_stamps, lever)
         map_poses = []
