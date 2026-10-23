@@ -10,7 +10,7 @@ localization_core:
       imu: hero/imu
 
     map:
-      dir: /ws/maps/current/town05-v1
+      dir: /ws/maps/current/town05-v2
       voxel_size_m: 0.25
 
     pipeline:

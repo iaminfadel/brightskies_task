@@ -142,6 +142,7 @@ def main():
         while target + 1 < len(route) and accum < lookahead:
             accum += route[target].distance(route[target + 1])
             target += 1
+        desired = target_speed
         end_distance = loc.distance(route[-1])
         if target >= len(route) - 1:
             desired = min(desired, max(0.0, (end_distance - 0.8) * 0.5))
@@ -159,7 +160,6 @@ def main():
         steer = math.atan2(fy, fx) / math.radians(50.0)
         steer = max(-1.0, min(1.0, 1.1 * steer))
 
-        desired = target_speed
         turn = turn_ahead(headings, idx, 15)
         if turn > math.radians(45.0):
             desired = min(desired, 4.0)
