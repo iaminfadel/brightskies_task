@@ -44,10 +44,20 @@ class MapCloudPublisher(Node):
         self._topic = topic
         self._frame = frame
         self._pub = self.create_publisher(PointCloud2, topic, qos)
-        self.create_timer(period, self._publish)
-        self.get_logger().info(
-            f"publishing {len(cloud)} points on {topic} every {period:.1f}s"
-        )
+        if period > 0.0:
+            self.create_timer(period, self._publish)
+            self.get_logger().info(
+                f"publishing {len(cloud)} points on {topic} every {period:.1f}s"
+            )
+        else:
+            self._timer = self.create_timer(1.0, self._publish_once)
+            self.get_logger().info(
+                f"publishing {len(cloud)} points on {topic} once (latched)"
+            )
+
+    def _publish_once(self) -> None:
+        self._publish()
+        self.destroy_timer(self._timer)
 
     def _publish(self) -> None:
         msg = PointCloud2()
@@ -72,7 +82,7 @@ def main() -> int:
     parser.add_argument("--map-dir", default="/ws/maps/current/town05-v2")
     parser.add_argument("--topic", default="/localization/map_cloud")
     parser.add_argument("--frame", default="map")
-    parser.add_argument("--period", type=float, default=2.0)
+    parser.add_argument("--period", type=float, default=0.0)
     args = parser.parse_args()
 
     path = pathlib.Path(args.map_dir) / "map.pcd"
