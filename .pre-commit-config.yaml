@@ -1,0 +1,41 @@
+# Local fast gates. Everything here is re-run by the ci/lint job in GitHub
+# Actions, so `pre-commit run --all-files` locally is a preview, not a
+# bypassable guard. Keep the total runtime under a few seconds: no colcon,
+# no docker in hooks, ever.
+#
+# Install:
+#   pip install pre-commit && pre-commit install
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(docs/results|docs/research)/
+      - id: end-of-file-fixer
+        exclude: ^(docs/results|docs/research)/
+      - id: check-yaml
+        exclude: ^(docs/results|docs/research)/
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=2048]
+        exclude: ^(docs/results|docs/research)/
+
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v14.0.6
+    hooks:
+      - id: clang-format
+        types_or: [c++, c]
+
+  # Default rule set only (E4/E7/E9/F): real errors, near-zero churn on the
+  # existing scripts tree. Broaden deliberately, not wholesale.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--exit-non-zero-on-fix]
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0
+    hooks:
+      - id: shellcheck
+        files: ^(scripts|infra)/.*\.(sh|bash)$

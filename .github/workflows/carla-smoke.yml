@@ -1,8 +1,13 @@
 name: carla-smoke
 
+# Gate tier 3 (docs/ci.md): the integration gate on the staging branch.
+# Runs the merged staging state on the GCP VM through vm_job.py (start VM,
+# deploy committed staging HEAD, run the smoke, collect /ws/evidence, stop
+# VM). Currently ADVISORY until proven green repeatedly + forced-fail
+# (ratchet rule); it is not a required check yet.
 on:
   push:
-    branches: [main]
+    branches: [staging]
   workflow_dispatch:
 
 permissions:

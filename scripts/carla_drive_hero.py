@@ -5,7 +5,6 @@ Used only to produce mapping bags and as the open-loop control fallback for the
 scenario harness. The estimator never sees this process.
 """
 import argparse
-import math
 import time
 
 import carla

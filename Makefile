@@ -2,7 +2,26 @@ SHELL := /bin/bash
 
 .PHONY: vm-provision vm-up vm-down vm-ssh vm-status vm-snapshot \
         map map-record map-check map-eval map-eval-ate map-eval-loops map-verify \
-        map-install map-upload map-pull
+        map-install map-upload map-pull \
+        ci-lint ci-bootstrap ci-vm-build-test
+
+PY_RUN = source /opt/brightdrive/setup.bash; source /ws/install/setup.bash 2>/dev/null || true; cd /ws/brightdrive
+
+# --- CI (see docs/ci.md) ----------------------------------------------------
+
+# Exactly what the ci/lint job runs (pip install pre-commit once, then:
+#   pre-commit install).
+ci-lint:
+	pre-commit run --all-files
+
+# One-time: staging branch + branch protection (idempotent, uses gh).
+ci-bootstrap:
+	./scripts/ci_bootstrap.sh
+
+# Exactly what the ci/build-test job runs, but on the VM deps container
+# (the laptop never builds ROS locally).
+ci-vm-build-test:
+	./scripts/vm-run.sh --fg "docker exec brightdrive-deps bash -lc '$(PY_RUN) && colcon build --packages-select brightdrive_interfaces brightdrive_localization brightdrive_bringup && colcon test --packages-select brightdrive_localization && colcon test-result --verbose'"
 
 MAP_ID ?= town05-v2
 MAP_BAG ?= /ws/bags/map_full2

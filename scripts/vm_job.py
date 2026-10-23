@@ -12,6 +12,15 @@ import sys
 import time
 from pathlib import Path
 
+# Match infra/common.sh so gcloud's protobuf works on Fedora's Python 3.14.
+os.environ.setdefault("PYTHONNOUSERSITE", "1")
+if os.path.exists("/usr/bin/python3.11"):
+    os.environ.setdefault("CLOUDSDK_PYTHON", "/usr/bin/python3.11")
+# Ensure gcloud is on PATH.
+for candidate in (os.path.expanduser("~/google-cloud-sdk/bin"), "/usr/lib/google-cloud-sdk/bin"):
+    if os.path.isdir(candidate) and candidate not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = candidate + os.pathsep + os.environ.get("PATH", "")
+
 PREEMPTED_EXIT = 44
 PROJECT = os.environ.get("PROJECT_ID", "project-e038f785-ff95-4654-ba6")
 ZONE = os.environ.get("ZONE", "europe-west4-c")
@@ -26,7 +35,7 @@ def run(cmd, check=True, capture=False, **kw):
 
 
 def gcloud(*args, check=True, capture=False):
-    return run(["gcloud", *args], check=check, capture_output=capture)
+    return run(["gcloud", *args], check=check, capture=capture)
 
 
 def vm_state():
@@ -74,21 +83,7 @@ def sync_repo():
         ["git", "-C", str(REPO), "rev-parse", "HEAD"], text=True
     ).strip()
     print(f"deploying {sha}", flush=True)
-    archive = subprocess.Popen(
-        ["git", "-C", str(REPO), "archive", "--format=tar", sha],
-        stdout=subprocess.PIPE,
-    )
-    remote = (
-        "rm -rf /ws/brightdrive && mkdir -p /ws/brightdrive && "
-        "tar -xf - -C /ws/brightdrive && "
-        f"printf '%s\\n' '{sha}' > /ws/brightdrive/.deployed-sha"
-    )
-    ssh = [
-        "gcloud", "compute", "ssh", VM, "--zone", ZONE, "--tunnel-through-iap",
-        "--strict-host-key-checking=no", "--quiet", "--command",
-        f"bash -lc {remote!r}",
-    ]
-    # pipe archive into ssh stdin by using gcloud compute scp? Simpler: write tar to temp then scp.
+    # deploy via tar + scp (gcloud compute scp over IAP)
     tar_path = Path("/tmp/brightdrive.tar")
     with tar_path.open("wb") as f:
         subprocess.run(
@@ -134,7 +129,7 @@ def main():
     s = sub.add_parser("start")
     s.add_argument("--keep-vm", action="store_true")
 
-    st = sub.add_parser("stop")
+    sub.add_parser("stop")
 
     r = sub.add_parser("run")
     r.add_argument("--command", required=True)

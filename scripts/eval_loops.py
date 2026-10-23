@@ -13,7 +13,6 @@ Gates: >= min_pairs valid pairs, median correction <= 0.15 m, p95 <= 0.40 m.
 import argparse
 import json
 import math
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -118,11 +117,10 @@ def evaluate(bag, map_dir, args):
         submap = voxel_downsample(submap, args.voxel)
         source = voxel_downsample(scans[i], args.voxel)
         source = source @ lidar_poses[i][:3, :3].T + lidar_poses[i][:3, 3]  # map frame
-        recorded = lidar_poses[i]
         transform, inliers = icp(source, cKDTree(submap), np.eye(4), args.max_corr)
-        # source already sits in the map frame at `recorded`; the ICP transform
-        # is therefore the correction of the recorded pose, in the map frame.
-        delta = transform  # aligned_pose = delta @ recorded
+        # source already sits in the map frame at the recorded lidar pose; the
+        # ICP transform is therefore the correction of that pose, in the map frame.
+        delta = transform  # aligned_pose = delta @ recorded pose
         trans = float(np.linalg.norm(delta[:3, 3]))
         yaw = math.degrees(math.atan2(delta[1, 0], delta[0, 0]))
         rows.append({

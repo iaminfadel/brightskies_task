@@ -1,30 +1,65 @@
 name: ci
 
+# Gate tiers 1+2 of the branch model (docs/ci.md): every PR, plus pushes to
+# the protected branches. The same two jobs are the required checks on both
+# staging and main. ROS work runs in the pinned deps image on a hosted
+# runner; no CARLA and no VM here (those are carla-smoke / carla-full).
 on:
   workflow_call:
-  push:
-    branches: [main]
   pull_request:
+  push:
+    branches: [main, staging]
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run pre-commit (same config as local hooks)
+        run: |
+          pip install pre-commit==v4.0.1
+          pre-commit run --all-files
+
   build-test:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - name: Log in to GHCR (private deps image)
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build and test ROS packages
         run: |
           docker run --rm \
             -v "$GITHUB_WORKSPACE:/ws/brightdrive" \
             ghcr.io/iaminfadel/brightdrive-deps@sha256:263332dd8da9b062726d15953ccddce1a11cb9754779840289e059792cd60c64 \
             bash -lc 'source /opt/brightdrive/setup.bash; source /ws/install/setup.bash 2>/dev/null || true; cd /ws/brightdrive && colcon build --packages-select brightdrive_interfaces brightdrive_localization brightdrive_bringup && colcon test --packages-select brightdrive_localization && colcon test-result --verbose'
-      - name: Isolation audit
-        run: python3 scripts/isolation_audit.py
       - name: Evaluator self-tests
         run: |
           python3 -m pip install --user numpy scipy
           python3 scripts/eval_ate.py --self-test
           python3 scripts/eval_loops.py --self-test
+      - name: Isolation audit
+        run: python3 scripts/isolation_audit.py
+      # The container writes log/ and build/ as root; hand them back to the
+      # runner user so the artifact upload below can read them.
+      - name: Fix artifact ownership
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" log build install 2>/dev/null || true
+      - name: Upload build and test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-test-evidence-${{ github.run_id }}
+          path: |
+            log/
+            build/*/test_results/**
+          retention-days: 14
+          if-no-files-found: ignore

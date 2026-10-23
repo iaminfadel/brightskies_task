@@ -15,7 +15,7 @@ Colab dependency.
 | Saved map `town05-v2` (2,772,333 points, closure 1.84 m, held-out 0.1175 m / 90 %) | **validated and published to GCS** |
 | Localization stack (KISS-ICP + GICP + EKF + health) | working; E2E locked on `town05-v2` |
 | OpenSCENARIO S1-S4 harness + evaluator + KPI gates | pending (#10, #11) |
-| CI (`build-test`, `carla-smoke`, `carla-full`, WIF) | WIF smoke only; live workflows pending (#19) |
+| CI (`lint`, `build-test`, `carla-smoke`, `carla-full`, WIF) | `lint`+`build-test` live on PRs; smoke advisory on `staging`; full matrix pending (#10, #11) |
 
 Until the scenario harness and evaluator land, this README documents the mapping and
 localization path that is complete and reproducible today.
@@ -153,15 +153,19 @@ and never subscribed.
 
 GitHub Actions authenticates with Workload Identity Federation
 (`.github/workflows/wif-smoke.yml`); no service-account JSON keys exist in the repo or
-secrets. The planned topology (contract #12/#19) is:
+secrets. The full branch model, gate tiers, and the advisory→required ratchet live in
+`docs/ci.md` (decision record: `docs/adr/0001-branch-model-and-ci-gates.md`). In short:
 
-- `ci.yml` reusable `build-test` (image, `colcon build`, C++ tests, launch tests, lint) and
-  `isolation-audit`;
-- `carla-smoke.yml` on `main` + dispatch: one scenario, smoke KPIs, artifacts, VM stop;
+- `ci.yml` on every PR: `lint` (pre-commit: clang-format 14, ruff, shellcheck) and
+  `build-test` (pinned deps image: `colcon build`, gtest + interface launch test,
+  evaluator self-tests, isolation audit; evidence uploaded on failure too).
+- `carla-smoke.yml` on `staging` pushes + dispatch: merged staging state on the VM
+  through `vm_job.py` (advisory until proven, per the ratchet).
 - `carla-full.yml` dispatch-only: S1-S4 matrix, KPI gates, evidence bundle, one
   infrastructure-only retry after `PREEMPTED`.
 
-These live workflows are pending; only the WIF smoke workflow is implemented today.
+Bootstrap: `make ci-bootstrap` (staging branch + branch protection; requires a one-time
+GHCR package-access grant for the private deps image, link printed by the script).
 
 ## Repository layout
 

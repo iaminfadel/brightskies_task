@@ -2,11 +2,9 @@
 """Publish a saved map PCD as a latched PointCloud2 for visualization only."""
 import argparse
 import pathlib
-import struct
 
 import numpy as np
 import rclpy
-from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import PointCloud2, PointField

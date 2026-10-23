@@ -50,5 +50,9 @@ qtcreator-*
 # Catkin custom files
 CATKIN_IGNORE
 
+# colcon output (build trees are never committed; runtime maps live on the VM)
+/install/
+/log/
+
 # Task statement (kept local)
 Amin_Fadel_Localization_Mapping_CICD_Task.pdf

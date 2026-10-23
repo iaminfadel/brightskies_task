@@ -1,0 +1,8 @@
+# C++ style for brightdrive packages. Matches the existing tree (2-space
+# indent, ~100 cols). Version 14 to match clang-format on Ubuntu 22.04 /
+# ROS 2 Humble; the pre-commit mirror is pinned to the same major version.
+---
+BasedOnStyle: Google
+Standard: c++17
+ColumnLimit: 100
+IndentWidth: 2

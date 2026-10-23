@@ -70,23 +70,28 @@ install(DIRECTORY include/
 )
 
 if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_cmake_gtest QUIET)
+  if(ament_cmake_gtest_FOUND)
+    ament_add_gtest(test_geodesy test/test_geodesy.cpp)
+    target_link_libraries(test_geodesy brightdrive_localization_core)
 
-  ament_add_gtest(test_geodesy test/test_geodesy.cpp)
-  target_link_libraries(test_geodesy brightdrive_localization_core)
+    ament_add_gtest(test_se3 test/test_se3.cpp)
+    target_link_libraries(test_se3 brightdrive_localization_core)
 
-  ament_add_gtest(test_se3 test/test_se3.cpp)
-  target_link_libraries(test_se3 brightdrive_localization_core)
+    ament_add_gtest(test_health test/test_health.cpp)
+    target_link_libraries(test_health brightdrive_localization_core)
 
-  ament_add_gtest(test_health test/test_health.cpp)
-  target_link_libraries(test_health brightdrive_localization_core)
+    ament_add_gtest(test_map_loader test/test_map_loader.cpp)
+    target_link_libraries(test_map_loader brightdrive_localization_core)
+  else()
+    message(WARNING "ament_cmake_gtest not found; unit tests skipped")
+  endif()
 
-  ament_add_gtest(test_map_loader test/test_map_loader.cpp)
-  target_link_libraries(test_map_loader brightdrive_localization_core)
-
-  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/test_lint.py")
-    find_package(ament_cmake_pytest REQUIRED)
-    ament_add_pytest_test(test_lint test/test_lint.py)
+  find_package(launch_testing_ament_cmake QUIET)
+  if(launch_testing_ament_cmake_FOUND)
+    add_launch_test(test/test_interface_launch.py TIMEOUT 120)
+  else()
+    message(WARNING "launch_testing_ament_cmake not found; interface test skipped")
   endif()
 endif()
 
