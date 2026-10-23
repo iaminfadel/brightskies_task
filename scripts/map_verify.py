@@ -48,7 +48,13 @@ REQUIRED_MANIFEST = {
     "generation_command",
 }
 PLACEHOLDERS = {"...", "TBD", "TODO", "", "unknown"}
-EVALUATOR_FILES = {"validation/map_consistency.json"}
+EVALUATOR_FILES = {
+    "validation/map_consistency.json",
+    "validation/ate.json",
+    "validation/ate.png",
+    "validation/loop_consistency.json",
+    "validation/loop_check.png",
+}
 
 
 def sha256_file(path):

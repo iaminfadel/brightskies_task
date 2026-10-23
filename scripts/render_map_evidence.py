@@ -60,6 +60,26 @@ def main():
     start, end = trajectory[0], trajectory[-1]
     closure = float(np.linalg.norm(end[:2] - start[:2]))
 
+    def maybe_json(name):
+        try:
+            return json.loads((bundle / "validation" / name).read_text())
+        except OSError:
+            return None
+
+    ate = maybe_json("ate.json")
+    loops = maybe_json("loop_consistency.json")
+    extra_lines = ""
+    if ate:
+        extra_lines += (
+            f"\nATE vs GT  rmse {ate['abs_rmse_m']:.2f} m  p95 {ate['abs_p95_m']:.2f} m"
+            f"  yaw {ate['yaw_rmse_deg']:.1f} deg  [{'PASS' if ate['passed'] else 'FAIL'}]"
+        )
+    if loops:
+        extra_lines += (
+            f"\nloop consistency  {loops['pairs']} pairs  median {loops['median_correction_m']:.2f} m"
+            f"  p95 {loops['p95_correction_m']:.2f} m  [{'PASS' if loops['passed'] else 'FAIL'}]"
+        )
+
     # 1. Overview ---------------------------------------------------------
     fig, ax = plt.subplots(figsize=(15, 12), dpi=150)
     stride = max(1, len(cloud) // 900000)
@@ -76,7 +96,7 @@ def main():
             f"town05-v2  {len(cloud):,} points  {len(trajectory)} poses\n"
             f"closure {closure:.2f} m  held-out {consistency['accepted']}/"
             f"{consistency['scans']} accepted  median RMSE "
-            f"{consistency['median_rmse_m']:.3f} m",
+            f"{consistency['median_rmse_m']:.3f} m" + extra_lines,
             transform=ax.transAxes, va="top", fontsize=11, color="#e8edf5",
             bbox=dict(boxstyle="round,pad=0.5", facecolor="#141a23",
                       edgecolor="#3a4150"))
@@ -212,6 +232,12 @@ def main():
     plt.close(fig)
 
     print(f"rendered evidence to {out}")
+    import shutil
+
+    for name in ("ate.png", "loop_check.png"):
+        source = bundle / "validation" / name
+        if source.is_file():
+            shutil.copy(source, out / name)
     return 0
 
 

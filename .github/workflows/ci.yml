@@ -23,3 +23,8 @@ jobs:
             bash -lc 'source /opt/brightdrive/setup.bash; source /ws/install/setup.bash 2>/dev/null || true; cd /ws/brightdrive && colcon build --packages-select brightdrive_interfaces brightdrive_localization brightdrive_bringup && colcon test --packages-select brightdrive_localization && colcon test-result --verbose'
       - name: Isolation audit
         run: python3 scripts/isolation_audit.py
+      - name: Evaluator self-tests
+        run: |
+          python3 -m pip install --user numpy scipy
+          python3 scripts/eval_ate.py --self-test
+          python3 scripts/eval_loops.py --self-test
