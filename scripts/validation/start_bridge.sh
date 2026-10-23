@@ -2,7 +2,7 @@
 # Start the carla_ros_bridge against the running carla-server (Town05 by
 # default). Run on the VM inside the brightdrive-deps container, detached:
 #   bash scripts/validation/start_bridge.sh [Town05]
-set -euo pipefail
+set -eo pipefail
 TOWN=${1:-Town05}
 LOG=${BRIDGE_LOG:-/ws/bridge_${TOWN}.log}
 
