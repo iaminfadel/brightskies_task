@@ -144,21 +144,46 @@ def nearest_imu(imu, stamp):
     return imu[index]
 
 
-def yaw_delta(imu, stamp0, stamp1):
-    _, yaw0 = nearest_imu(imu, stamp0)
-    _, yaw1 = nearest_imu(imu, stamp1)
-    return math.atan2(math.sin(yaw1 - yaw0), math.cos(yaw1 - yaw0))
+def wrap_angle(angle):
+    return math.atan2(math.sin(angle), math.cos(angle))
+
+
+def scan_priors(gnss, imu, scan_stamps, lever_m):
+    """LiDAR yaw and planar position for every scan from GNSS/IMU samples."""
+    yaws = np.asarray([nearest_imu(imu, stamp)[1] for stamp in scan_stamps])
+    positions = np.zeros((len(scan_stamps), 2))
+    lat0 = float(gnss[0, 1])
+    lon0 = float(gnss[0, 2])
+    radius = 6378137.0
+    gnss_index = np.searchsorted(gnss[:, 0], scan_stamps)
+    gnss_index = np.clip(gnss_index, 0, len(gnss) - 1)
+    for i, (stamp, j) in enumerate(zip(scan_stamps, gnss_index)):
+        if j > 0 and abs(gnss[j - 1, 0] - stamp) < abs(gnss[j, 0] - stamp):
+            j -= 1
+        east = math.radians(gnss[j, 2] - lon0) * radius * math.cos(
+            math.radians(lat0)
+        )
+        north = (
+            math.radians(gnss[j, 1] - lat0) * radius / 0.9933056
+        )
+        positions[i, 0] = east - lever_m * math.cos(yaws[i])
+        positions[i, 1] = north - lever_m * math.sin(yaws[i])
+    return yaws, positions
 
 
 def run_kiss(
     scans,
     scan_stamps,
     imu,
+    gnss,
+    base_lidar,
+    base_gnss,
     voxel_size,
     max_range,
     min_motion_th=0.1,
     fixed_threshold=None,
     imu_delta=False,
+    gnss_delta=False,
 ):
     config = KISSConfig()
     config.data.max_range = float(max_range)
@@ -173,16 +198,29 @@ def run_kiss(
     if fixed_threshold is not None:
         config.adaptive_threshold.fixed_threshold = float(fixed_threshold)
     kiss = KissICP(config)
+    yaws = positions = None
+    if imu_delta or gnss_delta:
+        yaws, positions = scan_priors(
+            gnss, imu, scan_stamps, float(base_gnss[0]) - float(base_lidar[0])
+        )
     poses = []
     timestamps = np.zeros(1)
     for index, scan in enumerate(scans):
-        if imu_delta and index > 0:
+        if index > 0 and (imu_delta or gnss_delta):
             delta = kiss.last_delta.copy()
-            dyaw = yaw_delta(imu, scan_stamps[index - 1], scan_stamps[index])
+            dyaw = wrap_angle(yaws[index] - yaws[index - 1])
             cosine, sine = math.cos(dyaw), math.sin(dyaw)
             delta[:3, :3] = np.array(
                 [[cosine, -sine, 0.0], [sine, cosine, 0.0], [0.0, 0.0, 1.0]]
             )
+            if gnss_delta:
+                step = positions[index] - positions[index - 1]
+                cosine, sine = math.cos(yaws[index - 1]), math.sin(yaws[index - 1])
+                delta[:3, 3] = [
+                    cosine * step[0] + sine * step[1],
+                    -sine * step[0] + cosine * step[1],
+                    0.0,
+                ]
             kiss.last_delta = delta
         kiss.register_frame(scan, timestamps)
         poses.append(kiss.last_pose.copy())
@@ -267,6 +305,7 @@ def main():
     parser.add_argument("--max-scans", type=int, default=0)
     parser.add_argument("--kiss-only", action="store_true")
     parser.add_argument("--imu-delta", action="store_true")
+    parser.add_argument("--gnss-delta", action="store_true")
     args = parser.parse_args()
 
     out_dir = Path(args.out)
@@ -286,11 +325,15 @@ def main():
         scans,
         scan_stamps,
         imu,
+        gnss,
+        base_lidar,
+        base_gnss,
         args.kiss_voxel,
         args.max_range,
         args.min_motion_th,
         args.fixed_threshold,
         args.imu_delta,
+        args.gnss_delta,
     )
     if args.kiss_only:
         positions = np.asarray([pose[:3, 3] for pose in slam_poses])
@@ -303,6 +346,9 @@ def main():
         print(
             f"KISS_ONLY scans={len(scans)} min_motion_th={args.min_motion_th} "
             f"fixed_threshold={args.fixed_threshold} imu_delta={args.imu_delta} "
+            f"gnss_delta={args.gnss_delta} "
+            f"closure_m={float(np.linalg.norm(positions[-1] - positions[0])):.2f} "
+            f"closure_z={float(abs(slam_poses[-1][2, 3] - slam_poses[0][2, 3])):.3f} "
             f"kiss_path_m={kiss_path:.2f} gnss_path_m={gnss_path:.2f} "
             f"ratio={ratio:.3f} median_step_m={float(np.median(steps)):.4f}",
             flush=True,
