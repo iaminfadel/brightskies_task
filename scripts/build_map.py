@@ -22,8 +22,13 @@ No CARLA ground-truth topics are read.
 """
 import argparse
 import hashlib
+import importlib.metadata
 import json
 import math
+import os
+import shlex
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -45,6 +50,52 @@ def sha256_file(path):
         for chunk in iter(lambda: handle.read(1 << 20), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def repo_git_sha():
+    for env_name, fallback in (
+        (os.environ.get("BRIGHTDRIVE_GIT_SHA"), None),
+        (None, "/ws/brightdrive/.deployed-sha"),
+    ):
+        candidate = env_name or fallback
+        if not candidate:
+            continue
+        if env_name:
+            return env_name.strip()
+        try:
+            value = Path(candidate).read_text(encoding="utf-8").strip()
+        except OSError:
+            continue
+        if value:
+            return value
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parents[1],
+            text=True,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
+def bag_sha256(bag_path):
+    root = Path(bag_path)
+    if root.is_file():
+        return sha256_file(root)
+    db3 = sorted(root.glob("*.db3"))
+    if not db3:
+        return "unknown"
+    digest = hashlib.sha256()
+    for path in db3:
+        digest.update(f"{path.name}:{sha256_file(path)}".encode())
+    return digest.hexdigest()
+
+
+def package_version(name):
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return "unknown"
 
 
 def stamp_seconds(stamp):
@@ -473,12 +524,14 @@ def main():
 
     heldout_dir = out_dir / "validation" / "heldout"
     heldout_poses = []
+    heldout_points = []
     for index in sorted(heldout_indices):
         pose = T_map_lidar[index]
         rotation = pose[:3, :3]
         points = (rotation @ scans[index].T).T + pose[:3, 3]
         scan_path = heldout_dir / "scans" / f"scan_{index:04d}.pcd"
         write_pcd(scan_path, points)
+        heldout_points.append(points)
         heldout_poses.append(
             {
                 "index": int(index),
@@ -487,6 +540,15 @@ def main():
                 "T_map_lidar": pose.reshape(-1).tolist(),
             }
         )
+
+    if heldout_points:
+        tree = cKDTree(cloud)
+        per_scan_residual = [
+            float(np.median(tree.query(points, k=1)[0])) for points in heldout_points
+        ]
+        heldout_residual_m = float(np.median(per_scan_residual))
+    else:
+        heldout_residual_m = 0.0
 
     def pose_row(item):
         pose = np.asarray(item["T_map_lidar"], dtype=np.float64).reshape(4, 4)
@@ -514,14 +576,35 @@ def main():
     trajectory_length = float(
         np.sum(np.linalg.norm(np.diff(T_map_base_poses[:, :3, 3], axis=0), axis=1))
     )
+    created_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    kiss_version = package_version("kiss-icp")
+    git_sha = repo_git_sha()
+    source_bag_sha256 = bag_sha256(args.bag)
+    generation_command = shlex.join([sys.executable] + sys.argv)
+    map_config = {
+        "voxel": float(args.voxel),
+        "kiss_voxel": float(args.kiss_voxel),
+        "max_range": float(args.max_range),
+        "coverage_radius": float(args.coverage_radius),
+        "gnss_pose": bool(args.gnss_pose),
+        "gnss_yaw": bool(args.gnss_yaw),
+        "imu_delta": bool(args.imu_delta),
+        "gnss_delta": bool(args.gnss_delta),
+        "kiss_icp_version": kiss_version,
+    }
+    config_sha256 = hashlib.sha256(
+        json.dumps(map_config, sort_keys=True).encode()
+    ).hexdigest()
     map_yaml = {
         "schema_version": 1,
         "map_id": args.map_id,
         "map_frame": "map",
+        "created_at": created_at,
         "anchor": {
             "lat_deg": float(anchor_lat),
             "lon_deg": float(anchor_lon),
             "alt_m": float(anchor_alt),
+            "source": "first_gnss_fix",
             "stamp": float(anchor_stamp),
         },
         "T_map_slam": T_map_slam.reshape(-1).tolist(),
@@ -533,6 +616,10 @@ def main():
         "source": {
             "run_id": out_dir.name,
             "bag": str(Path(args.bag).name),
+            "bag_sha256": source_bag_sha256,
+            "git_sha": git_sha,
+            "kiss_icp_version": kiss_version,
+            "config_sha256": config_sha256,
             "scan_count": scan_count,
             "heldout_count": len(heldout_indices),
             "first_stamp": first_stamp,
@@ -545,11 +632,25 @@ def main():
                 if args.gnss_pose
                 else "kiss_icp"
             ),
-            "built_at": datetime.now(timezone.utc).isoformat(),
+            "built_at": created_at,
         },
+        "generation_command": generation_command,
     }
     (out_dir / "map.yaml").write_text(json.dumps(map_yaml, indent=2), encoding="utf-8")
 
+    gicp_settings = {
+        "voxel_m": 0.25,
+        "coarse_correspondence_m": 1.0,
+        "fine_correspondence_m": 0.5,
+        "max_iterations": 30,
+        "convergence_eps": 1e-4,
+        "num_threads": 2,
+        "num_neighbors": 10,
+        "crop_m": 80.0,
+    }
+    gicp_sha = hashlib.sha256(
+        json.dumps(gicp_settings, sort_keys=True).encode()
+    ).hexdigest()
     spawn_x, spawn_y, spawn_z, spawn_yaw = spawn[:4]
     T_ros_base = from_xyzyaw(spawn_x, -spawn_y, spawn_z, -math.radians(spawn_yaw))
     T_ros_slam = T_ros_base @ T_base_lidar
@@ -566,22 +667,23 @@ def main():
             "yaw_deg": spawn_yaw,
         },
         "note": "T_map_carla maps ROS-world (x east, y north, yaw ENU) poses to map.",
+        "T_map_carla_validation": {
+            "method": "heldout_scan_alignment",
+            "samples": len(heldout_indices),
+            "residual_m": round(heldout_residual_m, 6),
+            "threshold_m": 0.5,
+            "note": "median nearest-map-point distance of held-out scans at their recorded poses; mapping bag is sensor-only",
+        },
+        "heldout": {
+            "count": len(heldout_indices),
+            "selection": "same_bag_arc_length",
+            "directory": "validation/heldout",
+            "gicp_settings_sha256": gicp_sha,
+        },
+        "source_run_id": out_dir.name,
     }
     (out_dir / "map_eval.yaml").write_text(json.dumps(map_eval, indent=2), encoding="utf-8")
 
-    gicp_settings = {
-        "voxel_m": 0.25,
-        "coarse_correspondence_m": 1.0,
-        "fine_correspondence_m": 0.5,
-        "max_iterations": 30,
-        "convergence_eps": 1e-4,
-        "num_threads": 2,
-        "num_neighbors": 10,
-        "crop_m": 80.0,
-    }
-    gicp_sha = hashlib.sha256(
-        json.dumps(gicp_settings, sort_keys=True).encode()
-    ).hexdigest()
     heldout_yaml = {
         "schema_version": 1,
         "map_id": args.map_id,
@@ -638,13 +740,29 @@ def main():
     manifest = {
         "schema_version": 1,
         "map_id": args.map_id,
-        "files": {},
+        "created_at": created_at,
+        "pcd_sha256": pcd_sha256,
+        "files": [],
+        "source_bag_sha256": source_bag_sha256,
+        "git_sha": git_sha,
+        "tool_versions": {
+            "kiss_icp": kiss_version,
+            "small_gicp": package_version("small-gicp"),
+            "rosbags": package_version("rosbags"),
+        },
+        "generation_command": generation_command,
     }
+    digests = {}
     for path in sorted(out_dir.rglob("*")):
         if path.is_file() and path.name != "manifest.json":
-            manifest["files"][str(path.relative_to(out_dir))] = sha256_file(path)
+            relative = str(path.relative_to(out_dir))
+            digest = sha256_file(path)
+            digests[relative] = digest
+            manifest["files"].append(
+                {"path": relative, "bytes": path.stat().st_size, "sha256": digest}
+            )
     bundle = hashlib.sha256(
-        "".join(f"{name}:{digest}" for name, digest in sorted(manifest["files"].items())).encode()
+        "".join(f"{name}:{digest}" for name, digest in sorted(digests.items())).encode()
     ).hexdigest()
     manifest["bundle_sha256"] = bundle
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
