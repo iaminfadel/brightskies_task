@@ -175,6 +175,49 @@ def scan_priors(gnss, imu, scan_stamps, lever_m):
     return yaws, positions
 
 
+def gnss_course_priors(gnss, scan_stamps, lever_m):
+    """LiDAR yaw from GNSS course over ground and GNSS-derived positions."""
+    radius = 6378137.0
+    lat0 = float(gnss[0, 1])
+    lon0 = float(gnss[0, 2])
+    east = np.radians(gnss[:, 2] - lon0) * radius * math.cos(math.radians(lat0))
+    north = np.radians(gnss[:, 1] - lat0) * radius / 0.9933056
+    count = len(gnss)
+    courses = np.zeros(count)
+    previous = None
+    last_step = None
+    for j in range(count):
+        de = dn = 0.0
+        for window in (2, 5, 10, 20):
+            a = max(0, j - window)
+            b = min(count - 1, j + window)
+            de = float(east[b] - east[a])
+            dn = float(north[b] - north[a])
+            if de * de + dn * dn >= 0.04:
+                break
+        if de * de + dn * dn >= 0.01:
+            candidate = math.atan2(dn, de)
+            if previous is None or abs(wrap_angle(candidate - previous)) < math.radians(20.0):
+                previous = candidate if previous is None else previous + wrap_angle(
+                    candidate - previous
+                )
+        if previous is None:
+            previous = 0.0
+        courses[j] = previous
+    indices = np.searchsorted(gnss[:, 0], scan_stamps)
+    indices = np.clip(indices, 0, count - 1)
+    for i, (stamp, j) in enumerate(zip(scan_stamps, indices)):
+        if j > 0 and abs(gnss[j - 1, 0] - stamp) < abs(gnss[j, 0] - stamp):
+            indices[i] = j - 1
+    yaws = courses[indices]
+    positions = np.zeros((len(scan_stamps), 3))
+    for i, j in enumerate(indices):
+        positions[i, 0] = east[j] - lever_m * math.cos(yaws[i])
+        positions[i, 1] = north[j] - lever_m * math.sin(yaws[i])
+        positions[i, 2] = float(gnss[j, 3]) - float(gnss[0, 3]) + 0.4
+    return yaws, positions
+
+
 def run_kiss(
     scans,
     scan_stamps,
@@ -311,6 +354,7 @@ def main():
     parser.add_argument("--imu-delta", action="store_true")
     parser.add_argument("--gnss-delta", action="store_true")
     parser.add_argument("--gnss-pose", action="store_true")
+    parser.add_argument("--gnss-yaw", action="store_true")
     args = parser.parse_args()
 
     out_dir = Path(args.out)
@@ -369,13 +413,20 @@ def main():
     T_map_slam = T_map_base @ T_base_lidar
 
     if args.gnss_pose:
-        _, positions = scan_priors(
-            gnss, imu, scan_stamps, float(base_gnss[0]) - float(base_lidar[0])
-        )
+        lever = float(base_gnss[0]) - float(base_lidar[0])
+        if args.gnss_yaw:
+            yaws, positions = gnss_course_priors(gnss, scan_stamps, lever)
+        else:
+            _, positions = scan_priors(gnss, imu, scan_stamps, lever)
         map_poses = []
-        for pose, position in zip(slam_poses, positions):
+        for pose, position, yaw in zip(
+            slam_poses, positions, yaws if args.gnss_yaw else [None] * len(positions)
+        ):
             map_pose = np.eye(4)
-            map_pose[:3, :3] = T_map_slam[:3, :3] @ pose[:3, :3]
+            if args.gnss_yaw:
+                map_pose[:3, :3] = from_xyzyaw(0.0, 0.0, 0.0, float(yaw))[:3, :3]
+            else:
+                map_pose[:3, :3] = T_map_slam[:3, :3] @ pose[:3, :3]
             map_pose[:3, 3] = position
             map_poses.append(map_pose)
         slam_poses = np.asarray(
@@ -486,7 +537,13 @@ def main():
             "first_stamp": first_stamp,
             "last_stamp": last_stamp,
             "trajectory_length_m": trajectory_length,
-            "pose_source": "gnss_imu_scan_rotation" if args.gnss_pose else "kiss_icp",
+            "pose_source": (
+                "gnss_positions_course_yaw"
+                if (args.gnss_pose and args.gnss_yaw)
+                else "gnss_imu_scan_rotation"
+                if args.gnss_pose
+                else "kiss_icp"
+            ),
             "built_at": datetime.now(timezone.utc).isoformat(),
         },
     }
