@@ -1,0 +1,23 @@
+{
+  "map_id": "town05-v2",
+  "point_count": 2772333,
+  "trajectory_length_m": 3635.101716006783,
+  "coverage_radius_m": 20.0,
+  "bounds": {
+    "min": [
+      -48.4584550067413,
+      -326.2328672469282,
+      -2.6766184329986573
+    ],
+    "max": [
+      397.3312915675787,
+      126.3573364909251,
+      2.1990617752075194
+    ]
+  },
+  "scan_count": 6256,
+  "heldout_count": 20,
+  "mean_scan_points": 8062.338235294118,
+  "scenarios": {},
+  "note": "per-scenario coverage is filled once scenario routes are pinned"
+}

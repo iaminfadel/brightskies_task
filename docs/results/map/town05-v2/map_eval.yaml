@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "map_id": "town05-v2",
+  "T_map_carla": [
+    1.0000000000000002,
+    -5.045092788000512e-09,
+    0.0,
+    167.1261597641373,
+    5.04509278783024e-09,
+    1.0,
+    0.0,
+    -95.14548121123397,
+    0.0,
+    0.0,
+    1.0,
+    -2.5999999999999996,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "T_carla_slam": [
+    -0.9999988655470026,
+    -0.0015062883880367823,
+    0.0,
+    -166.1261604185725,
+    0.0015062883880367823,
+    -0.9999988655470026,
+    0.0,
+    95.14397576601291,
+    0.0,
+    0.0,
+    1.0,
+    3.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "spawn_carla": {
+    "x": -164.732162,
+    "y": -95.141876,
+    "z": 0.3,
+    "yaw_deg": -179.913696
+  },
+  "note": "T_map_carla maps ROS-world (x east, y north, yaw ENU) poses to map.",
+  "T_map_carla_validation": {
+    "method": "heldout_scan_alignment",
+    "samples": 20,
+    "residual_m": 0.108426,
+    "threshold_m": 0.5,
+    "note": "median nearest-map-point distance of held-out scans at their recorded poses; mapping bag is sensor-only"
+  },
+  "heldout": {
+    "count": 20,
+    "selection": "same_bag_arc_length",
+    "directory": "validation/heldout",
+    "gicp_settings_sha256": "5f7ba80a51a27b3c180c1be6c126cf452dc84e4b207547f8cc6a227c7e8d50a5"
+  },
+  "source_run_id": "town05-v2"
+}
