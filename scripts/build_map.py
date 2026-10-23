@@ -149,9 +149,9 @@ def wrap_angle(angle):
 
 
 def scan_priors(gnss, imu, scan_stamps, lever_m):
-    """LiDAR yaw and planar position for every scan from GNSS/IMU samples."""
+    """LiDAR yaw and position for every scan from GNSS/IMU samples."""
     yaws = np.asarray([nearest_imu(imu, stamp)[1] for stamp in scan_stamps])
-    positions = np.zeros((len(scan_stamps), 2))
+    positions = np.zeros((len(scan_stamps), 3))
     lat0 = float(gnss[0, 1])
     lon0 = float(gnss[0, 2])
     radius = 6378137.0
@@ -168,6 +168,7 @@ def scan_priors(gnss, imu, scan_stamps, lever_m):
         )
         positions[i, 0] = east - lever_m * math.cos(yaws[i])
         positions[i, 1] = north - lever_m * math.sin(yaws[i])
+        positions[i, 2] = float(gnss[j, 3]) - float(gnss[0, 3]) + 0.4
     return yaws, positions
 
 
@@ -219,7 +220,7 @@ def run_kiss(
                 delta[:3, 3] = [
                     cosine * step[0] + sine * step[1],
                     -sine * step[0] + cosine * step[1],
-                    0.0,
+                    step[2],
                 ]
             kiss.last_delta = delta
         kiss.register_frame(scan, timestamps)
@@ -306,6 +307,7 @@ def main():
     parser.add_argument("--kiss-only", action="store_true")
     parser.add_argument("--imu-delta", action="store_true")
     parser.add_argument("--gnss-delta", action="store_true")
+    parser.add_argument("--gnss-pose", action="store_true")
     args = parser.parse_args()
 
     out_dir = Path(args.out)
@@ -362,6 +364,20 @@ def main():
     T_map_gnss = from_xyzyaw(0.0, 0.0, 0.0, anchor_yaw)
     T_map_base = T_map_gnss @ np.linalg.inv(T_base_gnss)
     T_map_slam = T_map_base @ T_base_lidar
+
+    if args.gnss_pose:
+        _, positions = scan_priors(
+            gnss, imu, scan_stamps, float(base_gnss[0]) - float(base_lidar[0])
+        )
+        map_poses = []
+        for pose, position in zip(slam_poses, positions):
+            map_pose = np.eye(4)
+            map_pose[:3, :3] = T_map_slam[:3, :3] @ pose[:3, :3]
+            map_pose[:3, 3] = position
+            map_poses.append(map_pose)
+        slam_poses = np.asarray(
+            [np.linalg.inv(T_map_slam) @ pose for pose in map_poses]
+        )
 
     T_map_lidar = np.asarray([T_map_slam @ pose for pose in slam_poses])
     T_map_base_poses = np.asarray([pose @ np.linalg.inv(T_base_lidar) for pose in T_map_lidar])
@@ -449,6 +465,7 @@ def main():
             "first_stamp": first_stamp,
             "last_stamp": last_stamp,
             "trajectory_length_m": trajectory_length,
+            "pose_source": "gnss_imu_scan_rotation" if args.gnss_pose else "kiss_icp",
             "built_at": datetime.now(timezone.utc).isoformat(),
         },
     }

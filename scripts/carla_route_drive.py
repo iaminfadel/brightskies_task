@@ -142,7 +142,13 @@ def main():
         while target + 1 < len(route) and accum < lookahead:
             accum += route[target].distance(route[target + 1])
             target += 1
-        if target >= len(route) - 1 and loc.distance(route[-1]) < 6.0:
+        end_distance = loc.distance(route[-1])
+        if target >= len(route) - 1:
+            desired = min(desired, max(0.0, (end_distance - 0.8) * 0.5))
+        if target >= len(route) - 1 and end_distance < 1.0 and speed < 0.5:
+            for _ in range(10):
+                hero.apply_control(carla.VehicleControl(brake=1.0))
+                world.wait_for_tick(2.0)
             print("ROUTE_COMPLETE", flush=True)
             break
 
