@@ -24,7 +24,7 @@ RPID=$!
 trap 'kill $LPID $CPID $RPID ${BPID:-} 2>/dev/null || true' EXIT INT TERM
 
 sleep 18
-ros2 bag play /ws/bags/map_full2 --clock --rate "$RATE" >"$OUT/playback.log" 2>&1 &
+ros2 bag play /ws/bags/map_full2 --rate "$RATE" >"$OUT/playback.log" 2>&1 &
 BPID=$!
 
 sleep 70

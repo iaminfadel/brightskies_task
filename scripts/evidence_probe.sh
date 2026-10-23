@@ -16,7 +16,7 @@ python3 /ws/brightdrive/scripts/publish_map_cloud.py --map-dir /ws/maps/current/
 CP=$!
 trap 'kill $LP $RP $CP ${BP:-} 2>/dev/null || true' EXIT INT TERM
 sleep 10
-ros2 bag play /ws/bags/map_full2 --clock --rate "$RATE" >"$OUT/play.log" 2>&1 &
+ros2 bag play /ws/bags/map_full2 --rate "$RATE" >"$OUT/play.log" 2>&1 &
 BP=$!
 for i in $(seq 1 14); do
   sleep 7
