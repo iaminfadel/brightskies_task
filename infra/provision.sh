@@ -118,10 +118,7 @@ else
     --machine-type="$MACHINE_TYPE" \
     --accelerator="type=$GPU_TYPE,count=1" \
     --maintenance-policy=TERMINATE \
-    --provisioning-model=SPOT \
-    --instance-termination-action=STOP \
-    --preemption-notice-duration="$PREEMPTION_NOTICE" \
-    --max-run-duration="$MAX_RUN_DURATION" \
+    --provisioning-model=STANDARD \
     --image-family=ubuntu-2204-lts \
     --image-project=ubuntu-os-cloud \
     --boot-disk-size="$BOOT_DISK_SIZE" \
