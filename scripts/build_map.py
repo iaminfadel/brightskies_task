@@ -144,7 +144,7 @@ def nearest_imu(imu, stamp):
     return imu[index]
 
 
-def run_kiss(scans, voxel_size, max_range, min_motion_th=0.1):
+def run_kiss(scans, voxel_size, max_range, min_motion_th=0.1, fixed_threshold=None):
     config = KISSConfig()
     config.data.max_range = float(max_range)
     config.data.min_range = 0.0
@@ -155,6 +155,8 @@ def run_kiss(scans, voxel_size, max_range, min_motion_th=0.1):
     config.registration.convergence_criterion = 1e-4
     config.adaptive_threshold.initial_threshold = 2.0
     config.adaptive_threshold.min_motion_th = float(min_motion_th)
+    if fixed_threshold is not None:
+        config.adaptive_threshold.fixed_threshold = float(fixed_threshold)
     kiss = KissICP(config)
     poses = []
     timestamps = np.zeros(1)
@@ -238,6 +240,7 @@ def main():
     parser.add_argument("--outlier-k", type=int, default=16)
     parser.add_argument("--outlier-sigma", type=float, default=1.0)
     parser.add_argument("--min-motion-th", type=float, default=0.1)
+    parser.add_argument("--fixed-threshold", type=float, default=None)
     parser.add_argument("--max-scans", type=int, default=0)
     parser.add_argument("--kiss-only", action="store_true")
     args = parser.parse_args()
@@ -256,7 +259,11 @@ def main():
 
     print("running kiss-icp", flush=True)
     slam_poses = run_kiss(
-        scans, args.kiss_voxel, args.max_range, args.min_motion_th
+        scans,
+        args.kiss_voxel,
+        args.max_range,
+        args.min_motion_th,
+        args.fixed_threshold,
     )
     if args.kiss_only:
         positions = np.asarray([pose[:3, 3] for pose in slam_poses])
@@ -268,6 +275,7 @@ def main():
         ratio = kiss_path / gnss_path if gnss_path else 0.0
         print(
             f"KISS_ONLY scans={len(scans)} min_motion_th={args.min_motion_th} "
+            f"fixed_threshold={args.fixed_threshold} "
             f"kiss_path_m={kiss_path:.2f} gnss_path_m={gnss_path:.2f} "
             f"ratio={ratio:.3f} median_step_m={float(np.median(steps)):.4f}",
             flush=True,
