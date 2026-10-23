@@ -4,6 +4,7 @@ set -eo pipefail
 
 OUT="${1:-/ws/evidence/live}"
 RATE="${2:-1.2}"
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-42}"
 mkdir -p "$OUT"
 set +u
 source /opt/brightdrive/setup.bash
@@ -24,7 +25,7 @@ sleep 18
 ros2 bag play /ws/bags/map_full2 --clock --rate "$RATE" >"$OUT/playback.log" 2>&1 &
 BPID=$!
 
-sleep 45
+sleep 70
 timeout 8 ros2 topic echo --once /localization/status >"$OUT/status_overview.txt" 2>&1 || true
 timeout 8 ros2 topic echo --once /localization/scan_quality >"$OUT/scan_quality.txt" 2>&1 || true
 bash /ws/brightdrive/scripts/validation/rviz_shot.sh \
@@ -36,4 +37,6 @@ RV_WAIT=30 bash /ws/brightdrive/scripts/validation/rviz_shot.sh \
   /ws/brightdrive/config/evidence/map_local.rviz
 timeout 8 ros2 topic echo --once /localization/status >"$OUT/status_local.txt" 2>&1 || true
 ros2 topic list >"$OUT/topics.txt" 2>&1 || true
+kill -INT "$BPID" 2>/dev/null || true
+wait "$BPID" 2>/dev/null || true
 echo "EVIDENCE_LIVE_DONE $(date -u +%FT%TZ)"
