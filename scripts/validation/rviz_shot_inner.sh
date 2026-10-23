@@ -14,7 +14,9 @@ if [ "${RV_SIM_TIME:-0}" = "1" ]; then
 fi
 ros2 run rviz2 rviz2 -f -d "$CONFIG" "${SIM_ARGS[@]}" >"$LOG" 2>&1 &
 RV=$!
-sleep "${RV_WAIT:-28}"
+sleep 10
+python3 /ws/brightdrive/scripts/validation/x11_fit_window.py 1600 900 rviz || true
+sleep "$(( ${RV_WAIT:-28} - 10 ))"
 import -window root "$OUT"
 kill "$RV" 2>/dev/null || true
 wait "$RV" 2>/dev/null || true
