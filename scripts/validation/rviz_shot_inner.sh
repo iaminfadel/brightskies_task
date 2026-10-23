@@ -8,7 +8,11 @@ source /opt/brightdrive/setup.bash
 export LIBGL_ALWAYS_SOFTWARE=1
 export QT_QPA_PLATFORM=xcb
 
-ros2 run rviz2 rviz2 -d "$CONFIG" >"$LOG" 2>&1 &
+SIM_ARGS=()
+if [ "${RV_SIM_TIME:-0}" = "1" ]; then
+  SIM_ARGS=(--ros-args -p use_sim_time:=true)
+fi
+ros2 run rviz2 rviz2 -d "$CONFIG" "${SIM_ARGS[@]}" >"$LOG" 2>&1 &
 RV=$!
 sleep "${RV_WAIT:-28}"
 import -window root "$OUT"

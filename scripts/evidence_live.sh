@@ -19,7 +19,9 @@ LPID=$!
 python3 /ws/brightdrive/scripts/publish_map_cloud.py \
   --map-dir /ws/maps/current/town05-v2 >"$OUT/map_cloud.log" 2>&1 &
 CPID=$!
-trap 'kill $LPID $CPID ${BPID:-} 2>/dev/null || true' EXIT INT TERM
+python3 /ws/brightdrive/scripts/reliable_clock_relay.py >"$OUT/clock_relay.log" 2>&1 &
+RPID=$!
+trap 'kill $LPID $CPID $RPID ${BPID:-} 2>/dev/null || true' EXIT INT TERM
 
 sleep 18
 ros2 bag play /ws/bags/map_full2 --clock --rate "$RATE" >"$OUT/playback.log" 2>&1 &
@@ -28,11 +30,11 @@ BPID=$!
 sleep 70
 timeout 8 ros2 topic echo --once /localization/status >"$OUT/status_overview.txt" 2>&1 || true
 timeout 8 ros2 topic echo --once /localization/scan_quality >"$OUT/scan_quality.txt" 2>&1 || true
-bash /ws/brightdrive/scripts/validation/rviz_shot.sh \
+RV_SIM_TIME=1 bash /ws/brightdrive/scripts/validation/rviz_shot.sh \
   "$OUT/map_overview.png" "$OUT/rviz_overview.log" \
   /ws/brightdrive/config/evidence/map_overview.rviz
 sleep 3
-RV_WAIT=30 bash /ws/brightdrive/scripts/validation/rviz_shot.sh \
+RV_SIM_TIME=1 RV_WAIT=30 bash /ws/brightdrive/scripts/validation/rviz_shot.sh \
   "$OUT/map_local.png" "$OUT/rviz_local.log" \
   /ws/brightdrive/config/evidence/map_local.rviz
 timeout 8 ros2 topic echo --once /localization/status >"$OUT/status_local.txt" 2>&1 || true
