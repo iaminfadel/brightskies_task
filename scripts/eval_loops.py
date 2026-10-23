@@ -200,7 +200,7 @@ def main():
     parser.add_argument("--min-dt", type=float, default=60.0)
     parser.add_argument("--voxel", type=float, default=0.25)
     parser.add_argument("--max-corr", type=float, default=1.5)
-    parser.add_argument("--submap-half", type=int, default=8)
+    parser.add_argument("--submap-half", type=int, default=45)
     parser.add_argument("--base-lidar", default="1.394,0.0,2.700")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()

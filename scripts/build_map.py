@@ -407,6 +407,9 @@ def main():
     parser.add_argument("--gnss-delta", action="store_true")
     parser.add_argument("--gnss-pose", action="store_true")
     parser.add_argument("--gnss-yaw", action="store_true")
+    parser.add_argument("--pose-graph", action="store_true",
+                        help="KISS odometry + GNSS factors + ICP loop closures, "
+                             "globally optimized (offline SLAM)")
     args = parser.parse_args()
 
     out_dir = Path(args.out)
@@ -463,6 +466,32 @@ def main():
     T_map_gnss = from_xyzyaw(0.0, 0.0, 0.0, anchor_yaw)
     T_map_base = T_map_gnss @ np.linalg.inv(T_base_gnss)
     T_map_slam = T_map_base @ T_base_lidar
+
+    if args.pose_graph:
+        import pose_graph as pg
+
+        print("pose graph: initial states from KISS + anchor", flush=True)
+        initial = np.asarray(
+            [pg.matrix_to_state(T_map_slam @ pose) for pose in slam_poses]
+        )
+        odom_edges = [
+            {"i": k, "j": k + 1, "m": pg.relative(initial[k], initial[k + 1])}
+            for k in range(len(initial) - 1)
+        ]
+        lever = float(base_gnss[0]) - float(base_lidar[0])
+        _, gnss_positions = scan_priors(gnss, imu, scan_stamps, lever)
+        gnss_edges = [
+            {"i": k, "p": gnss_positions[k, :3].tolist()}
+            for k in range(0, len(initial), 3)
+        ]
+        print(f"pose graph: {len(odom_edges)} odom, {len(gnss_edges)} gnss edges; "
+              f"detecting loops", flush=True)
+        loop_edges = pg.build_loop_edges(scans, initial, scan_stamps)
+        print(f"pose graph: {len(loop_edges)} loop edges; optimizing", flush=True)
+        optimized = pg.optimize(initial, odom_edges, gnss_edges, loop_edges)
+        slam_poses = np.asarray(
+            [np.linalg.inv(T_map_slam) @ pg.state_to_matrix(state) for state in optimized]
+        )
 
     if args.gnss_pose:
         lever = float(base_gnss[0]) - float(base_lidar[0])
@@ -628,6 +657,8 @@ def main():
             "pose_source": (
                 "gnss_positions_course_yaw"
                 if (args.gnss_pose and args.gnss_yaw)
+                else "pose_graph_kiss_gnss_loops"
+                if args.pose_graph
                 else "gnss_imu_scan_rotation"
                 if args.gnss_pose
                 else "kiss_icp"
