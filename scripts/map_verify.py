@@ -48,6 +48,7 @@ REQUIRED_MANIFEST = {
     "generation_command",
 }
 PLACEHOLDERS = {"...", "TBD", "TODO", "", "unknown"}
+EVALUATOR_FILES = {"validation/map_consistency.json"}
 
 
 def sha256_file(path):
@@ -155,7 +156,7 @@ def main():
         str(path.relative_to(root))
         for path in root.rglob("*")
         if path.is_file() and path.name != "manifest.json"
-    }
+    } - EVALUATOR_FILES
     if on_disk != set(listed):
         fail(errors, f"manifest file set mismatch: {sorted(on_disk ^ set(listed))}")
     bundle = hashlib.sha256(
