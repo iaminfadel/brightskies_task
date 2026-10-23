@@ -162,7 +162,7 @@ def read_bag(bag_dir, max_scans=0):
                 if max_scans and len(scans) >= max_scans:
                     break
             elif topic == GNSS_TOPIC:
-                if msg.status.status == 2:  # STATUS_NO_FIX
+                if msg.status.status < 0:  # STATUS_NO_FIX (-1); keep SBAS/GBAS fixes
                     continue
                 gnss.append((stamp, msg.latitude, msg.longitude, msg.altitude))
             else:
