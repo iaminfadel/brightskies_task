@@ -79,6 +79,8 @@ RUN git clone --depth 1 --branch "${SCENARIO_RUNNER_VERSION}" \
       https://github.com/carla-simulator/scenario_runner.git /opt/scenario_runner \
     && python3 -m pip install --no-cache-dir \
       "numpy<2" \
+      "rosbags>=0.11" \
+      "scipy>=1.10" \
       "Shapely>=1.8" \
       "networkx>=2.8" \
       "opencv-python-headless" \
