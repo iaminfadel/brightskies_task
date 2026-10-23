@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 .PHONY: vm-provision vm-up vm-down vm-ssh vm-status vm-snapshot \
-        map map-check map-install map-pull
+        map map-check map-verify map-install map-upload map-pull
 
 MAP_ID ?= town05-v2
 MAP_BAG ?= /ws/bags/map_full2
@@ -17,18 +17,16 @@ map-check:
 	./scripts/vm-run.sh --fg "docker exec brightdrive-deps bash -lc 'source /opt/brightdrive/setup.bash; source /ws/install/setup.bash; ros2 run brightdrive_localization map_check $(MAP_BUILDS)/$(MAP_ID)'"
 
 map-install:
-	rm -rf $(MAP_INSTALL)/$(MAP_ID)
-	mkdir -p $(MAP_INSTALL)/$(MAP_ID)
-	cp $(MAP_BUILDS)/$(MAP_ID)/map.pcd $(MAP_BUILDS)/$(MAP_ID)/map.yaml \
-	   $(MAP_BUILDS)/$(MAP_ID)/trajectory.tum $(MAP_INSTALL)/$(MAP_ID)/
-	@test ! -e $(MAP_INSTALL)/$(MAP_ID)/map_eval.yaml
-	@test ! -e $(MAP_INSTALL)/$(MAP_ID)/validation
+	./scripts/vm-run.sh --fg "docker exec brightdrive-deps bash -lc 'rm -rf /ws/maps/current/$(MAP_ID) && mkdir -p /ws/maps/current/$(MAP_ID) && cp $(MAP_BUILDS)/$(MAP_ID)/map.pcd $(MAP_BUILDS)/$(MAP_ID)/map.yaml $(MAP_BUILDS)/$(MAP_ID)/trajectory.tum /ws/maps/current/$(MAP_ID)/ && test ! -e /ws/maps/current/$(MAP_ID)/map_eval.yaml && test ! -e /ws/maps/current/$(MAP_ID)/validation'" 
+
+map-verify:
+	./scripts/vm-run.sh --fg "python3 /ws/brightdrive/scripts/map_verify.py $(MAP_BUILDS)/$(MAP_ID)"
+
+map-upload:
+	./scripts/vm-run.sh --fg "gsutil -m cp -r $(MAP_BUILDS)/$(MAP_ID) $(MAP_BUCKET)/"
 
 map-pull:
-	rm -rf $(MAP_BUILDS)/$(MAP_ID)
-	mkdir -p $(MAP_BUILDS)/$(MAP_ID)
-	gsutil -m cp -r "$(MAP_BUCKET)/$(MAP_ID)/*" $(MAP_BUILDS)/$(MAP_ID)/
-	cd $(MAP_BUILDS)/$(MAP_ID) && echo "$$(python3 -c 'import json;print(json.load(open("map.yaml"))["pcd_sha256"])')  map.pcd" | sha256sum -c
+	./scripts/vm-run.sh --fg "rm -rf $(MAP_BUILDS)/$(MAP_ID) && mkdir -p $(MAP_BUILDS)/$(MAP_ID) && gsutil -m cp -r '$(MAP_BUCKET)/$(MAP_ID)/*' $(MAP_BUILDS)/$(MAP_ID)/ && python3 /ws/brightdrive/scripts/map_verify.py $(MAP_BUILDS)/$(MAP_ID)"
 
 vm-provision:
 	./infra/provision.sh

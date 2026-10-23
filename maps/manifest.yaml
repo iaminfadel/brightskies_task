@@ -1,0 +1,6 @@
+map_id: town05-v2
+version: town05-v2
+bucket: gs://brightskies-artifacts-330586358676/maps/town05-v2
+pcd_sha256: 6f64644e1723f23c1ecfc7cd1cf20779502cb8a8219b2604fdfe3ca414064698
+bundle_sha256: 0202ce389e48a3ae389be6e98a48b74b65eb1adb3a69a8e17ed0c464e7fe050a
+created_at: "2026-10-23T10:22:00Z"
