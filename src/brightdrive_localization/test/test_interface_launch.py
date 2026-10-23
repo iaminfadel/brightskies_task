@@ -12,7 +12,8 @@ asserts the node interface:
      test_health.cpp).
   2. A NavSatFix near the anchor produces /localization/gnss_pose in the map
      frame with a finite pose and positive covariance (GNSS->ENU path; this
-     needs the base_link -> hero/gnss extrinsic from the URDF).
+     needs the base_link -> hero/gnss extrinsic, which the carla_ros_bridge
+     publishes in the real stack and this test provides as static TF).
   3. At runtime the node never subscribes to privileged (ground-truth)
      topics -- the live counterpart of scripts/isolation_audit.py.
 """
@@ -31,10 +32,10 @@ import launch_testing
 import launch_testing.actions
 import pytest
 import rclpy
-from ament_index_python.packages import get_package_share_directory
-from geometry_msgs.msg import PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped
 from rclpy.node import Node
 from sensor_msgs.msg import NavSatFix, NavSatStatus
+from tf2_ros import StaticTransformBroadcaster
 
 from brightdrive_interfaces.msg import LocalizationStatus
 
@@ -104,22 +105,6 @@ def generate_test_description():
     map_dir = tempfile.mkdtemp(prefix="bd_interface_map_")
     atexit.register(lambda: __import__("shutil").rmtree(map_dir, ignore_errors=True))
     write_synthetic_map(map_dir)
-
-    # The extrinsics (base_link -> hero/gnss etc.) come from the URDF via
-    # robot_state_publisher; without them publish_gnss_pose bails at the
-    # TF lookup and the GNSS path is untestable.
-    urdf_path = os.path.join(
-        get_package_share_directory("brightdrive_bringup"), "urdf", "brightdrive.urdf"
-    )
-    with open(urdf_path, "r", encoding="utf-8") as handle:
-        robot_description = handle.read()
-
-    state_publisher = launch_ros.actions.Node(
-        package="robot_state_publisher",
-        executable="robot_state_publisher",
-        parameters=[{"robot_description": robot_description, "use_sim_time": False}],
-        output="screen",
-    )
     node = launch_ros.actions.Node(
         package="brightdrive_localization",
         executable="localization_core",
@@ -127,9 +112,32 @@ def generate_test_description():
         output="screen",
         parameters=[{"use_sim_time": False, "map.dir": map_dir}],
     )
-    return launch.LaunchDescription(
-        [state_publisher, node, launch_testing.actions.ReadyToTest()]
-    )
+    return launch.LaunchDescription([node, launch_testing.actions.ReadyToTest()])
+
+
+# Mirrors the real frame tree: URDF gives base_link -> hero (bringup/urdf),
+# the carla_ros_bridge hangs the sensor frames under hero. Any known offset
+# works for the contract assertions; these are plausible sensor positions.
+STATIC_TF_TREE = (
+    ("base_link", "hero", (1.394, 0.0, 0.30)),
+    ("hero", "hero/gnss", (0.0, 0.0, 1.80)),
+    ("hero", "hero/imu", (0.0, 0.0, 1.60)),
+    ("hero", "hero/lidar", (0.0, 0.0, 2.10)),
+)
+
+
+def broadcast_frame_tree(node):
+    broadcaster = StaticTransformBroadcaster(node)
+    stamps = []
+    for parent, child, xyz in STATIC_TF_TREE:
+        transform = TransformStamped()
+        transform.header.frame_id = parent
+        transform.child_frame_id = child
+        transform.transform.translation.x = xyz[0]
+        transform.transform.translation.y = xyz[1]
+        transform.transform.translation.z = xyz[2]
+        stamps.append(transform)
+    broadcaster.sendTransform(stamps)
 
 
 @pytest.mark.launch_testing
@@ -138,6 +146,9 @@ class TestLocalizationInterface(unittest.TestCase):
     def setUpClass(cls):
         rclpy.init()
         cls.node = Node("interface_test")
+        # The node's tf_buffer latches /tf_static (transient local), so the
+        # late-joining localization_core still receives the frame tree.
+        broadcast_frame_tree(cls.node)
 
     @classmethod
     def tearDownClass(cls):
@@ -210,8 +221,8 @@ class TestLocalizationInterface(unittest.TestCase):
         )
         pose = received[-1]
         self.assertEqual(pose.header.frame_id, "map")
-        self.assertLess(abs(pose.pose.position.x), 5.0, msg="east offset too large")
-        self.assertLess(abs(pose.pose.position.y), 5.0, msg="north offset too large")
+        self.assertLess(abs(pose.pose.pose.position.x), 5.0, msg="east offset too large")
+        self.assertLess(abs(pose.pose.pose.position.y), 5.0, msg="north offset too large")
         self.assertTrue(
             any(c > 0.0 for c in pose.pose.covariance),
             "gnss_pose covariance not populated",
