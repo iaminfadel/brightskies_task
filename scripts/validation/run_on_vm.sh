@@ -56,8 +56,7 @@ docker run -d --name brightdrive-deps --gpus all --network host --shm-size=4g \
   -e NVIDIA_DRIVER_CAPABILITIES=all \
   -e EVIDENCE="$EVIDENCE" \
   -e ROOT="$ROOT" \
-  -v "$ROOT:$ROOT" \
-  -v "$EVIDENCE:$EVIDENCE" \
+  -v /ws:/ws \
   "$DEPS_IMAGE" sleep infinity >/dev/null
 
 docker exec brightdrive-deps bash -lc \
