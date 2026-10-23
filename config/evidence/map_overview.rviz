@@ -1,0 +1,164 @@
+Panels:
+- Class: rviz_common/Displays
+Visualization Manager:
+  Class: ''
+  Enabled: true
+  Global Options:
+    Background Color: 20; 24; 32
+    Fixed Frame: map
+    Frame Rate: 30
+  Tools:
+  - Class: rviz_default_plugins/Interact
+    Hide Inactive Objects: true
+  - Class: rviz_default_plugins/MoveCamera
+  - Class: rviz_default_plugins/Select
+  - Class: rviz_default_plugins/FocusCamera
+  - Class: rviz_default_plugins/Measure
+    Line color: 128; 128; 0
+  Displays:
+  - Class: rviz_default_plugins/Grid
+    Enabled: true
+    Name: Grid
+    Cell Size: 20
+    Plane: XY
+    Color: 55; 65; 85
+    Alpha: 0.35
+  - Alpha: 0.85
+    Class: rviz_default_plugins/PointCloud2
+    Color: 125; 137; 160
+    Color Transformer: FlatColor
+    Decay Time: 0
+    Enabled: true
+    Name: Saved map
+    Position Transformer: XYZ
+    Selectable: false
+    Size (Pixels): 2
+    Size (m): 0.05
+    Style: Points
+    Topic:
+      Depth: 1
+      Durability Policy: Transient Local
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /localization/map_cloud
+    Use Fixed Frame: true
+    Value: true
+  - Alpha: 0.9
+    Class: rviz_default_plugins/PointCloud2
+    Color: 61; 229; 255
+    Color Transformer: FlatColor
+    Decay Time: 0
+    Enabled: true
+    Name: LiDAR scan
+    Position Transformer: XYZ
+    Selectable: false
+    Size (Pixels): 2
+    Size (m): 0.03
+    Style: Points
+    Topic:
+      Depth: 2
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Reliability Policy: Best Effort
+      Value: /carla/hero/lidar
+    Use Fixed Frame: true
+    Value: true
+  - Class: rviz_default_plugins/Odometry
+    Enabled: true
+    Keep: 5000
+    Name: Filtered trajectory
+    Position Tolerance: 0.1
+    Angle Tolerance: 0.1
+    Shape:
+      Alpha: 1
+      Axes Length: 2.0
+      Axes Radius: 0.15
+      Color: 57; 255; 136
+      Head Length: 0.4
+      Head Radius: 0.15
+      Shaft Length: 1.4
+      Shaft Radius: 0.05
+      Value: Axes
+    Covariance:
+      Value: false
+      Orientation:
+        Alpha: 0.5
+        Color: 255; 255; 127
+        Color Style: Unique
+        Frame: Local
+        Offset: 1
+        Scale: 1
+        Value: true
+      Position:
+        Alpha: 0.3
+        Color: 204; 51; 204
+        Scale: 1
+        Value: true
+    Topic:
+      Depth: 5
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /odometry/filtered
+    Value: true
+  - Class: rviz_default_plugins/PoseWithCovariance
+    Enabled: true
+    Name: Scan-to-map pose
+    Shape:
+      Alpha: 1
+      Axes Length: 2.5
+      Axes Radius: 0.2
+      Color: 255; 170; 51
+      Head Length: 0.5
+      Head Radius: 0.2
+      Shaft Length: 1.8
+      Shaft Radius: 0.06
+      Value: Axes
+    Covariance:
+      Value: true
+      Orientation:
+        Alpha: 0.4
+        Color: 255; 255; 127
+        Color Style: Unique
+        Frame: Local
+        Offset: 1
+        Scale: 1
+        Value: true
+      Position:
+        Alpha: 0.25
+        Color: 0; 170; 255
+        Scale: 1
+        Value: true
+    Topic:
+      Depth: 5
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Reliability Policy: Reliable
+      Value: /localization/scan_pose
+    Value: true
+  - Class: rviz_default_plugins/TF
+    Enabled: true
+    Marker Scale: 2.5
+    Name: Vehicle frames
+    Show Arrows: false
+    Show Axes: true
+    Show Names: false
+    Frames:
+      All Enabled: false
+      base_link:
+        Value: true
+      hero:
+        Value: true
+    Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/TopDownOrtho
+      Name: Current View
+      Target Frame: <None>
+      Angle: 0
+      Invert Z Axis: false
+      Near Clip: 0.01
+      Scale: 500
+      X: 174.0
+      Y: -100.0
+    Saved: null
