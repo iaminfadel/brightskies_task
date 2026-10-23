@@ -38,7 +38,16 @@ vm-down:
 	./infra/vm-stop.sh
 
 vm-ssh:
-	./infra/vm-ssh.sh
+	./infra/vm-ssh.sh $(ARGS)
+
+vm-sync:
+	./scripts/vm-run.sh --sync-only
+
+vm-shell:
+	./infra/vm-ssh.sh bash
+
+vm-job:
+	python3 scripts/vm_job.py $(ARGS)
 
 vm-status:
 	./infra/vm-status.sh
