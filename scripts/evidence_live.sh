@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Replay the mapping bag against the saved map and capture RViz evidence.
-set -euo pipefail
+set -eo pipefail
 
 OUT="${1:-/ws/evidence/live}"
 RATE="${2:-1.2}"
 mkdir -p "$OUT"
+set +u
 source /opt/brightdrive/setup.bash
 source /ws/install/setup.bash
+set -u
 
 pkill -f 'localization_node|kiss_icp_node|ekf_node|robot_state_publisher' 2>/dev/null || true
 sleep 2
