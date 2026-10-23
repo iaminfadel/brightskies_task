@@ -71,7 +71,7 @@ sync_repo() {
   sha=$(git -C "$REPO_DIR" rev-parse HEAD)
   echo "==> deploying $sha" >&2
   git -C "$REPO_DIR" archive --format=tar "$sha" \
-    | "$SSH" "rm -rf '$ROOT' && mkdir -p '$ROOT' && tar -xf - -C '$ROOT' && printf '%s\n' '$sha' > '$ROOT/.deployed-sha'"
+    | "$SSH" "sudo rm -rf '$ROOT' && mkdir -p '$ROOT' && tar -xf - -C '$ROOT' && printf '%s\n' '$sha' > '$ROOT/.deployed-sha'"
 }
 
 make_slug() {
