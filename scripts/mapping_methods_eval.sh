@@ -18,6 +18,7 @@ shift 3 || true
 STAGES=${@:-sweeps baseline gicp lego lego_zhold eval}
 
 DEPS_IMAGE=ghcr.io/iaminfadel/brightdrive-deps:0.9.15-r1
+MM_IMAGE=mm-deps:mm
 LEGO_IMAGE=legoloam:mm
 ROOT=/ws/research/mapping-methods
 OUT=$ROOT/out
@@ -25,6 +26,12 @@ REPO=/ws/brightdrive
 LOG() { echo "[$(date -u +%H:%M:%S)] $*"; }
 
 mkdir -p "$OUT"
+
+if ! docker image inspect "$MM_IMAGE" >/dev/null 2>&1; then
+  LOG "building $MM_IMAGE (registry deps image lacks the pip stack)"
+  docker build -f "$REPO/docker/mm-deps.Dockerfile" -t "$MM_IMAGE" "$REPO" \
+    > "$OUT/mm_build.log" 2>&1 || { tail -30 "$OUT/mm_build.log"; exit 1; }
+fi
 
 # Idle-stop guard: refresh the heartbeat for the whole driver lifetime.
 (
@@ -37,8 +44,8 @@ mkdir -p "$OUT"
 HEARTBEAT_PID=$!
 trap 'kill "$HEARTBEAT_PID" 2>/dev/null' EXIT
 
-py() {  # python inside the deps image
-  docker run --rm -v /ws:/ws "$DEPS_IMAGE" bash -c \
+py() {  # python inside the mm-deps image (registry image lacks the pip stack)
+  docker run --rm -v /ws:/ws "$MM_IMAGE" bash -c \
     "source /opt/brightdrive/setup.bash && cd $REPO && $*"
 }
 

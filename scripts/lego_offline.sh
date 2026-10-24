@@ -4,7 +4,8 @@
 # Plays the full-sweep bag into the patched port, records everything, and
 # stops cleanly.  usage:
 #   lego_offline.sh <sweeps_bag> <out_dir> [imu_damping] [ground_z_hold]
-set -uo pipefail
+# No `set -u`: ROS setup scripts reference unbound vars.
+set -o pipefail
 BAG=${1:?sweeps bag}
 OUT=${2:?out dir}
 IMU_DAMP=${3:-true}
