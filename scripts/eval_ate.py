@@ -84,7 +84,9 @@ def read_tum(path):
             continue
         stamps.append(float(parts[0]))
         xy.append((float(parts[1]), float(parts[2])))
-        yaws.append(yaw_from_quat(float(parts[5]), float(parts[6]), float(parts[7]), float(parts[4])))
+        # TUM row: tx ty tz qx qy qz qw
+        yaws.append(yaw_from_quat(float(parts[4]), float(parts[5]),
+                                  float(parts[6]), float(parts[7])))
     return np.asarray(stamps), np.asarray(xy), np.asarray(yaws)
 
 
@@ -221,6 +223,15 @@ def evaluate(map_dir, estimator_bag, eval_bag, args):
 
 
 def self_test():
+    import tempfile
+
+    # regression: TUM yaw must use (qx, qy, qz, qw) column order
+    with tempfile.NamedTemporaryFile("w", suffix=".tum", delete=False) as handle:
+        handle.write("1.0 0 0 0 0.0 0.0 0.3826834 0.9238795\n")  # yaw = 45 deg
+        name = handle.name
+    _, _, yaws = read_tum(name)
+    assert abs(math.degrees(yaws[0]) - 45.0) < 1e-3, f"tum yaw {yaws[0]}"
+
     rng = np.random.default_rng(3)
     gt = np.column_stack([np.linspace(0, 100, 200), np.sin(np.linspace(0, 6, 200)) * 10])
     theta = np.radians(2.0)
