@@ -27,18 +27,19 @@ MAP_ID ?= town05-v2
 MAP_BAG ?= /ws/bags/map_full2
 MAP_EVAL_BAG ?= $(MAP_BAG)_eval
 MAP_DRIVE_SECONDS ?= 900
+MAP_RECORD_ATTEMPTS ?= 3
 MAP_BUILDS ?= /ws/maps/builds
 MAP_INSTALL ?= install/maps
 MAP_SPAWN ?= -164.732162,-95.141876,0.300000,-179.913696
 MAP_BUCKET ?= gs://brightskies-artifacts-330586358676/maps
 
-PY_ENV = export PYTHONPATH=/opt/ros_ws/src/kiss-icp/python:$${PYTHONPATH:-}; source /opt/brightdrive/setup.bash; source /ws/install/setup.bash; cd /ws/brightdrive
+PY_ENV = source /opt/brightdrive/setup.bash; source /ws/install/setup.bash; cd /ws/brightdrive
 
 map:
 	./scripts/vm-run.sh --fg "docker exec brightdrive-deps bash -lc '$(PY_ENV) && python3 scripts/build_map.py $(MAP_BAG) $(MAP_BUILDS)/$(MAP_ID) --map-id $(MAP_ID) --spawn=$(MAP_SPAWN) --gnss-pose --gnss-yaw --imu-delta'"
 
 map-record:
-	./scripts/vm-run.sh "docker exec brightdrive-deps bash -lc 'source /opt/brightdrive/setup.bash; source /ws/install/setup.bash; /ws/brightdrive/scripts/map_run.sh $(MAP_BAG) $(MAP_DRIVE_SECONDS) $(MAP_EVAL_BAG)'"
+	./scripts/vm-run.sh "bash /ws/brightdrive/scripts/validation/record_mapping.sh $(MAP_BAG) $(MAP_DRIVE_SECONDS) $(MAP_EVAL_BAG) $(MAP_RECORD_ATTEMPTS)"
 
 map-check:
 	./scripts/vm-run.sh --fg "docker exec brightdrive-deps bash -lc 'source /opt/brightdrive/setup.bash; source /ws/install/setup.bash; ros2 run brightdrive_localization map_check $(MAP_BUILDS)/$(MAP_ID)'"

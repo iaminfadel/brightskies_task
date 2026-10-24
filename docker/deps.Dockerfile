@@ -82,6 +82,7 @@ RUN git clone --depth 1 --branch "${SCENARIO_RUNNER_VERSION}" \
       "rosbags>=0.11" \
       "scipy>=1.10" \
       "pydantic-settings>=2.0" \
+      "kiss-icp==${KISS_ICP_VERSION#v}" \
       "Shapely>=1.8" \
       "networkx>=2.8" \
       "opencv-python-headless" \
