@@ -36,7 +36,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("bag")
     parser.add_argument("out_tum")
-    parser.add_argument("--sweep-points", type=int, default=28800)
     parser.add_argument("--voxel", type=float, default=0.5)
     parser.add_argument("--max-range", type=float, default=50.0)
     parser.add_argument("--submap-radius", type=float, default=60.0)
@@ -50,7 +49,7 @@ def main():
     import small_gicp
 
     print("reading bag", flush=True)
-    scans, scan_stamps, gnss, _ = read_bag(args.bag, 0, args.sweep_points)
+    scans, scan_stamps, gnss, _ = read_bag(args.bag, 0, sweep_merge=True)
     print(f"scans={len(scans)} gnss={len(gnss)}", flush=True)
 
     keyframes = []  # (xyz of pose, preprocessed cloud, world points, yaw)

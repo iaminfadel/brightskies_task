@@ -126,7 +126,6 @@ def main():
     parser.add_argument("lego_bag", help="bag recorded during the LeGO run")
     parser.add_argument("mapping_bag", help="estimator bag the sweeps came from")
     parser.add_argument("out_tum")
-    parser.add_argument("--sweep-points", type=int, default=28800)
     parser.add_argument("--decode", choices=["auto", "a", "b"], default="auto")
     parser.add_argument("--topic", default="",
                         help="override odometry topic (default: first present of "
@@ -151,7 +150,7 @@ def main():
 
     from build_map import read_bag
 
-    scans, sweep_stamps, _, _ = read_bag(args.mapping_bag, 0, args.sweep_points)
+    scans, sweep_stamps, _, _ = read_bag(args.mapping_bag, 0, sweep_merge=True)
     print(f"mapping bag: {len(scans)} sweeps")
 
     decoded = {}

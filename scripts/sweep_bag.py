@@ -3,12 +3,16 @@
 
 LeGO-LOAM projects each message into a 360-degree range image; feeding it
 CARLA's per-tick partial arcs (the estimator bag's fragments) breaks that
-assumption.  This writer merges fragments into full rotations of
-``--sweep-points`` points (28800 for the 16-channel rig), exactly like
-``build_map.py --sweep-points``, and emits a compact bag with
+assumption.  This writer merges fragments into full rotations with the same
+azimuth-span rule as ``build_map.py --sweep-merge`` and emits a compact bag
+with
 
   /carla/hero/lidar   sensor_msgs/msg/PointCloud2 (XYZI, full sweeps)
   /clock              rosgraph_msgs/msg/Clock (for `ros2 bag play --clock`)
+
+Intensity is zeroed: CARLA's per-point intensity carries no phase information
+and the port derives relTime from it, so zero relTime matches the undistorted
+per-tick CARLA snapshots.
 
 Run inside the deps image (needs rosbags + numpy).
 """
@@ -37,36 +41,7 @@ def stamp_seconds(stamp):
     return stamp.sec + stamp.nanosec * 1e-9
 
 
-def read_fragment_xyz(msg):
-    offsets = {field.name: field.offset for field in msg.fields}
-    dtype = np.dtype(
-        {
-            "names": ["x", "y", "z"],
-            "formats": ["<f4", "<f4", "<f4"],
-            "offsets": [offsets["x"], offsets["y"], offsets["z"]],
-            "itemsize": msg.point_step,
-        }
-    )
-    points = np.frombuffer(msg.data, dtype=dtype)
-    return np.stack([points["x"], points["y"], points["z"]], axis=1)
-
-
-def read_fragment_intensity(msg):
-    offsets = {field.name: field.offset for field in msg.fields}
-    if "intensity" not in offsets:
-        return np.zeros(len(msg.data) // msg.point_step, dtype="<f4")
-    dtype = np.dtype(
-        {
-            "names": ["intensity"],
-            "formats": ["<f4"],
-            "offsets": [offsets["intensity"]],
-            "itemsize": msg.point_step,
-        }
-    )
-    return np.frombuffer(msg.data, dtype=dtype)["intensity"]
-
-
-def make_pointcloud2(typestore, stamp_s, points, intensities):
+def make_pointcloud2(typestore, stamp_s, points):
     header = typestore.types["std_msgs/msg/Header"]()
     header.frame_id = "hero/lidar"
     header.stamp = typestore.types["builtin_interfaces/msg/Time"]()
@@ -80,18 +55,20 @@ def make_pointcloud2(typestore, stamp_s, points, intensities):
     msg.point_step = 16
     msg.row_step = 16 * len(points)
     msg.is_dense = True
-    packed = np.zeros(len(points), dtype=np.dtype(
-        {
-            "names": ["x", "y", "z", "intensity"],
-            "formats": ["<f4", "<f4", "<f4", "<f4"],
-            "offsets": [0, 4, 8, 12],
-            "itemsize": 16,
-        }
-    ))
+    packed = np.zeros(
+        len(points),
+        dtype=np.dtype(
+            {
+                "names": ["x", "y", "z", "intensity"],
+                "formats": ["<f4", "<f4", "<f4", "<f4"],
+                "offsets": [0, 4, 8, 12],
+                "itemsize": 16,
+            }
+        ),
+    )
     packed["x"] = points[:, 0]
     packed["y"] = points[:, 1]
     packed["z"] = points[:, 2]
-    packed["intensity"] = intensities
     msg.fields = [
         typestore.types["sensor_msgs/msg/PointField"](
             name=name, offset=offset, datatype=7, count=1
@@ -138,10 +115,10 @@ def write_bag(out_dir, sweeps, typestore):
     ]
     conn.executemany("INSERT INTO topics VALUES (?,?,?,?,?,?)", topics)
     rows = []
-    for stamp_s, lidar_msg, clock_msg in sweeps:
+    for stamp_s, lidar_msg in sweeps:
         nanos = int(round(stamp_s * 1e9))
         rows.append((1, nanos, typestore.serialize_cdr(lidar_msg, "sensor_msgs/msg/PointCloud2")))
-        rows.append((2, nanos, typestore.serialize_cdr(clock_msg, "rosgraph_msgs/msg/Clock")))
+        rows.append((2, nanos, typestore.serialize_cdr(make_clock(typestore, stamp_s), "rosgraph_msgs/msg/Clock")))
     conn.executemany("INSERT INTO messages (topic_id, timestamp, data) VALUES (?,?,?)", rows)
     conn.commit()
     conn.close()
@@ -182,73 +159,21 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("bag")
     parser.add_argument("out")
-    parser.add_argument("--sweep-points", type=int, default=28800,
-                        help="merge fragments into sweeps of this many points "
-                             "(28800 for this rig; passthrough if messages are "
-                             "already full sweeps)")
     args = parser.parse_args()
 
-    typestore = get_typestore(Stores.ROS2_HUMBLE)
-    pending = []
-    pending_intensity = []
-    pending_stamp = 0.0
-    sweeps = []
-    with Reader(args.bag) as reader:
-        clocks = []
-        for connection, _, raw in reader.messages():
-            if connection.topic == CLOCK_TOPIC:
-                msg = typestore.deserialize_cdr(raw, connection.msgtype)
-                clocks.append(stamp_seconds(msg.clock))
-                continue
-            if connection.topic != LIDAR_TOPIC:
-                continue
-            msg = typestore.deserialize_cdr(raw, connection.msgtype)
-            stamp = stamp_seconds(msg.header.stamp)
-            if not pending:
-                pending_stamp = stamp
-            pending.append(read_fragment_xyz(msg))
-            pending_intensity.append(read_fragment_intensity(msg))
-            if sum(len(p) for p in pending) >= 0.9 * args.sweep_points:
-                points = np.concatenate(pending, axis=0)
-                intensities = np.concatenate(pending_intensity, axis=0)
-                keep = np.isfinite(points).all(axis=1)
-                sweeps.append(
-                    (
-                        stamp,
-                        make_pointcloud2(typestore, stamp, points[keep], intensities[keep]),
-                        None,
-                    )
-                )
-                pending, pending_intensity = [], []
+    from build_map import read_bag
 
-    if pending:
-        points = np.concatenate(pending, axis=0)
-        intensities = np.concatenate(pending_intensity, axis=0)
-        keep = np.isfinite(points).all(axis=1)
-        sweeps.append(
-            (
-                pending_stamp + 0.099,
-                make_pointcloud2(typestore, pending_stamp + 0.099, points[keep], intensities[keep]),
-                None,
-            )
-        )
-    if not sweeps:
+    scans, stamps, _, _ = read_bag(args.bag, 0, sweep_merge=True)
+    if not scans:
         raise SystemExit("no lidar messages found")
 
-    # Attach the latest /clock value at or before each sweep stamp.
-    clocks = np.asarray(clocks) if clocks else np.zeros(0)
-    merged = []
-    for stamp_s, lidar_msg, _ in sweeps:
-        if len(clocks):
-            index = int(np.searchsorted(clocks, stamp_s, side="right")) - 1
-            index = max(0, index)
-            clock_s = float(clocks[index])
-        else:
-            clock_s = stamp_s
-        merged.append((stamp_s, lidar_msg, make_clock(typestore, clock_s)))
-
-    path = write_bag(args.out, merged, typestore)
-    sizes = [m[1].width for m in sweeps]
+    typestore = get_typestore(Stores.ROS2_HUMBLE)
+    sweeps = [
+        (float(stamp), make_pointcloud2(typestore, float(stamp), points))
+        for points, stamp in zip(scans, stamps)
+    ]
+    path = write_bag(args.out, sweeps, typestore)
+    sizes = [len(points) for points in scans]
     print(
         f"SWEEP_BAG out={path} sweeps={len(sweeps)} "
         f"points_per_sweep min={min(sizes)} median={int(np.median(sizes))} max={max(sizes)} "
