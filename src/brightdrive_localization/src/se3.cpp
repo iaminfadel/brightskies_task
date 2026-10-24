@@ -40,8 +40,8 @@ Eigen::Matrix<double, 6, 6> se3_adjoint(const Eigen::Isometry3d& transform) {
   adjoint.bottomRightCorner<3, 3>() = rotation;
   Eigen::Matrix3d skew;
   skew << 0.0, -transform.translation().z(), transform.translation().y(),
-      transform.translation().z(), 0.0, -transform.translation().x(),
-      -transform.translation().y(), transform.translation().x(), 0.0;
+      transform.translation().z(), 0.0, -transform.translation().x(), -transform.translation().y(),
+      transform.translation().x(), 0.0;
   adjoint.topRightCorner<3, 3>() = skew * rotation;
   return adjoint;
 }

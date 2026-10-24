@@ -1,34 +1,32 @@
 // Sensor-only localization core (contract #9): GNSS -> ENU, GICP scan-to-map,
 // health state machine, status/quality reporting. No ground-truth topic is
 // read; the saved map is the only prior.
-#include <algorithm>
-#include <cmath>
-#include <cstdint>
-#include <deque>
-#include <limits>
-#include <memory>
-#include <optional>
-#include <string>
-#include <vector>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-
+#include <algorithm>
+#include <brightdrive_interfaces/msg/localization_status.hpp>
+#include <cmath>
+#include <cstdint>
+#include <deque>
+#include <diagnostic_msgs/msg/diagnostic_status.hpp>
+#include <diagnostic_msgs/msg/key_value.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+#include <limits>
+#include <memory>
 #include <nav_msgs/msg/odometry.hpp>
+#include <optional>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <std_srvs/srv/trigger.hpp>
+#include <string>
 #include <tf2_eigen/tf2_eigen.hpp>
-#include <tf2_ros/buffer.h>
-#include <tf2_ros/transform_listener.h>
-
-#include <brightdrive_interfaces/msg/localization_status.hpp>
-#include <diagnostic_msgs/msg/diagnostic_status.hpp>
-#include <diagnostic_msgs/msg/key_value.hpp>
+#include <vector>
 
 #include "brightdrive_localization/geodesy.hpp"
 #include "brightdrive_localization/gicp_matcher.hpp"
@@ -58,8 +56,7 @@ builtin_interfaces::msg::Time to_time_msg(double seconds) {
 }
 
 double yaw_from_quaternion(const geometry_msgs::msg::Quaternion& q) {
-  return std::atan2(2.0 * (q.w * q.z + q.x * q.y),
-                    1.0 - 2.0 * (q.y * q.y + q.z * q.z));
+  return std::atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z));
 }
 
 }  // namespace
@@ -87,8 +84,7 @@ class LocalizationCore : public rclcpp::Node {
     init_yaw_steps_ = declare_parameter<int>("initialization.yaw_steps", 7);
     init_min_baseline_m_ = declare_parameter<double>("initialization.gnss_baseline_m", 1.0);
     relocalization_period_s_ = declare_parameter<double>("relocalization.period_s", 1.0);
-    relocalization_yaw_span_deg_ =
-        declare_parameter<double>("relocalization.yaw_span_deg", 30.0);
+    relocalization_yaw_span_deg_ = declare_parameter<double>("relocalization.yaw_span_deg", 30.0);
     relocalization_yaw_steps_ = declare_parameter<int>("relocalization.yaw_steps", 7);
     gnss_fresh_s_ = declare_parameter<double>("gnss.fresh_s", 1.0);
     gnss_sigma_xy_ = declare_parameter<double>("gnss.sigma_xy_m", 1.5);
@@ -99,8 +95,7 @@ class LocalizationCore : public rclcpp::Node {
     innovation_sigma_z_ = declare_parameter<double>("innovation.sigma_z_m", 2.0);
     innovation_sigma_yaw_deg_ = declare_parameter<double>("innovation.sigma_yaw_deg", 10.0);
     degraded_covariance_scale_ = declare_parameter<double>("covariance.degraded_scale", 10.0);
-    degradation_scan_trace_ =
-        declare_parameter<double>("covariance.degraded_trace_gate", 1.5);
+    degradation_scan_trace_ = declare_parameter<double>("covariance.degraded_trace_gate", 1.5);
     map_voxel_ = declare_parameter<double>("map.voxel_size_m", 0.25);
 
     GicpSettings gicp;
@@ -168,8 +163,7 @@ class LocalizationCore : public rclcpp::Node {
         declare_parameter<std::string>("topics.imu", "/carla/hero/imu"), sensor_qos,
         std::bind(&LocalizationCore::on_imu, this, std::placeholders::_1));
     ekf_sub_ = create_subscription<nav_msgs::msg::Odometry>(
-        declare_parameter<std::string>("topics.filtered", "/odometry/filtered"),
-        rclcpp::QoS(10),
+        declare_parameter<std::string>("topics.filtered", "/odometry/filtered"), rclcpp::QoS(10),
         std::bind(&LocalizationCore::on_filtered, this, std::placeholders::_1));
 
     scan_pub_ = create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
@@ -181,9 +175,8 @@ class LocalizationCore : public rclcpp::Node {
     status_pub_ = create_publisher<brightdrive_interfaces::msg::LocalizationStatus>(
         "/localization/status", rclcpp::QoS(10));
     relocalize_srv_ = create_service<std_srvs::srv::Trigger>(
-        "/localization/relocalize",
-        std::bind(&LocalizationCore::on_relocalize, this, std::placeholders::_1,
-                  std::placeholders::_2));
+        "/localization/relocalize", std::bind(&LocalizationCore::on_relocalize, this,
+                                              std::placeholders::_1, std::placeholders::_2));
 
     startup_time_ = now_seconds();
     status_timer_ = create_wall_timer(std::chrono::milliseconds(100),
@@ -283,24 +276,21 @@ class LocalizationCore : public rclcpp::Node {
         out = tf2::transformToEigen(transform.transform);
         return true;
       } catch (const tf2::TransformException& error) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
-                             "TF %s <- %s unavailable: %s", target.c_str(), source.c_str(),
-                             error.what());
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "TF %s <- %s unavailable: %s",
+                             target.c_str(), source.c_str(), error.what());
         return false;
       }
     }
   }
 
-  bool lookup_latest(const std::string& target, const std::string& source,
-                     Eigen::Isometry3d& out) {
+  bool lookup_latest(const std::string& target, const std::string& source, Eigen::Isometry3d& out) {
     try {
       auto transform = tf_buffer_->lookupTransform(target, source, tf2::TimePointZero);
       out = tf2::transformToEigen(transform.transform);
       return true;
     } catch (const tf2::TransformException& error) {
-      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
-                           "TF %s <- %s unavailable: %s", target.c_str(), source.c_str(),
-                           error.what());
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "TF %s <- %s unavailable: %s",
+                           target.c_str(), source.c_str(), error.what());
       return false;
     }
   }
@@ -347,9 +337,7 @@ class LocalizationCore : public rclcpp::Node {
     return yaws;
   }
 
-  bool have_initialization_sources() const {
-    return have_gnss_ && (have_course_ || have_imu_);
-  }
+  bool have_initialization_sources() const { return have_gnss_ && (have_course_ || have_imu_); }
 
   bool initialize_from_sources(const std::vector<Eigen::Vector3f>& scan,
                                const Eigen::Isometry3d& T_base_lidar) {
@@ -369,8 +357,7 @@ class LocalizationCore : public rclcpp::Node {
           from_xyzyaw(last_gnss_enu_.x(), last_gnss_enu_.y(), last_gnss_enu_.z(), yaw);
       const Eigen::Isometry3d T_map_base = T_map_gnss * T_base_gnss.inverse();
       const Eigen::Isometry3d T_map_lidar = T_map_base * T_base_lidar;
-      const MatchResult match =
-          matcher_->align(scan, T_map_lidar, T_map_lidar.translation());
+      const MatchResult match = matcher_->align(scan, T_map_lidar, T_map_lidar.translation());
       if (match.accepted && (!best.found || match.rmse_m < best.match.rmse_m)) {
         best.found = true;
         best.match = match;
@@ -385,17 +372,15 @@ class LocalizationCore : public rclcpp::Node {
     initialized_ = true;
     initializing_failed_ = false;
     health_->set_state_for_test(HealthState::OK, "initialized");
-    RCLCPP_INFO(get_logger(),
-                "%s t=%.3f yaw=%.2fdeg rmse=%.3f inliers=%.2f trace=%.3f (%s)",
-                kLocked, now_seconds(), yaw_of(best.T_map_base) * 180.0 / M_PI,
-                best.match.rmse_m, best.match.inlier_ratio, best.match.covariance.block<3, 3>(0, 0).trace(),
+    RCLCPP_INFO(get_logger(), "%s t=%.3f yaw=%.2fdeg rmse=%.3f inliers=%.2f trace=%.3f (%s)",
+                kLocked, now_seconds(), yaw_of(best.T_map_base) * 180.0 / M_PI, best.match.rmse_m,
+                best.match.inlier_ratio, best.match.covariance.block<3, 3>(0, 0).trace(),
                 have_course_ ? kGnssInit : "imu");
     publish_scan_pose(best.match, best.T_map_base, T_base_lidar, scan_stamp_, false);
     return true;
   }
 
-  bool relocalize(const std::vector<Eigen::Vector3f>& scan,
-                  const Eigen::Isometry3d& T_base_lidar) {
+  bool relocalize(const std::vector<Eigen::Vector3f>& scan, const Eigen::Isometry3d& T_base_lidar) {
     Eigen::Isometry3d T_base_gnss;
     if (!lookup_latest(base_frame_, gnss_frame_, T_base_gnss)) {
       return false;
@@ -422,8 +407,7 @@ class LocalizationCore : public rclcpp::Node {
         const Eigen::Isometry3d T_map_base =
             from_xyzyaw(translations[t].x(), translations[t].y(), zs[t], yaw);
         const Eigen::Isometry3d T_map_lidar = T_map_base * T_base_lidar;
-        const MatchResult match =
-            matcher_->align(scan, T_map_lidar, T_map_lidar.translation());
+        const MatchResult match = matcher_->align(scan, T_map_lidar, T_map_lidar.translation());
         if (match.accepted && (!best.found || match.rmse_m < best.match.rmse_m)) {
           best.found = true;
           best.match = match;
@@ -438,8 +422,8 @@ class LocalizationCore : public rclcpp::Node {
     last_match_ = best.match;
     initialized_ = true;
     relocalized_this_tick_ = true;
-    RCLCPP_INFO(get_logger(), "%s t=%.3f rmse=%.3f inliers=%.2f", kRelocalized,
-                now_seconds(), best.match.rmse_m, best.match.inlier_ratio);
+    RCLCPP_INFO(get_logger(), "%s t=%.3f rmse=%.3f inliers=%.2f", kRelocalized, now_seconds(),
+                best.match.rmse_m, best.match.inlier_ratio);
     publish_scan_pose(best.match, best.T_map_base, T_base_lidar, scan_stamp_, true);
     return true;
   }
@@ -467,9 +451,8 @@ class LocalizationCore : public rclcpp::Node {
 
     if (now_seconds() - scan_stamp_ > stale_scan_s_) {
       ++stale_scans_;
-      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                           "STALE_SCAN age=%.3fs dropped=%zu", now_seconds() - scan_stamp_,
-                           stale_scans_);
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000, "STALE_SCAN age=%.3fs dropped=%zu",
+                           now_seconds() - scan_stamp_, stale_scans_);
       return;
     }
 
@@ -534,8 +517,7 @@ class LocalizationCore : public rclcpp::Node {
       return;
     }
 
-    const Eigen::Isometry3d T_map_base =
-        match.T_target_source * T_base_lidar.inverse();
+    const Eigen::Isometry3d T_map_base = match.T_target_source * T_base_lidar.inverse();
 
     double d2 = kNoMeasurement;
     if (prediction) {
@@ -543,8 +525,7 @@ class LocalizationCore : public rclcpp::Node {
       if (d2 >= innovation_gate_) {
         last_scan_accepted_ = false;
         last_match_ = match;
-        RCLCPP_WARN(get_logger(), "%s d2=%.1f gate=%.1f", kInnovationReject, d2,
-                    innovation_gate_);
+        RCLCPP_WARN(get_logger(), "%s d2=%.1f gate=%.1f", kInnovationReject, d2, innovation_gate_);
         publish_quality(match, d2, false);
         return;
       }
@@ -560,10 +541,10 @@ class LocalizationCore : public rclcpp::Node {
 
     const double latency_sim_ms = (now_seconds() - scan_stamp_) * 1000.0;
     const double latency_wall_ms =
-        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0)
-            .count();
-    RCLCPP_DEBUG(get_logger(), "SCAN_MATCH rmse=%.3f inliers=%.2f latency_sim_ms=%.1f "
-                               "latency_wall_ms=%.1f degraded=%d",
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    RCLCPP_DEBUG(get_logger(),
+                 "SCAN_MATCH rmse=%.3f inliers=%.2f latency_sim_ms=%.1f "
+                 "latency_wall_ms=%.1f degraded=%d",
                  match.rmse_m, match.inlier_ratio, latency_sim_ms, latency_wall_ms,
                  degraded ? 1 : 0);
   }
@@ -586,14 +567,12 @@ class LocalizationCore : public rclcpp::Node {
   // ---------------------------------------------------------------- outputs
 
   void publish_scan_pose(const MatchResult& match, const Eigen::Isometry3d& T_map_base,
-                         const Eigen::Isometry3d& T_base_lidar,
-                         double stamp, bool relocalized) {
+                         const Eigen::Isometry3d& T_base_lidar, double stamp, bool relocalized) {
     if (health_->state() == HealthState::FAILED && !relocalized) {
       return;
     }
     const Eigen::Matrix<double, 6, 6> adjoint = se3_adjoint(T_base_lidar);
-    Eigen::Matrix<double, 6, 6> covariance =
-        adjoint * match.covariance * adjoint.transpose();
+    Eigen::Matrix<double, 6, 6> covariance = adjoint * match.covariance * adjoint.transpose();
     const double scale =
         health_->state() == HealthState::DEGRADED ? degraded_covariance_scale_ : 1.0;
     covariance *= scale;
@@ -604,15 +583,13 @@ class LocalizationCore : public rclcpp::Node {
     msg.pose.pose = tf2::toMsg(T_map_base);
     for (int row = 0; row < 6; ++row) {
       for (int column = 0; column < 6; ++column) {
-        msg.pose.covariance[static_cast<std::size_t>(row * 6 + column)] =
-            covariance(row, column);
+        msg.pose.covariance[static_cast<std::size_t>(row * 6 + column)] = covariance(row, column);
       }
     }
     scan_pub_->publish(msg);
   }
 
-  void publish_gnss_pose(const builtin_interfaces::msg::Time& stamp,
-                         const Eigen::Vector3d& enu,
+  void publish_gnss_pose(const builtin_interfaces::msg::Time& stamp, const Eigen::Vector3d& enu,
                          const std::array<double, 9>& position_covariance) {
     Eigen::Isometry3d T_base_gnss;
     if (!lookup_extrinsic(base_frame_, gnss_frame_, stamp, T_base_gnss)) {
@@ -631,8 +608,7 @@ class LocalizationCore : public rclcpp::Node {
       if (reference) {
         const double dx = T_map_base.translation().x() - reference->pose.translation().x();
         const double dy = T_map_base.translation().y() - reference->pose.translation().y();
-        gnss_innovation_window_.push_back((dx * dx + dy * dy) /
-                                          (gnss_sigma_xy_ * gnss_sigma_xy_));
+        gnss_innovation_window_.push_back((dx * dx + dy * dy) / (gnss_sigma_xy_ * gnss_sigma_xy_));
         while (gnss_innovation_window_.size() > static_cast<std::size_t>(gnss_window_)) {
           gnss_innovation_window_.pop_front();
         }
@@ -649,21 +625,20 @@ class LocalizationCore : public rclcpp::Node {
 
     const double sigma_xy = gnss_sigma_xy_ * std::sqrt(scale);
     const double sigma_z = gnss_sigma_z_ * std::sqrt(scale);
-    const bool covariance_populated =
-        position_covariance[0] > 0.0 || position_covariance[4] > 0.0 ||
-        position_covariance[8] > 0.0;
+    const bool covariance_populated = position_covariance[0] > 0.0 ||
+                                      position_covariance[4] > 0.0 || position_covariance[8] > 0.0;
 
     geometry_msgs::msg::PoseWithCovarianceStamped msg;
     msg.header.stamp = stamp;
     msg.header.frame_id = map_frame_;
     msg.pose.pose = tf2::toMsg(T_map_base);
     msg.pose.covariance.fill(0.0);
-    msg.pose.covariance[0] = covariance_populated ? position_covariance[0] * scale
-                                                  : sigma_xy * sigma_xy;
-    msg.pose.covariance[7] = covariance_populated ? position_covariance[4] * scale
-                                                  : sigma_xy * sigma_xy;
-    msg.pose.covariance[14] = covariance_populated ? position_covariance[8] * scale
-                                                   : sigma_z * sigma_z;
+    msg.pose.covariance[0] =
+        covariance_populated ? position_covariance[0] * scale : sigma_xy * sigma_xy;
+    msg.pose.covariance[7] =
+        covariance_populated ? position_covariance[4] * scale : sigma_xy * sigma_xy;
+    msg.pose.covariance[14] =
+        covariance_populated ? position_covariance[8] * scale : sigma_z * sigma_z;
     msg.pose.covariance[21] = 1e6;
     msg.pose.covariance[28] = 1e6;
     msg.pose.covariance[35] = 1e6;
@@ -721,8 +696,8 @@ class LocalizationCore : public rclcpp::Node {
       state = output.state;
       reason = output.reason;
       if (output.transitioned) {
-        RCLCPP_INFO(get_logger(), "HEALTH %s reason=%s t=%.3f",
-                    health_state_name(state), reason.c_str(), now);
+        RCLCPP_INFO(get_logger(), "HEALTH %s reason=%s t=%.3f", health_state_name(state),
+                    reason.c_str(), now);
       }
       relocalized_this_tick_ = false;
     }

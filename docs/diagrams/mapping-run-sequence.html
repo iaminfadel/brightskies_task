@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inside one live mapping run · Sequence</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --paper: #f5f5f5;
+      --ink: #2d3142;
+      --muted: #4f5d75;
+      --soft: #7a8399;
+      --accent: #eb6c36;
+      --accent-tint: rgba(235,108,54,0.08);
+      --rule: rgba(45,49,66,0.12);
+      --node-stroke: rgba(45,49,66,0.25);
+      --sans: 'Geist', system-ui, sans-serif;
+      --serif: 'Instrument Serif', serif;
+      --mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--sans);
+      background: var(--paper);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 1320px; width: 100%; }
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      max-width: 900px;
+      font-family: var(--serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--ink);
+      margin-bottom: 0.75rem;
+    }
+    .lede {
+      max-width: 780px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.55;
+      margin-bottom: 1.5rem;
+    }
+    .canvas { width: 100%; overflow-x: auto; }
+    svg { width: 100%; min-width: 1040px; display: block; }
+    .caption {
+      margin-top: 1rem;
+      color: var(--soft);
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.04em;
+      line-height: 1.6;
+    }
+    .node { fill: #ffffff; stroke: rgba(45,49,66,0.25); stroke-width: 1; }
+    .node-tag { fill: rgba(45,49,66,0.08); stroke: rgba(45,49,66,0.30); stroke-width: 0.8; }
+    .node-tag-text { fill: var(--muted); font: 600 8px var(--mono); letter-spacing: 0.08em; }
+    .node-title { fill: var(--ink); font: 600 12px var(--sans); }
+    .node-sub { fill: var(--muted); font: 8px var(--mono); }
+    .life { stroke: rgba(45,49,66,0.20); stroke-width: 1; }
+    .activation { fill: rgba(45,49,66,0.05); stroke: rgba(45,49,66,0.30); stroke-width: 0.8; }
+    .msg { fill: none; stroke: #4f5d75; stroke-width: 1; }
+    .msg-return { fill: none; stroke: #7a8399; stroke-width: 1; stroke-dasharray: 5 4; }
+    .msg-label { fill: #4f5d75; font: 8px var(--mono); letter-spacing: 0.04em; }
+    .msg-label.return { fill: #7a8399; }
+    .legend-key { fill: var(--muted); font: 500 8px var(--mono); letter-spacing: 0.12em; }
+    .legend-text { fill: var(--muted); font: 8px var(--sans); }
+    .legend-note { fill: var(--soft); font: 8px var(--mono); letter-spacing: 0.04em; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Sequence · BrightDrive mapping</p>
+    <h1>Inside one live mapping run</h1>
+    <p class="lede">Teleport first, then record. The route driver owns the 10 Hz control loop; the bridge publishes sensors, transforms, and sim time; the bag captures six topics until the driver stops.</p>
+
+    <div class="canvas">
+      <svg viewBox="0 0 1280 680" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="mapping-run-sequence-title mapping-run-sequence-desc">
+        <title id="mapping-run-sequence-title">Inside one live mapping run</title>
+        <desc id="mapping-run-sequence-desc">Sequence diagram showing the control plane teleport and record setup, the route driver applying CARLA controls, the bridge publishing sensor and clock topics, and rosbag writing the mapping bag.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+          </marker>
+          <marker id="arrow-return" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#7a8399"/>
+          </marker>
+        </defs>
+
+        <rect width="1280" height="680" fill="#f5f5f5"/>
+
+        <g class="life">
+          <line x1="180" y1="140" x2="180" y2="600"/>
+          <line x1="430" y1="140" x2="430" y2="600"/>
+          <line x1="670" y1="140" x2="670" y2="600"/>
+          <line x1="910" y1="140" x2="910" y2="600"/>
+          <line x1="1150" y1="140" x2="1150" y2="600"/>
+        </g>
+
+        <rect class="activation" x="1147" y="232" width="6" height="284" rx="1"/>
+        <rect class="activation" x="907" y="368" width="6" height="110" rx="1"/>
+
+        <g fill="none" stroke="#4f5d75" stroke-width="1">
+          <line x1="180" y1="202" x2="430" y2="202" marker-end="url(#arrow)"/>
+          <line x1="180" y1="236" x2="1150" y2="236" marker-end="url(#arrow)"/>
+          <line x1="1150" y1="270" x2="670" y2="270" marker-end="url(#arrow)"/>
+          <line x1="670" y1="304" x2="1150" y2="304" marker-end="url(#arrow)"/>
+          <line x1="670" y1="338" x2="1150" y2="338" marker-end="url(#arrow)"/>
+          <line x1="180" y1="372" x2="910" y2="372" marker-end="url(#arrow)"/>
+          <line x1="910" y1="406" x2="430" y2="406" marker-end="url(#arrow)"/>
+          <line x1="430" y1="440" x2="670" y2="440" marker-end="url(#arrow)"/>
+          <line x1="910" y1="474" x2="430" y2="474" marker-end="url(#arrow)"/>
+          <line x1="180" y1="508" x2="1150" y2="508" marker-end="url(#arrow)"/>
+        </g>
+        <line class="msg-return" x1="1150" y1="542" x2="180" y2="542" marker-end="url(#arrow-return)"/>
+
+        <g class="msg-label">
+          <rect x="226" y="184" width="156" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="304" y="194" text-anchor="middle">clean · teleport · settle 1 s</text>
+
+          <rect x="210" y="218" width="156" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="288" y="228" text-anchor="middle">record -o /ws/bags/map_full</text>
+
+          <rect x="724" y="252" width="118" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="783" y="262" text-anchor="middle">subscribe · 6 topics</text>
+
+          <rect x="936" y="286" width="168" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="1020" y="296" text-anchor="middle">/lidar · /gnss · /imu · 10 Hz</text>
+
+          <rect x="936" y="320" width="148" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="1010" y="330" text-anchor="middle">/tf · /tf_static · /clock</text>
+
+          <rect x="468" y="354" width="136" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="536" y="364" text-anchor="middle">start · 30 km/h · 600 s</text>
+
+          <rect x="676" y="388" width="182" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="767" y="398" text-anchor="middle">apply_control · every 10 Hz tick</text>
+
+          <rect x="492" y="422" width="84" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="534" y="432" text-anchor="middle">world tick · 10 Hz</text>
+
+          <rect x="700" y="456" width="178" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="789" y="466" text-anchor="middle">ROUTE_COMPLETE / 600 s → brake</text>
+
+          <rect x="946" y="490" width="132" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="1012" y="500" text-anchor="middle">SIGINT after 2 s</text>
+        </g>
+        <g class="msg-label return">
+          <rect x="930" y="524" width="160" height="12" rx="2" fill="#f5f5f5"/>
+          <text x="1010" y="534" text-anchor="middle">drive_rc · du -sh · files</text>
+        </g>
+
+        <g>
+          <rect class="node" x="70" y="64" width="220" height="76" rx="8"/>
+          <rect class="node-tag" x="78" y="72" width="24" height="12" rx="2"/>
+          <text class="node-tag-text" x="90" y="81" text-anchor="middle">CTL</text>
+          <text class="node-title" x="180" y="100" text-anchor="middle">CONTROL PLANE</text>
+          <text class="node-sub" x="180" y="116" text-anchor="middle">map_run.sh</text>
+
+          <rect class="node" x="320" y="64" width="220" height="76" rx="8"/>
+          <rect class="node-tag" x="328" y="72" width="24" height="12" rx="2"/>
+          <text class="node-tag-text" x="340" y="81" text-anchor="middle">SIM</text>
+          <text class="node-title" x="430" y="100" text-anchor="middle">CARLA SERVER</text>
+          <text class="node-sub" x="430" y="116" text-anchor="middle">Town05 · sync 10 Hz</text>
+
+          <rect class="node" x="560" y="64" width="220" height="76" rx="8"/>
+          <rect class="node-tag" x="568" y="72" width="24" height="12" rx="2"/>
+          <text class="node-tag-text" x="580" y="81" text-anchor="middle">ROS</text>
+          <text class="node-title" x="670" y="100" text-anchor="middle">CARLA ROS BRIDGE</text>
+          <text class="node-sub" x="670" y="116" text-anchor="middle">sensors · tf · clock</text>
+
+          <rect class="node" x="800" y="64" width="220" height="76" rx="8"/>
+          <rect class="node-tag" x="808" y="72" width="24" height="12" rx="2"/>
+          <text class="node-tag-text" x="820" y="81" text-anchor="middle">DRV</text>
+          <text class="node-title" x="910" y="100" text-anchor="middle">ROUTE DRIVER</text>
+          <text class="node-sub" x="910" y="116" text-anchor="middle">pure pursuit · CARLA API</text>
+
+          <rect class="node" x="1040" y="64" width="220" height="76" rx="8"/>
+          <rect class="node-tag" x="1048" y="72" width="24" height="12" rx="2"/>
+          <text class="node-tag-text" x="1060" y="81" text-anchor="middle">BAG</text>
+          <text class="node-title" x="1150" y="100" text-anchor="middle">ROSBAG</text>
+          <text class="node-sub" x="1150" y="116" text-anchor="middle">/ws/bags/map_full</text>
+        </g>
+
+        <line x1="0" y1="620" x2="1280" y2="620" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+        <text class="legend-key" x="70" y="644">LEGEND</text>
+        <line x1="146" y1="640" x2="174" y2="640" stroke="#4f5d75" stroke-width="1" marker-end="url(#arrow)"/>
+        <text class="legend-text" x="186" y="644">request</text>
+        <line x1="252" y1="640" x2="280" y2="640" stroke="#7a8399" stroke-width="1" stroke-dasharray="5 4" marker-end="url(#arrow-return)"/>
+        <text class="legend-text" x="292" y="644">return</text>
+        <rect x="354" y="634" width="6" height="12" rx="1" fill="#ffffff" stroke="rgba(45,49,66,0.25)" stroke-width="0.8"/>
+        <text class="legend-text" x="368" y="644">active interval</text>
+        <text class="legend-note" x="70" y="666">ORDER · teleport → settle 1 s → record → drive one loop → wait 2 s → SIGINT · BAG = /ws/bags/map_full</text>
+      </svg>
+    </div>
+
+    <p class="caption">Six recorded topics: /carla/hero/lidar, /carla/hero/gnss, /carla/hero/imu, /tf, /tf_static, /clock. The bag closes 2 s after the driver returns.</p>
+  </div>
+</body>
+</html>

@@ -145,14 +145,18 @@ def quaternion_from_matrix(matrix):
     return x, y, z, w
 
 
-def read_bag(bag_dir, max_scans=0, sweep_points=0):
-    """Read lidar/gnss/imu. With sweep_points > 0, per-tick lidar fragments
-    (CARLA publishes a partial arc each tick) are merged into full rotations
-    of ~sweep_points points; the merged stamp is the last fragment's stamp."""
+def read_bag(bag_dir, max_scans=0, sweep_merge=False):
+    """Read lidar/gnss/imu. With sweep_merge, per-tick lidar fragments (CARLA
+    publishes a partial arc each tick) are merged into full rotations: a
+    sweep closes when the accumulated unwrapped azimuth spans one revolution,
+    so the merge is independent of point rate. The merged stamp is the last
+    fragment's stamp."""
     typestore = get_typestore(Stores.ROS2_HUMBLE)
     scans, gnss, imu = [], [], []
     scan_stamps = []
-    pending, pending_start = [], 0.0
+    pending = []
+    cumulative = 0.0
+    last_az = None
     with Reader(bag_dir) as reader:
         for connection, _, raw in reader.messages():
             topic = connection.topic
@@ -161,16 +165,21 @@ def read_bag(bag_dir, max_scans=0, sweep_points=0):
             msg = typestore.deserialize_cdr(raw, connection.msgtype)
             stamp = stamp_seconds(msg.header.stamp)
             if topic == LIDAR_TOPIC:
-                if sweep_points:
-                    if not pending:
-                        pending_start = stamp
-                    pending.append(pointcloud2_xyz(msg))
-                    if sum(len(p) for p in pending) >= 0.9 * sweep_points:
+                points = pointcloud2_xyz(msg)
+                if sweep_merge:
+                    azimuths = np.arctan2(points[:, 1], points[:, 0])
+                    if last_az is not None:
+                        cumulative += float(wrap_angle(azimuths[0] - last_az))
+                    deltas = np.diff(azimuths)
+                    cumulative += float(np.sum(wrap_angle(deltas)))
+                    last_az = float(azimuths[-1])
+                    pending.append(points)
+                    if abs(cumulative) >= 2.0 * math.pi - 0.3:
                         scans.append(np.concatenate(pending, axis=0))
                         scan_stamps.append(stamp)
-                        pending = []
+                        pending, cumulative, last_az = [], 0.0, None
                 else:
-                    scans.append(pointcloud2_xyz(msg))
+                    scans.append(points)
                     scan_stamps.append(stamp)
                 if max_scans and len(scans) >= max_scans:
                     break
@@ -427,10 +436,10 @@ def main():
                         help="pose-graph mode: dump graph inputs to this .npz (debug)")
     parser.add_argument("--pg-load", default="",
                         help="pose-graph mode: load graph inputs from this .npz "
-                             "and skip KISS + loop detection (same --sweep-points)")
-    parser.add_argument("--sweep-points", type=int, default=0,
+                             "and skip KISS + loop detection (same --sweep-merge)")
+    parser.add_argument("--sweep-merge", action="store_true",
                         help="merge per-tick lidar fragments into full rotations "
-                             "of this many points (28800 for this rig)")
+                             "by azimuth span (required for KISS on CARLA bags)")
     args = parser.parse_args()
 
     out_dir = Path(args.out)
@@ -442,7 +451,7 @@ def main():
     base_gnss = [float(value) for value in args.base_gnss.split(",")]
 
     print("reading bag", flush=True)
-    scans, scan_stamps, gnss, imu = read_bag(args.bag, args.max_scans, args.sweep_points)
+    scans, scan_stamps, gnss, imu = read_bag(args.bag, args.max_scans, args.sweep_merge)
     print(f"scans={len(scans)} gnss={len(gnss)} imu={len(imu)}", flush=True)
 
     if not args.pg_load:
@@ -510,7 +519,7 @@ def main():
             if len(initial) != len(scans):
                 raise SystemExit(
                     f"pg_load has {len(initial)} states for {len(scans)} scans; "
-                    "use the same --sweep-points"
+                    "use the same --sweep-merge"
                 )
             print(f"pose graph: loaded {len(initial)} states, "
                   f"{len(loop_edges)} loop edges from {args.pg_load}", flush=True)
@@ -675,7 +684,7 @@ def main():
         "kiss_voxel": float(args.kiss_voxel),
         "max_range": float(args.max_range),
         "coverage_radius": float(args.coverage_radius),
-        "sweep_points": int(args.sweep_points),
+        "sweep_merge": bool(args.sweep_merge),
         "gnss_pose": bool(args.gnss_pose),
         "gnss_yaw": bool(args.gnss_yaw),
         "imu_delta": bool(args.imu_delta),

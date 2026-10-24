@@ -2,14 +2,12 @@
 // and rejects a hash mismatch before any point is used for matching.
 #pragma once
 
+#include <Eigen/Core>
 #include <cstddef>
 #include <memory>
-#include <string>
-
-#include <Eigen/Core>
-
 #include <small_gicp/ann/kdtree.hpp>
 #include <small_gicp/points/point_cloud.hpp>
+#include <string>
 
 #include "brightdrive_localization/geodesy.hpp"
 

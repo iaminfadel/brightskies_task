@@ -164,8 +164,9 @@ secrets. The full branch model, gate tiers, and the advisory→required ratchet 
 - `carla-full.yml` dispatch-only: S1-S4 matrix, KPI gates, evidence bundle, one
   infrastructure-only retry after `PREEMPTED`.
 
-Bootstrap: `make ci-bootstrap` (staging branch + branch protection; requires a one-time
-GHCR package-access grant for the private deps image, link printed by the script).
+Bootstrap: `make ci-bootstrap` (squash-merge policy, `staging` branch, branch
+protection with the required checks; needs the repo to be public or GitHub
+Pro).
 
 ## Repository layout
 
