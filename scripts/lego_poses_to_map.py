@@ -29,7 +29,7 @@ from scipy.spatial import cKDTree
 from scipy.spatial.transform import Rotation, Slerp
 
 ODOM_CANDIDATES = [
-    "/integrated_to_map",   # transformFusion: per-association fused output
+    "/integrated_to_init",  # transformFusion: per-association fused output
     "/aft_mapped_to_init",  # mapOptimization: per-mapping-cycle optimized
 ]
 

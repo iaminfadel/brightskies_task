@@ -12,6 +12,8 @@ IMU_DAMP=${3:-true}
 Z_HOLD=${4:-false}
 
 source /opt/lego/setup.bash
+# ros2 bag record -o fails on existing dirs; stale runs poison the output.
+rm -rf "$OUT"
 mkdir -p "$OUT"
 
 ros2 run lego_loam_sr lego_loam_sr --ros-args \
