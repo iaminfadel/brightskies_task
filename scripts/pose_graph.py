@@ -70,7 +70,7 @@ def huber_weight(residual, info_diag, delta=HUBER_DELTA):
     return 1.0 if norm <= 1.0 else 1.0 / norm
 
 
-def optimize(states, odom_edges, gnss_edges, loop_edges, iterations=15, verbose=True):
+def optimize(states, odom_edges, gnss_edges, loop_edges, iterations=30, verbose=True):
     """states: (n,4) initial guess.
     odom/loop edges: {"i", "j", "m": (dx,dy,dyaw,dz)}; gnss: {"i", "p": (x,y,z)}.
     Returns optimized (n,4)."""
@@ -112,13 +112,21 @@ def optimize(states, odom_edges, gnss_edges, loop_edges, iterations=15, verbose=
             weight = huber_weight(residual, np.diag(LOOP_INFO))
             accumulate(h, b, [(i, jac_a), (j, jac_b)], residual, LOOP_INFO, weight)
 
-        # Anchor the gauge (absolute frame) via the first state.
-        h[0, 0] += 1.0
+        # Anchor the gauge: pin the full first state (x, y, yaw, z).
+        for d in range(4):
+            h[d, d] += 1.0
 
         delta = spla.spsolve(h.tocsc(), -b)
         if not np.all(np.isfinite(delta)):
             break
         update = delta.reshape(-1, 4)
+        # Trust region: a healthy GN step is sub-metre; huge steps mean a bad
+        # edge or ill-conditioning, so clamp rather than diverge.
+        scale_xy = np.abs(update[:, :2]).max()
+        if scale_xy > 20.0:
+            update *= 20.0 / scale_xy
+            if verbose:
+                print(f"  pose_graph iter {iteration}: clamped step {scale_xy:.1f} m -> 20 m", flush=True)
         states[:, 0] += update[:, 0]
         states[:, 1] += update[:, 1]
         states[:, 2] = wrap(states[:, 2] + update[:, 2])
@@ -174,6 +182,10 @@ def build_loop_edges(scans, states, stamps, submap_half=45, radius=10.0,
         source = voxel_downsample(scans[i], voxel)
         source_map = scan_in_world(i, source)
         transform, inliers = icp(source_map, cKDTree(submap), np.eye(4), max_corr)
+        if inliers < 0.6 or np.linalg.norm(transform[:3, 3]) > 8.0:
+            print(f"LOOP_EDGE_REJECTED i={i} j={j} correction="
+                  f"{np.linalg.norm(transform[:3, 3]):.3f}m inliers={inliers:.2f}", flush=True)
+            continue
         aligned_i = matrix_to_state(transform @ state_to_matrix(states[i]))
         edges.append({
             "i": i, "j": j,
