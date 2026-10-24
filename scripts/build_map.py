@@ -498,6 +498,12 @@ def main():
                         help="pose-graph initial trajectory: KISS-ICP odometry "
                              "or GNSS positions + IMU yaw (right choice for the "
                              "zero-noise CARLA rig)")
+    parser.add_argument("--pg-redo-loops", action="store_true",
+                        help="with --pg-load: re-detect loop edges from the bag "
+                             "scans at the loaded states")
+    parser.add_argument("--loop-radius", type=float, default=6.0,
+                        help="max distance between revisited scan positions "
+                             "(tight enough to exclude parallel streets)")
     parser.add_argument("--sweep-merge", action="store_true",
                         help="merge per-tick lidar fragments into full rotations "
                              "by azimuth span (required for KISS on CARLA bags)")
@@ -604,10 +610,15 @@ def main():
                 {"i": k, "p": gnss_positions[k, :3].tolist()}
                 for k in range(0, len(initial), 3)
             ]
-        if not args.pg_load:
-            print(f"pose graph: {len(odom_edges)} odom, {len(gnss_edges)} gnss edges; "
-                  f"detecting loops", flush=True)
-            loop_edges = pg.build_loop_edges(scans, initial, scan_stamps)
+        if not args.pg_load or args.pg_redo_loops:
+            if args.pg_load:
+                print("pose graph: re-detecting loops from loaded states", flush=True)
+            else:
+                print(f"pose graph: {len(odom_edges)} odom, {len(gnss_edges)} gnss edges; "
+                      f"detecting loops", flush=True)
+            loop_edges = pg.build_loop_edges(
+                scans, initial, scan_stamps, radius=args.loop_radius
+            )
         print(f"pose graph: {len(loop_edges)} loop edges; optimizing", flush=True)
         if args.pg_dump:
             np.savez(
