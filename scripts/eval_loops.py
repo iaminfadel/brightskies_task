@@ -84,7 +84,7 @@ def find_revisit_pairs(stamps, xy, radius_m, min_dt_s):
         if used[max(0, i - 30):i + 30].any() or used[max(0, j - 30):j + 30].any():
             continue
         pairs.append((i, j))
-        used[i], used[j] = True
+        used[i] = used[j] = True
         if len(pairs) >= 200:
             break
     return pairs
