@@ -525,7 +525,7 @@ def main():
     scans, scan_stamps, gnss, imu = read_bag(args.bag, args.max_scans, args.sweep_merge)
     print(f"scans={len(scans)} gnss={len(gnss)} imu={len(imu)}", flush=True)
 
-    if not args.pg_load and args.pg_init == "kiss":
+    if not args.pg_load and not args.pg_optimized and args.pg_init == "kiss":
         print("running kiss-icp", flush=True)
         slam_poses = run_kiss(
             scans,
