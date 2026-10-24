@@ -33,7 +33,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
-from kiss_icp.kiss_icp import KissICP, KISSConfig
 from rosbags.rosbag2 import Reader
 from rosbags.typesys import Stores, get_typestore
 from scipy.spatial import cKDTree
@@ -363,6 +362,8 @@ def run_kiss(
     imu_delta=False,
     gnss_delta=False,
 ):
+    from kiss_icp.kiss_icp import KissICP, KISSConfig
+
     config = KISSConfig()
     config.data.max_range = float(max_range)
     config.data.min_range = 0.0
@@ -494,6 +495,9 @@ def main():
     parser.add_argument("--pg-load", default="",
                         help="pose-graph mode: load graph inputs from this .npz "
                              "and skip KISS + loop detection (same --sweep-merge)")
+    parser.add_argument("--pg-optimized", default="",
+                        help="load pre-solved optimized states (.npz key "
+                             "'optimized') and skip the graph entirely")
     parser.add_argument("--pg-init", choices=("kiss", "gnss"), default="kiss",
                         help="pose-graph initial trajectory: KISS-ICP odometry "
                              "or GNSS positions + IMU yaw (right choice for the "
@@ -565,7 +569,17 @@ def main():
     T_map_base = T_map_gnss @ np.linalg.inv(T_base_gnss)
     T_map_slam = T_map_base @ T_base_lidar
 
-    if args.pose_graph or args.pg_load:
+    if args.pg_optimized:
+        # States already solved offline (preemption-resilient workflow): skip
+        # the graph entirely and go straight to accumulation.
+        data = np.load(args.pg_optimized)
+        optimized = data["optimized"]
+        print(f"pose graph: loaded {len(optimized)} optimized states "
+              f"from {args.pg_optimized}", flush=True)
+        slam_poses = np.asarray(
+            [np.linalg.inv(T_map_slam) @ pg.state_to_matrix(state) for state in optimized]
+        )
+    elif args.pose_graph or args.pg_load:
         import pose_graph as pg
 
         if args.pg_load:
@@ -805,9 +819,10 @@ def main():
                 "gnss_positions_course_yaw"
                 if (args.gnss_pose and args.gnss_yaw)
                 else "pose_graph_gnss_imu_loops"
-                if (args.pose_graph or args.pg_load) and args.pg_init == "gnss"
+                if (args.pose_graph or args.pg_load or args.pg_optimized)
+                and args.pg_init == "gnss"
                 else "pose_graph_kiss_gnss_loops"
-                if (args.pose_graph or args.pg_load)
+                if (args.pose_graph or args.pg_load or args.pg_optimized)
                 else "gnss_imu_scan_rotation"
                 if args.gnss_pose
                 else "kiss_icp"
