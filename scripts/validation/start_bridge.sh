@@ -7,18 +7,18 @@ TOWN=${1:-Town05}
 LOG=${BRIDGE_LOG:-/ws/bridge_${TOWN}.log}
 
 source /opt/brightdrive/setup.bash
-# Async bridge + the server engine capped at -benchmark -fps=10 (see
-# up_carla.sh): the engine paces itself at real-time 10 fps, sim time
-# advances 0.1 s per frame, and the 10 Hz lidar rotation completes exactly one
-# revolution per frame -- every lidar message is a COMPLETE sweep at a
-# deterministic 10 Hz. The bridge never calls world.tick() in async mode, so
-# the synchronous-mode tick deadlock cannot occur, and a real-time factor of
-# 1 keeps the live localization stack from sim-time starvation later.
+# Synchronous, fixed_delta 0.1 s = exactly one 10 Hz lidar rotation per tick:
+# every lidar message is a COMPLETE sweep (KISS-ICP's input model), and all
+# sensor stamps share the world-tick timeline. The bridge ticks as fast as it
+# can (fast-forward); that is fine for mapping runs, where only bag recorders
+# consume the topics. Live localization runs need a rate-limited ticker
+# instead (separate concern).
 nohup setsid ros2 run carla_ros_bridge bridge --ros-args \
   -p host:=127.0.0.1 -p port:=2000 -p timeout:=60 \
   -p town:=Carla/Maps/"$TOWN" \
-  -p passive:=false -p synchronous_mode:=false \
-  -p register_all_sensors:=true \
+  -p passive:=false -p synchronous_mode:=true \
+  -p synchronous_mode_wait_for_vehicle_control_command:=false \
+  -p fixed_delta_seconds:=0.1 -p register_all_sensors:=true \
   -p ego_vehicle_role_name:=hero > "$LOG" 2>&1 &
 echo "bridge starting (pid $!, log $LOG); waiting for /clock"
 
