@@ -2,7 +2,9 @@
 # Mapping-methods research driver: build and evaluate every candidate mapper
 # on one mapping bag + GT eval bag, on the VM.
 #
-# Runs ON THE VM from /ws/brightdrive (deploy via scripts/vm-run.sh):
+# Runs ON THE VM from the deployed research tree (default /ws/brightdrive-mm,
+# deployed with git archive like vm-run.sh but into a SEPARATE tree so it
+# never collides with /ws/brightdrive; the driver self-locates its checkout):
 #   scripts/mapping_methods_eval.sh <mapping_bag> <eval_bag> <spawn> [stage...]
 #
 # Stages: sweeps baseline gicp lego lego_zhold eval
@@ -22,7 +24,8 @@ MM_IMAGE=mm-deps:mm
 LEGO_IMAGE=legoloam:mm
 ROOT=/ws/research/mapping-methods
 OUT=$ROOT/out
-REPO=/ws/brightdrive
+# The tree this script is deployed in -- never assume /ws/brightdrive.
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG() { echo "[$(date -u +%H:%M:%S)] $*"; }
 
 mkdir -p "$OUT"
@@ -93,7 +96,7 @@ stage_lego() {
       || { tail -30 "$OUT/lego_build.log"; return 1; }
   fi
   docker run --rm -v /ws:/ws "$LEGO_IMAGE" \
-    bash /ws/brightdrive/scripts/lego_offline.sh "$OUT/sweeps" "$OUT/lego-run" true false
+    bash "$REPO/scripts/lego_offline.sh" "$OUT/sweeps" "$OUT/lego-run" true false
   py "python3 scripts/lego_poses_to_map.py $OUT/lego-run/lego_out $BAG $OUT/lego.tum"
   py "python3 scripts/build_map.py $BAG $OUT/lego --map-id mm-lego \
       --spawn=$SPAWN --sweep-merge --poses-tum $OUT/lego.tum"
@@ -101,7 +104,7 @@ stage_lego() {
 
 stage_lego_zhold() {
   docker run --rm -v /ws:/ws "$LEGO_IMAGE" \
-    bash /ws/brightdrive/scripts/lego_offline.sh "$OUT/sweeps" "$OUT/lego-zhold-run" true true
+    bash "$REPO/scripts/lego_offline.sh" "$OUT/sweeps" "$OUT/lego-zhold-run" true true
   py "python3 scripts/lego_poses_to_map.py $OUT/lego-zhold-run/lego_out $BAG $OUT/lego-zhold.tum"
   py "python3 scripts/build_map.py $BAG $OUT/lego-zhold --map-id mm-lego-zhold \
       --spawn=$SPAWN --sweep-merge --poses-tum $OUT/lego-zhold.tum"
