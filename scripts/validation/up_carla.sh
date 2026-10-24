@@ -26,7 +26,7 @@ if ! running_town || [ "$(exit_code)" = "139" ]; then
   docker rm -f carla-server >/dev/null 2>&1 || true
   docker run -d --name carla-server --gpus all --network host \
     "$CARLA_IMAGE" /bin/bash -lc \
-    "exec ./CarlaUE4.sh -RenderOffScreen -nosound -quality-level=Low -ResX=1280 -ResY=720 -carla-server -world-port=2000 /Game/Carla/Maps/$TOWN" >/dev/null
+    "exec ./CarlaUE4.sh -RenderOffScreen -nosound -quality-level=Low -ResX=1280 -ResY=720 -benchmark -fps=10 -carla-server -world-port=2000 /Game/Carla/Maps/$TOWN" >/dev/null
   echo "carla-server recreated on $TOWN"
 fi
 
