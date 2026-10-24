@@ -349,6 +349,27 @@ def gnss_course_priors(gnss, imu, scan_stamps, lever_m):
     return yaws, positions
 
 
+def read_poses_tum(path, expected_count):
+    """Lidar poses in the slam frame, one per merged scan, in bag order."""
+    poses = []
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        parts = line.split()
+        if len(parts) != 8:
+            continue
+        pose = np.eye(4)
+        pose[:3, :3] = Rotation.from_quat(
+            [float(parts[4]), float(parts[5]), float(parts[6]), float(parts[7])]
+        ).as_matrix()
+        pose[:3, 3] = [float(parts[1]), float(parts[2]), float(parts[3])]
+        poses.append(pose)
+    if len(poses) != expected_count:
+        raise SystemExit(
+            f"{path}: {len(poses)} poses for {expected_count} scans; "
+            "the producer must emit exactly one pose per merged scan"
+        )
+    return np.asarray(poses)
+
+
 def run_kiss(
     scans,
     scan_stamps,
@@ -498,6 +519,10 @@ def main():
                         help="pose-graph initial trajectory: KISS-ICP odometry "
                              "or GNSS positions + IMU yaw (right choice for the "
                              "zero-noise CARLA rig)")
+    parser.add_argument("--poses-tum", default="",
+                        help="use lidar poses from this TUM file (slam frame, one "
+                             "pose per merged scan; from gicp_odom.py or the LeGO "
+                             "extractor) instead of running KISS-ICP")
     parser.add_argument("--sweep-merge", action="store_true",
                         help="merge per-tick lidar fragments into full rotations "
                              "by azimuth span (required for KISS on CARLA bags)")
@@ -515,7 +540,10 @@ def main():
     scans, scan_stamps, gnss, imu = read_bag(args.bag, args.max_scans, args.sweep_merge)
     print(f"scans={len(scans)} gnss={len(gnss)} imu={len(imu)}", flush=True)
 
-    if not args.pg_load and args.pg_init == "kiss":
+    if args.poses_tum:
+        print(f"reading external poses {args.poses_tum}", flush=True)
+        slam_poses = read_poses_tum(args.poses_tum, len(scans))
+    elif not args.pg_load and args.pg_init == "kiss":
         print("running kiss-icp", flush=True)
         slam_poses = run_kiss(
             scans,
@@ -532,6 +560,8 @@ def main():
             args.gnss_delta,
         )
     if args.kiss_only:
+        if args.poses_tum:
+            raise SystemExit("--kiss-only needs KISS odometry; drop --poses-tum")
         positions = np.asarray([pose[:3, 3] for pose in slam_poses])
         steps = np.linalg.norm(np.diff(positions, axis=0), axis=1)
         kiss_path = float(np.sum(steps))
@@ -755,6 +785,7 @@ def main():
         "gnss_yaw": bool(args.gnss_yaw),
         "imu_delta": bool(args.imu_delta),
         "gnss_delta": bool(args.gnss_delta),
+        "poses_tum": args.poses_tum,
         "kiss_icp_version": kiss_version,
     }
     config_sha256 = hashlib.sha256(
@@ -791,12 +822,15 @@ def main():
             "last_stamp": last_stamp,
             "trajectory_length_m": trajectory_length,
             "pose_source": (
-                "gnss_positions_course_yaw"
+                f"tum:{Path(args.poses_tum).name}"
+                + ("+pose_graph" if args.pose_graph else "")
+                if args.poses_tum
+                else "gnss_positions_course_yaw"
                 if (args.gnss_pose and args.gnss_yaw)
                 else "pose_graph_gnss_imu_loops"
                 if (args.pose_graph or args.pg_load) and args.pg_init == "gnss"
                 else "pose_graph_kiss_gnss_loops"
-                if (args.pose_graph or args.pg_load)
+                if args.pose_graph
                 else "gnss_imu_scan_rotation"
                 if args.gnss_pose
                 else "kiss_icp"

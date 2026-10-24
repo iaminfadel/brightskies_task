@@ -1,0 +1,19 @@
+# LeGO-LOAM run params for the CARLA rig (brightdrive mapping sensors).
+#
+# Laser geometry matches the rig defaults already (16 ch, 1800 cols, +/-15 deg,
+# ground_scan_index 7).  The port nests some params under group prefixes
+# (laser., mapping.) per its loam_config.yaml; /** + dotted names apply them
+# to every node the executable spawns, and unknown names are inert warnings.
+/**:
+  ros__parameters:
+    # research patch (declared flat by mapOptimization)
+    imu_topic: /carla/hero/imu
+    imu_damping: true
+    ground_z_hold: false
+    imu_period: 0.1
+    # port params, dotted per its loam_config.yaml
+    laser.scan_period: 0.1
+    scan_period: 0.1
+    mapping.mapping_frequency_divider: 1
+    mapping.enable_loop_closure: true
+    enable_loop_closure: true

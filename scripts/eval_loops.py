@@ -96,7 +96,7 @@ def evaluate(bag, map_dir, args):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from build_map import read_bag, voxel_downsample
 
-    scans, scan_stamps, _, _ = read_bag(bag)
+    scans, scan_stamps, _, _ = read_bag(bag, sweep_points=args.sweep_points)
     stamps, base_poses = read_tum_poses(map_dir / "trajectory.tum")
     if len(stamps) != len(scans):
         raise SystemExit(f"bag has {len(scans)} scans but trajectory has {len(stamps)} poses")
@@ -202,6 +202,9 @@ def main():
     parser.add_argument("--max-corr", type=float, default=1.5)
     parser.add_argument("--submap-half", type=int, default=45)
     parser.add_argument("--base-lidar", default="1.394,0.0,2.700")
+    parser.add_argument("--sweep-points", type=int, default=0,
+                        help="match the build's --sweep-points so the scan count "
+                             "equals the trajectory pose count")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:
