@@ -219,7 +219,8 @@ def nearest_imu(imu, stamp):
 
 
 def wrap_angle(angle):
-    return math.atan2(math.sin(angle), math.cos(angle))
+    # numpy-safe: the azimuth merge feeds arrays through here
+    return np.arctan2(np.sin(angle), np.cos(angle))
 
 
 def gnss_enu(gnss, scan_stamps):

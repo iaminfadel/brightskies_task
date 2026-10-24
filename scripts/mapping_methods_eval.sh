@@ -72,17 +72,17 @@ stage_sweeps() {
 
 stage_baseline() {
   py "python3 scripts/build_map.py $BAG $OUT/baseline-kiss --map-id mm-kiss \
-      --spawn $SPAWN --sweep-merge --kiss-only"
+      --spawn=$SPAWN --sweep-merge --kiss-only"
   py "python3 scripts/build_map.py $BAG $OUT/baseline-kiss --map-id mm-kiss \
-      --spawn $SPAWN --sweep-merge"
+      --spawn=$SPAWN --sweep-merge"
   py "python3 scripts/build_map.py $BAG $OUT/baseline-kiss-pg --map-id mm-kiss-pg \
-      --spawn $SPAWN --sweep-merge --pose-graph --imu-delta"
+      --spawn=$SPAWN --sweep-merge --pose-graph --imu-delta"
 }
 
 stage_gicp() {
   py "python3 scripts/gicp_odom.py $BAG $OUT/gicp.tum"
   py "python3 scripts/build_map.py $BAG $OUT/gicp-pg --map-id mm-gicp-pg \
-      --spawn $SPAWN --sweep-merge --poses-tum $OUT/gicp.tum --pose-graph"
+      --spawn=$SPAWN --sweep-merge --poses-tum $OUT/gicp.tum --pose-graph"
 }
 
 stage_lego() {
@@ -96,7 +96,7 @@ stage_lego() {
     bash /ws/brightdrive/scripts/lego_offline.sh "$OUT/sweeps" "$OUT/lego-run" true false
   py "python3 scripts/lego_poses_to_map.py $OUT/lego-run/lego_out $BAG $OUT/lego.tum"
   py "python3 scripts/build_map.py $BAG $OUT/lego --map-id mm-lego \
-      --spawn $SPAWN --sweep-merge --poses-tum $OUT/lego.tum"
+      --spawn=$SPAWN --sweep-merge --poses-tum $OUT/lego.tum"
 }
 
 stage_lego_zhold() {
@@ -104,7 +104,7 @@ stage_lego_zhold() {
     bash /ws/brightdrive/scripts/lego_offline.sh "$OUT/sweeps" "$OUT/lego-zhold-run" true true
   py "python3 scripts/lego_poses_to_map.py $OUT/lego-zhold-run/lego_out $BAG $OUT/lego-zhold.tum"
   py "python3 scripts/build_map.py $BAG $OUT/lego-zhold --map-id mm-lego-zhold \
-      --spawn $SPAWN --sweep-merge --poses-tum $OUT/lego-zhold.tum"
+      --spawn=$SPAWN --sweep-merge --poses-tum $OUT/lego-zhold.tum"
 }
 
 stage_eval() {
