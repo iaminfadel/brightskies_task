@@ -66,9 +66,8 @@ History:
 ## Workflows
 
 - `.github/workflows/ci.yml` - tiers 1+2. Also `workflow_call` for reuse.
-  Pulls the **private** deps image from GHCR with `GITHUB_TOKEN`; this needs a
-  one-time package access grant (repo -> package Read role) in GitHub package
-  settings - `scripts/ci_bootstrap.sh` prints the exact link.
+  Pulls the deps image from GHCR (public; the login step only lifts the
+  anonymous rate limit).
 - `.github/workflows/carla-smoke.yml` - tier 3, push to `staging` + manual
   dispatch. Dispatches via `scripts/vm_job.py`: start on-demand VM, deploy
   committed staging HEAD (`git archive`, never uncommitted state), run
@@ -103,11 +102,13 @@ under the existing lifecycle rules; small reports on GitHub.
 
 ## v0.1 bootstrap
 
-`scripts/ci_bootstrap.sh` (idempotent, `make ci-bootstrap`): squash-merge-only
-policy, creates `staging` from `main`, and applies branch protection with the
-current ratchet state as required checks (PRs only, no force push, branches
-must be up to date, conversation resolution required). Tag current main as
-`v0.1` once the first PR goes green.
+Bootstrap: `scripts/ci_bootstrap.sh` (idempotent, `make ci-bootstrap`):
+squash-merge-only policy, creates `staging` from `main`, and applies branch
+protection with the current ratchet state as required checks (PRs only, no
+force push, branches must be up to date, conversation resolution required).
+Tag current main as `v0.1` once the first PR goes green. Note: required
+checks on a private repo need GitHub Pro - the repo is public, so protection
+works on the free plan.
 
 ## Mapping CI (planned; not built yet)
 

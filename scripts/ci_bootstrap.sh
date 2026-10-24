@@ -52,8 +52,6 @@ Done. Current ratchet state (see docs/ci.md):
   advisory now:   carla-smoke on staging pushes
   pending gates:  full KPI matrix on staging->main promotion (needs #10/#11)
 
-One-time manual step (GitHub UI, cannot be done via API):
-  the private deps image must grant this repo access, or be made public:
-  https://github.com/users/iaminfadel/packages/container/brightdrive-deps/settings
-  -> Manage Actions access -> add iaminfadel/brightskies_task (role: Read).
+Note: required checks on a private repo require GitHub Pro; with the repo
+public they work on the free plan.
 NOTE
