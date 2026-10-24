@@ -32,7 +32,7 @@ fi
 
 # Wait for RPC, confirm town, kill any stale bridge, start a fresh one.
 docker exec brightdrive-deps bash -lc \
-  "python3 /ws/brightdrive/scripts/validation/load_carla_town.py --town $TOWN --timeout 900"
+  "python3 /ws/brightdrive/scripts/validation/load_carla_town.py --town $TOWN --timeout 1800"
 docker exec brightdrive-deps bash -lc \
   "pkill -f '[b]ridge --ros-args' 2>/dev/null; sleep 2; bash /ws/brightdrive/scripts/validation/start_bridge.sh $TOWN"
 echo "CARLA_RUNTIME_UP town=$TOWN"
