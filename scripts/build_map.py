@@ -222,6 +222,65 @@ def wrap_angle(angle):
     return math.atan2(math.sin(angle), math.cos(angle))
 
 
+def gnss_enu(gnss, scan_stamps):
+    """Antenna ENU (east, north, altitude-delta) per scan, anchored at the
+    first fix."""
+    lat0 = float(gnss[0, 1])
+    lon0 = float(gnss[0, 2])
+    radius = 6378137.0
+    gnss_index = np.searchsorted(gnss[:, 0], scan_stamps)
+    gnss_index = np.clip(gnss_index, 0, len(gnss) - 1)
+    east = np.zeros(len(scan_stamps))
+    north = np.zeros(len(scan_stamps))
+    alt = np.zeros(len(scan_stamps))
+    for i, (stamp, j) in enumerate(zip(scan_stamps, gnss_index)):
+        if j > 0 and abs(gnss[j - 1, 0] - stamp) < abs(gnss[j, 0] - stamp):
+            j -= 1
+        east[i] = math.radians(gnss[j, 2] - lon0) * radius * math.cos(math.radians(lat0))
+        north[i] = math.radians(gnss[j, 1] - lat0) * radius / 0.9933056
+        alt[i] = float(gnss[j, 3]) - float(gnss[0, 3])
+    return east, north, alt
+
+
+def gnss_imu_states(gnss, imu, scan_stamps, lever_m):
+    """Trajectory states from GNSS positions + IMU yaw in the map ENU frame.
+    The IMU reports CARLA-frame heading; sign and constant offset are
+    resolved against the GNSS course over moving windows."""
+    yaws_raw = np.asarray([nearest_imu(imu, stamp)[1] for stamp in scan_stamps])
+    course_yaws, _ = gnss_course_priors(gnss, imu, scan_stamps, lever_m)
+    moving = np.abs(wrap_angle(course_yaws - np.roll(course_yaws, 20))) > math.radians(5)
+    moving[:20] = False
+
+    def disagreement(sign, offset):
+        return np.abs(
+            wrap_angle(sign * yaws_raw[moving] + offset - course_yaws[moving])
+        ).mean()
+
+    sign, offset = min(
+        (
+            (s, wrap_angle(np.median(course_yaws[moving] - s * yaws_raw[moving])))
+            for s in (1.0, -1.0)
+        ),
+        key=lambda so: disagreement(*so),
+    )
+    print(
+        f"gnss_imu_states: imu yaw sign {sign:+.0f}, offset "
+        f"{math.degrees(offset):.1f} deg, course disagreement "
+        f"{math.degrees(disagreement(sign, offset)):.2f} deg",
+        flush=True,
+    )
+    yaws = np.asarray([wrap_angle(sign * yaw + offset) for yaw in yaws_raw])
+    east, north, alt = gnss_enu(gnss, scan_stamps)
+    positions = np.column_stack(
+        [
+            east - lever_m * np.cos(yaws),
+            north - lever_m * np.sin(yaws),
+            alt + 0.4,
+        ]
+    )
+    return np.column_stack([positions[:, 0], positions[:, 1], yaws, positions[:, 2]])
+
+
 def scan_priors(gnss, imu, scan_stamps, lever_m):
     """LiDAR yaw and position for every scan from GNSS/IMU samples."""
     yaws = np.asarray([nearest_imu(imu, stamp)[1] for stamp in scan_stamps])
@@ -435,6 +494,10 @@ def main():
     parser.add_argument("--pg-load", default="",
                         help="pose-graph mode: load graph inputs from this .npz "
                              "and skip KISS + loop detection (same --sweep-merge)")
+    parser.add_argument("--pg-init", choices=("kiss", "gnss"), default="kiss",
+                        help="pose-graph initial trajectory: KISS-ICP odometry "
+                             "or GNSS positions + IMU yaw (right choice for the "
+                             "zero-noise CARLA rig)")
     parser.add_argument("--sweep-merge", action="store_true",
                         help="merge per-tick lidar fragments into full rotations "
                              "by azimuth span (required for KISS on CARLA bags)")
@@ -452,7 +515,7 @@ def main():
     scans, scan_stamps, gnss, imu = read_bag(args.bag, args.max_scans, args.sweep_merge)
     print(f"scans={len(scans)} gnss={len(gnss)} imu={len(imu)}", flush=True)
 
-    if not args.pg_load:
+    if not args.pg_load and args.pg_init == "kiss":
         print("running kiss-icp", flush=True)
         slam_poses = run_kiss(
             scans,
@@ -522,10 +585,15 @@ def main():
             print(f"pose graph: loaded {len(initial)} states, "
                   f"{len(loop_edges)} loop edges from {args.pg_load}", flush=True)
         else:
-            print("pose graph: initial states from KISS + anchor", flush=True)
-            initial = np.asarray(
-                [pg.matrix_to_state(T_map_slam @ pose) for pose in slam_poses]
-            )
+            if args.pg_init == "gnss":
+                print("pose graph: initial states from GNSS + IMU", flush=True)
+                lever = float(base_gnss[0]) - float(base_lidar[0])
+                initial = gnss_imu_states(gnss, imu, scan_stamps, lever)
+            else:
+                print("pose graph: initial states from KISS + anchor", flush=True)
+                initial = np.asarray(
+                    [pg.matrix_to_state(T_map_slam @ pose) for pose in slam_poses]
+                )
             odom_edges = [
                 {"i": k, "j": k + 1, "m": pg.relative(initial[k], initial[k + 1])}
                 for k in range(len(initial) - 1)
@@ -725,6 +793,8 @@ def main():
             "pose_source": (
                 "gnss_positions_course_yaw"
                 if (args.gnss_pose and args.gnss_yaw)
+                else "pose_graph_gnss_imu_loops"
+                if (args.pose_graph or args.pg_load) and args.pg_init == "gnss"
                 else "pose_graph_kiss_gnss_loops"
                 if (args.pose_graph or args.pg_load)
                 else "gnss_imu_scan_rotation"

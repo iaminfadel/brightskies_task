@@ -7,13 +7,16 @@ TOWN=${1:-Town05}
 LOG=${BRIDGE_LOG:-/ws/bridge_${TOWN}.log}
 
 source /opt/brightdrive/setup.bash
-# Asynchronous mode: the mapping run does not need deterministic sync, and
-# the synchronous tick loop is where the CARLA server deadlocks under load.
+# Synchronous at 10 Hz with the server engine capped at -benchmark -fps=10:
+# every tick is 0.1 s of sim time = exactly one lidar rotation, so each lidar
+# message is a COMPLETE sweep (KISS-ICP's input model), and all sensor stamps
+# share the world-tick timeline.
 nohup setsid ros2 run carla_ros_bridge bridge --ros-args \
   -p host:=127.0.0.1 -p port:=2000 -p timeout:=60 \
   -p town:=Carla/Maps/"$TOWN" \
-  -p passive:=false -p synchronous_mode:=false \
-  -p register_all_sensors:=true \
+  -p passive:=false -p synchronous_mode:=true \
+  -p synchronous_mode_wait_for_vehicle_control_command:=false \
+  -p fixed_delta_seconds:=0.1 -p register_all_sensors:=true \
   -p ego_vehicle_role_name:=hero > "$LOG" 2>&1 &
 echo "bridge starting (pid $!, log $LOG); waiting for /clock"
 
