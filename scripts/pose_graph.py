@@ -85,6 +85,26 @@ def optimize(states, odom_edges, gnss_edges, loop_edges, iterations=30, verbose=
                     jac_a.T @ weighted @ jac_c)
             b[4 * a_index:4 * a_index + 4] += jac_a.T @ weighted @ residual
 
+    def total_cost(sts):
+        cost = 0.0
+        for edge in odom_edges:
+            i, j, m = edge["i"], edge["j"], np.asarray(edge["m"], dtype=float)
+            r = relative(sts[i], sts[j]) - m
+            r[2] = wrap(r[2])
+            cost += float(r @ ODOM_INFO @ r)
+        for edge in gnss_edges:
+            i, p = edge["i"], np.asarray(edge["p"], dtype=float)
+            r = np.array([sts[i, 0] - p[0], sts[i, 1] - p[1], sts[i, 3] - p[2]])
+            cost += float(r @ GNSS_INFO @ r)
+        for edge in loop_edges:
+            i, j, m = edge["i"], edge["j"], np.asarray(edge["m"], dtype=float)
+            r = relative(sts[i], sts[j]) - m
+            r[2] = wrap(r[2])
+            cost += float(r @ LOOP_INFO @ r)
+        return cost
+
+    current_cost = total_cost(states)
+    lam = 1e-3
     for iteration in range(iterations):
         h = sp.lil_matrix((4 * n, 4 * n))
         b = np.zeros(4 * n)
@@ -112,29 +132,33 @@ def optimize(states, odom_edges, gnss_edges, loop_edges, iterations=30, verbose=
             weight = huber_weight(residual, np.diag(LOOP_INFO))
             accumulate(h, b, [(i, jac_a), (j, jac_b)], residual, LOOP_INFO, weight)
 
-        # Anchor the gauge: pin the full first state (x, y, yaw, z).
-        for d in range(4):
-            h[d, d] += 1.0
+        # Anchor the gauge: pin the full first state (x, y, yaw, z), then add
+        # Levenberg damping proportional to the diagonal (identity floor).
+        diag = h.diagonal()
+        diag[:4] += 1.0
+        diag += lam * np.maximum(diag, 1.0)
+        h.setdiag(diag)
 
         delta = spla.spsolve(h.tocsc(), -b)
         if not np.all(np.isfinite(delta)):
             break
         update = delta.reshape(-1, 4)
-        # Trust region: a healthy GN step is sub-metre; huge steps mean a bad
-        # edge or ill-conditioning, so clamp rather than diverge.
-        scale_xy = np.abs(update[:, :2]).max()
-        if scale_xy > 20.0:
-            update *= 20.0 / scale_xy
-            if verbose:
-                print(f"  pose_graph iter {iteration}: clamped step {scale_xy:.1f} m -> 20 m", flush=True)
-        states[:, 0] += update[:, 0]
-        states[:, 1] += update[:, 1]
-        states[:, 2] = wrap(states[:, 2] + update[:, 2])
-        states[:, 3] += update[:, 3]
+        candidate = states.copy()
+        candidate[:, 0] += update[:, 0]
+        candidate[:, 1] += update[:, 1]
+        candidate[:, 2] = wrap(candidate[:, 2] + update[:, 2])
+        candidate[:, 3] += update[:, 3]
+        new_cost = total_cost(candidate)
+        if new_cost < current_cost:
+            states, current_cost = candidate, new_cost
+            lam = max(lam / 3.0, 1e-6)
+        else:
+            lam = min(lam * 10.0, 1e6)
         if verbose:
-            print(f"  pose_graph iter {iteration}: max_xy_update "
-                  f"{np.abs(update[:, :2]).max():.4f} m", flush=True)
-        if np.abs(update[:, :2]).max() < 1e-4:
+            print(f"  pose_graph iter {iteration}: cost {current_cost:.1f} "
+                  f"max_xy {np.abs(update[:, :2]).max():.3f} m lam {lam:.1e}",
+                  flush=True)
+        if np.abs(update[:, :2]).max() < 1e-4 and new_cost < current_cost * 1.0001:
             break
     return states
 
