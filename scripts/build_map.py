@@ -145,10 +145,14 @@ def quaternion_from_matrix(matrix):
     return x, y, z, w
 
 
-def read_bag(bag_dir, max_scans=0):
+def read_bag(bag_dir, max_scans=0, sweep_points=0):
+    """Read lidar/gnss/imu. With sweep_points > 0, per-tick lidar fragments
+    (CARLA publishes a partial arc each tick) are merged into full rotations
+    of ~sweep_points points; the merged stamp is the last fragment's stamp."""
     typestore = get_typestore(Stores.ROS2_HUMBLE)
     scans, gnss, imu = [], [], []
     scan_stamps = []
+    pending, pending_start = [], 0.0
     with Reader(bag_dir) as reader:
         for connection, _, raw in reader.messages():
             topic = connection.topic
@@ -157,8 +161,17 @@ def read_bag(bag_dir, max_scans=0):
             msg = typestore.deserialize_cdr(raw, connection.msgtype)
             stamp = stamp_seconds(msg.header.stamp)
             if topic == LIDAR_TOPIC:
-                scans.append(pointcloud2_xyz(msg))
-                scan_stamps.append(stamp)
+                if sweep_points:
+                    if not pending:
+                        pending_start = stamp
+                    pending.append(pointcloud2_xyz(msg))
+                    if sum(len(p) for p in pending) >= 0.9 * sweep_points:
+                        scans.append(np.concatenate(pending, axis=0))
+                        scan_stamps.append(stamp)
+                        pending = []
+                else:
+                    scans.append(pointcloud2_xyz(msg))
+                    scan_stamps.append(stamp)
                 if max_scans and len(scans) >= max_scans:
                     break
             elif topic == GNSS_TOPIC:
@@ -412,6 +425,9 @@ def main():
                              "globally optimized (offline SLAM)")
     parser.add_argument("--pg-dump", default="",
                         help="pose-graph mode: dump graph inputs to this .npz (debug)")
+    parser.add_argument("--sweep-points", type=int, default=0,
+                        help="merge per-tick lidar fragments into full rotations "
+                             "of this many points (28800 for this rig)")
     args = parser.parse_args()
 
     out_dir = Path(args.out)
@@ -423,7 +439,7 @@ def main():
     base_gnss = [float(value) for value in args.base_gnss.split(",")]
 
     print("reading bag", flush=True)
-    scans, scan_stamps, gnss, imu = read_bag(args.bag, args.max_scans)
+    scans, scan_stamps, gnss, imu = read_bag(args.bag, args.max_scans, args.sweep_points)
     print(f"scans={len(scans)} gnss={len(gnss)} imu={len(imu)}", flush=True)
 
     print("running kiss-icp", flush=True)
