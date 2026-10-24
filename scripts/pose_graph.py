@@ -19,6 +19,7 @@ import scipy.sparse.linalg as spla
 
 ODOM_INFO = np.diag([40.0, 40.0, 60.0, 20.0])   # 1/sigma^2
 GNSS_INFO = np.diag([25.0, 25.0, 4.0])          # (x, y, z)
+GNSS_YAW_INFO = 10.0                            # course-over-ground yaw, 1/sigma^2 (sigma ~ 0.32 rad; noisier than odometry)
 LOOP_INFO = np.diag([100.0, 100.0, 150.0, 50.0])
 HUBER_DELTA = 3.0  # in residual sigmas
 
@@ -123,6 +124,19 @@ def optimize(states, odom_edges, gnss_edges, loop_edges, iterations=30, verbose=
             jac = np.zeros((3, 4))  # residual = selector @ state
             jac[0, 0] = jac[1, 1] = jac[2, 3] = 1.0
             accumulate(h, b, [(i, jac)], residual, GNSS_INFO, weight)
+            # Course-over-ground yaw factor: absolute ENU yaw observation that
+            # makes the heading gauge observable (positions alone cannot see a
+            # constant yaw offset). Nodes without a valid course carry no yaw
+            # key and are skipped.
+            if "yaw" in edge:
+                r_yaw = wrap(states[i, 2] - edge["yaw"])
+                yaw_jac = np.zeros((1, 4))
+                yaw_jac[0, 2] = 1.0
+                yaw_weight = huber_weight(
+                    np.array([r_yaw]), np.array([GNSS_YAW_INFO]))
+                accumulate(h, b, [(i, yaw_jac)],
+                           np.array([r_yaw]),
+                           np.array([[GNSS_YAW_INFO]]), yaw_weight)
 
         for edge in loop_edges:
             i, j, m = edge["i"], edge["j"], np.asarray(edge["m"], dtype=float)
@@ -252,14 +266,35 @@ def self_test():
     gnss_edges = [{"i": k, "p": [truth[k, 0] + rng.normal(0, 0.2),
                                  truth[k, 1] + rng.normal(0, 0.2), 0.0]}
                   for k in range(0, n, 5)]
+    # course-over-ground yaw on the same cadence (exact here; the rig's is
+    # noisier but unbiased), only where the vehicle moves
+    for edge, k in zip(gnss_edges, range(0, n, 5)):
+        if 0 < k < n - 1:
+            edge["yaw"] = float(math.atan2(
+                truth[min(k + 2, n - 1), 1] - truth[max(k - 2, 0), 1],
+                truth[min(k + 2, n - 1), 0] - truth[max(k - 2, 0), 0]))
     loop_edges = [{"i": n - 5, "j": 5, "m": relative(truth[n - 5], truth[5])}]
 
+    # Wrong initialization: everything globally rotated by 25 deg (positions
+    # AND yaws) -- simulates a bad anchor convention. The factors alone must
+    # recover the frame; nothing may be pre-corrected.
+    theta = math.radians(25.0)
+    c, s = math.cos(theta), math.sin(theta)
+    rot2 = np.array([[c, -s], [s, c]])
+    init = odom_states.copy()
+    init[:, :2] = init[:, :2] @ rot2.T
+    init[:, 2] = wrap(init[:, 2] + theta)
+
     raw = np.linalg.norm(odom_states[:, :2] - truth[:, :2], axis=1)
-    optimized = optimize(odom_states, odom_edges, gnss_edges, loop_edges, verbose=False)
+    optimized = optimize(init, odom_edges, gnss_edges, loop_edges, verbose=False)
     opt = np.linalg.norm(optimized[:, :2] - truth[:, :2], axis=1)
     print(f"pose_graph self-test: raw rmse {np.sqrt((raw ** 2).mean()):.2f} m "
           f"-> optimized rmse {np.sqrt((opt ** 2).mean()):.2f} m")
     assert np.sqrt((opt ** 2).mean()) < 0.5, "optimizer failed to correct drift"
+    yaw_err = np.abs(wrap(optimized[:, 2] - truth[:, 2]))
+    print(f"pose_graph self-test: yaw rmse {np.degrees(np.sqrt((yaw_err ** 2).mean())):.2f} deg "
+          f"from a 25 deg rotated init")
+    assert np.degrees(np.sqrt((yaw_err ** 2).mean())) < 3.0, "yaw gauge not recovered"
     print("POSE_GRAPH_SELF_TEST ok")
 
 

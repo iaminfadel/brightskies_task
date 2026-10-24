@@ -622,10 +622,19 @@ def main():
             ]
             lever = float(base_gnss[0]) - float(base_lidar[0])
             _, gnss_positions = scan_priors(gnss, imu, scan_stamps, lever)
-            gnss_edges = [
-                {"i": k, "p": gnss_positions[k, :3].tolist()}
-                for k in range(0, len(initial), 3)
-            ]
+            course, _ = gnss_course_priors(gnss, imu, scan_stamps, lever)
+            # Yaw observability: attach course-over-ground yaw where the
+            # course is actually moving (stale stationary values carry no
+            # information). The initial yaw convention is then irrelevant --
+            # the optimizer recovers the frame from these factors alone.
+            moving = np.abs(wrap_angle(course - np.roll(course, 15))) > math.radians(2.0)
+            gnss_edges = []
+            for k in range(0, len(initial), 3):
+                edge = {"i": k, "p": gnss_positions[k, :3].tolist()}
+                if moving[k]:
+                    edge["yaw"] = float(course[k])
+                gnss_edges.append(edge)
+            print(f"pose graph: {sum('yaw' in e for e in gnss_edges)} yaw factors", flush=True)
         if not args.pg_load or args.pg_redo_loops:
             if args.pg_load:
                 print("pose graph: re-detecting loops from loaded states", flush=True)
