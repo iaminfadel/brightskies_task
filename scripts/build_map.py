@@ -572,6 +572,8 @@ def main():
     if args.pg_optimized:
         # States already solved offline (preemption-resilient workflow): skip
         # the graph entirely and go straight to accumulation.
+        import pose_graph as pg
+
         data = np.load(args.pg_optimized)
         optimized = data["optimized"]
         print(f"pose graph: loaded {len(optimized)} optimized states "
