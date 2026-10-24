@@ -52,12 +52,12 @@ def main():
     scans, scan_stamps, gnss, _ = read_bag(args.bag, 0, sweep_merge=True)
     print(f"scans={len(scans)} gnss={len(gnss)}", flush=True)
 
-    keyframes = []  # (xyz of pose, preprocessed cloud, world points, yaw)
+    keyframes = []  # (xyz of pose, world points, yaw)
 
     def rebuild_submap(pose):
         clouds = [
-            cloud
-            for (xyz, cloud, _points, _yaw) in keyframes
+            points
+            for (xyz, points, _yaw) in keyframes
             if np.linalg.norm(xyz - pose[:3, 3]) <= args.submap_radius
         ]
         merged = np.concatenate(clouds, axis=0)
@@ -78,7 +78,7 @@ def main():
         if index == 0:
             pose = np.eye(4)
             keyframes.append(
-                (pose[:3, 3], source, points @ pose[:3, :3].T + pose[:3, 3], pose_yaw(pose))
+                (pose[:3, 3], points @ pose[:3, :3].T + pose[:3, 3], pose_yaw(pose))
             )
             poses.append(pose)
             submap = rebuild_submap(pose)
@@ -112,7 +112,7 @@ def main():
         ))
         if moved >= args.keyframe_dist or turned >= math.radians(args.keyframe_yaw_deg):
             keyframes.append(
-                (pose[:3, 3], source, points @ pose[:3, :3].T + pose[:3, 3], pose_yaw(pose))
+                (pose[:3, 3], points @ pose[:3, :3].T + pose[:3, 3], pose_yaw(pose))
             )
             submap = rebuild_submap(pose)
         if index % 200 == 0:
