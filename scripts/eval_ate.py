@@ -121,25 +121,36 @@ def evaluate(map_dir, estimator_bag, eval_bag, args):
     stamps_gt, xy_gt, yaw_gt = read_gt(eval_bag)
     stamps_tum, xy_tum, yaw_tum = read_tum(map_dir / "trajectory.tum")
 
-    # Bridge odometry may arrive in CARLA left-handed xy; the map ENU path from
-    # the zero-noise GNSS is truth-derived, so pick the convention that agrees.
+    # Bridge odometry lives in the CARLA/ROS world frame (origin at the world
+    # origin, not at the map anchor). Detect the y-convention by mapping both
+    # candidates through T_map_carla and keeping the one that agrees with the
+    # GNSS ENU path (which is truth-derived and already in the map frame).
     gnss = read_gnss_enu(estimator_bag, lat0, lon0)
+
+    def to_map_xy(raw_xy):
+        mapped = t_mc[:2, :2] @ raw_xy.T + t_mc[:2, 3:4]
+        return mapped.T
+
+    yaw_offset = math.atan2(t_mc[1, 0], t_mc[0, 0])
+
     if len(gnss):
         near = np.abs(gnss[:, 0, None] - stamps_gt[None, :]).argmin(axis=0)
         gn_xy = gnss[near, 1:]
-        err = np.linalg.norm(xy_gt - gn_xy, axis=1).mean()
-        err_flip = np.linalg.norm(xy_gt * [1, -1] - gn_xy, axis=1).mean()
-        if err_flip < err:
-            xy_gt = xy_gt * [1, -1]
-            yaw_gt = -yaw_gt
-            print(f"ATE convention: flipped odometry y (mean GNSS agreement "
-                  f"{err_flip:.3f} m < {err:.3f} m)")
-        else:
-            print(f"ATE convention: odometry as-is (mean GNSS agreement {err:.3f} m)")
+        candidates = {
+            "as-is": (xy_gt.copy(), yaw_gt.copy()),
+            "y-flip": (xy_gt * [1, -1], -yaw_gt),
+        }
+        errors = {}
+        for name, (xy_raw, yaw_raw) in candidates.items():
+            errors[name] = np.linalg.norm(to_map_xy(xy_raw) - gn_xy, axis=1).mean()
+        name = min(errors, key=errors.get)
+        xy_gt, yaw_gt = candidates[name]
+        yaw_gt = wrap(yaw_gt + yaw_offset)
+        print(f"ATE convention: {name} (mean GNSS agreement after T_map_carla: "
+              f"{errors[name]:.3f} m; alternatives {', '.join(f'{k}={v:.1f}' for k, v in errors.items())})")
 
     # T_map_carla maps ROS-world xy to map xy (built from the spawn; no pitch).
-    to_map = t_mc[:2, :2] @ xy_gt.T + t_mc[:2, 3:4]
-    xy_gt_map = to_map.T
+    xy_gt_map = to_map_xy(xy_gt)
 
     idx = np.abs(stamps_gt[:, None] - stamps_tum[None, :]).argmin(axis=1)
     dt = np.abs(stamps_gt - stamps_tum[idx])

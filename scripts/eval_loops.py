@@ -100,7 +100,7 @@ def evaluate(bag, map_dir, args):
     stamps, base_poses = read_tum_poses(map_dir / "trajectory.tum")
     if len(stamps) != len(scans):
         raise SystemExit(f"bag has {len(scans)} scans but trajectory has {len(stamps)} poses")
-    lever = np.array(args.base_lidar, dtype=float)
+    lever = np.array([float(v) for v in args.base_lidar.split(",")])
     lidar_poses = [pose.copy() for pose in base_poses]
     for pose in lidar_poses:
         pose[:3, 3] += pose[:3, :3] @ lever  # base_link -> lidar
