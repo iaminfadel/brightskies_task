@@ -107,8 +107,8 @@ def main():
 
         moved = np.linalg.norm(pose[:3, 3] - keyframes[-1][0])
         turned = abs(math.atan2(
-            math.sin(pose_yaw(pose) - keyframes[-1][3]),
-            math.cos(pose_yaw(pose) - keyframes[-1][3]),
+            math.sin(pose_yaw(pose) - keyframes[-1][2]),
+            math.cos(pose_yaw(pose) - keyframes[-1][2]),
         ))
         if moved >= args.keyframe_dist or turned >= math.radians(args.keyframe_yaw_deg):
             keyframes.append(
