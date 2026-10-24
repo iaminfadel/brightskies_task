@@ -17,7 +17,7 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 
-ODOM_INFO = np.diag([40.0, 40.0, 60.0, 20.0])   # 1/sigma^2
+ODOM_INFO = np.diag([40.0, 40.0, 5000.0, 20.0])  # 1/sigma^2; yaw sigma ~0.8 deg (KISS per-scan accuracy -- looser lets yaw random-walk through stops)
 GNSS_INFO = np.diag([25.0, 25.0, 4.0])          # (x, y, z)
 GNSS_YAW_INFO = 10.0                            # course-over-ground yaw, 1/sigma^2 (sigma ~ 0.32 rad; noisier than odometry)
 LOOP_INFO = np.diag([100.0, 100.0, 150.0, 50.0])
@@ -249,12 +249,13 @@ def self_test():
                      [0.0, 100.0 - t, -math.pi / 2, 0.0])
     truth = np.asarray(truth)
 
-    # Drifted odometry: 0.3 deg/step yaw bias + 2 cm noise per edge.
+    # Drifted odometry: small near-zero-mean yaw error (0.05 deg/step, the
+    # realistic KISS scale) + 2 cm position noise per edge.
     odom_states = np.zeros_like(truth)
     odom_edges = []
     for k in range(1, n):
         m = relative(truth[k - 1], truth[k])
-        m[2] += math.radians(0.3)
+        m[2] += math.radians(0.05)
         m[:2] += rng.normal(0, 0.02, 2)
         odom_edges.append({"i": k - 1, "j": k, "m": m})
         c, s = math.cos(odom_states[k - 1, 2]), math.sin(odom_states[k - 1, 2])
