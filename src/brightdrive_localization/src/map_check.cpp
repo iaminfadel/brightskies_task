@@ -5,6 +5,8 @@
 // writes validation/map_consistency.json. This runs the same C++ matcher as
 // localization_core, so the Hessian condition and convergence semantics match
 // the live pipeline.
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -15,9 +17,6 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-#include <Eigen/Core>
-#include <Eigen/Geometry>
 
 #include "brightdrive_localization/gicp_matcher.hpp"
 #include "brightdrive_localization/map_loader.hpp"
@@ -100,8 +99,7 @@ int main(int argc, char** argv) {
       return 2;
     }
     const std::string map_dir = argv[1];
-    const std::string json_out =
-        argc > 2 ? argv[2] : map_dir + "/validation/map_consistency.json";
+    const std::string json_out = argc > 2 ? argv[2] : map_dir + "/validation/map_consistency.json";
 
     auto map = brightdrive::load_map_bundle(map_dir, 2);
     brightdrive::GicpSettings settings;
@@ -133,8 +131,7 @@ int main(int argc, char** argv) {
     std::size_t accepted = 0;
     for (const auto& pose : poses) {
       char name[64];
-      std::snprintf(name, sizeof(name), "/validation/heldout/scans/scan_%04d.pcd",
-                    pose.index);
+      std::snprintf(name, sizeof(name), "/validation/heldout/scans/scan_%04d.pcd", pose.index);
       const auto cloud = brightdrive::read_pcd_xyz(map_dir + name);
       // The stored scan is already in the map frame. Re-centre it on the
       // recorded sensor position so small_gicp linearizes near the origin, as
@@ -156,18 +153,18 @@ int main(int argc, char** argv) {
         ++accepted;
       }
       rmses.push_back(result.rmse_m);
-      rows.push_back(Row{pose.index, result.converged, ok, result.reject_reason,
-                         result.rmse_m, result.inlier_ratio, result.hessian_condition,
-                         d2, result.iterations, result.source_points});
+      rows.push_back(Row{pose.index, result.converged, ok, result.reject_reason, result.rmse_m,
+                         result.inlier_ratio, result.hessian_condition, d2, result.iterations,
+                         result.source_points});
       std::cout << "MAP_CHECK index=" << pose.index
                 << " converged=" << (result.converged ? "true" : "false")
                 << " accepted=" << (ok ? "true" : "false")
                 << " reason=" << (result.reject_reason.empty() ? "none" : result.reject_reason)
                 << " rmse_m=" << number(result.rmse_m)
                 << " inlier_ratio=" << number(result.inlier_ratio)
-                << " condition=" << number(result.hessian_condition)
-                << " d2=" << number(d2) << " iterations=" << result.iterations
-                << " source_points=" << result.source_points << std::endl;
+                << " condition=" << number(result.hessian_condition) << " d2=" << number(d2)
+                << " iterations=" << result.iterations << " source_points=" << result.source_points
+                << std::endl;
     }
 
     const double median_rmse = percentile(rmses, 0.5);
@@ -200,13 +197,12 @@ int main(int argc, char** argv) {
       const auto& row = rows[i];
       json << "    {\"index\": " << row.index
            << ", \"converged\": " << (row.converged ? "true" : "false")
-           << ", \"accepted\": " << (row.accepted ? "true" : "false")
-           << ", \"reject_reason\": \"" << row.reason << "\""
+           << ", \"accepted\": " << (row.accepted ? "true" : "false") << ", \"reject_reason\": \""
+           << row.reason << "\""
            << ", \"rmse_m\": " << number(row.rmse)
            << ", \"inlier_ratio\": " << number(row.inlier_ratio)
            << ", \"condition\": " << number(row.condition)
-           << ", \"innovation_d2\": " << number(row.d2)
-           << ", \"iterations\": " << row.iterations
+           << ", \"innovation_d2\": " << number(row.d2) << ", \"iterations\": " << row.iterations
            << ", \"source_points\": " << row.source_points << "}"
            << (i + 1 == rows.size() ? "\n" : ",\n");
     }

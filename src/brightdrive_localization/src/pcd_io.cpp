@@ -77,8 +77,7 @@ PcdCloud read_pcd_xyz(const std::string& path) {
   return cloud;
 }
 
-void write_pcd_xyz(const std::string& path,
-                   const std::vector<Eigen::Vector3f>& points) {
+void write_pcd_xyz(const std::string& path, const std::vector<Eigen::Vector3f>& points) {
   std::ofstream stream(path, std::ios::binary);
   if (!stream) {
     throw std::runtime_error("cannot write pcd: " + path);

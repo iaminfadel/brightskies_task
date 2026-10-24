@@ -36,8 +36,7 @@ bool HealthMonitor::good(const HealthInput& input) const {
   return input.map_available && input.scan_good && input.scan_age <= params_.scan_stale_s;
 }
 
-void HealthMonitor::transition(HealthState state, const std::string& reason,
-                               HealthOutput& output) {
+void HealthMonitor::transition(HealthState state, const std::string& reason, HealthOutput& output) {
   if (state_ != state) {
     output.transitioned = true;
   }

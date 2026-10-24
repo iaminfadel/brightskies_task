@@ -1,13 +1,12 @@
 #include "brightdrive_localization/map_loader.hpp"
 
-#include <chrono>
-#include <stdexcept>
-#include <vector>
-
 #include <yaml-cpp/yaml.h>
 
+#include <chrono>
 #include <small_gicp/registration/registration_helper.hpp>
 #include <small_gicp/util/normal_estimation_omp.hpp>
+#include <stdexcept>
+#include <vector>
 
 #include "brightdrive_localization/hash.hpp"
 #include "brightdrive_localization/pcd_io.hpp"
@@ -57,9 +56,8 @@ MapLoadResult load_map_bundle(const std::string& map_dir, int num_threads) {
   metadata.point_count = root["point_count"] ? root["point_count"].as<std::size_t>() : 0;
   metadata.coverage_radius_m =
       root["coverage_radius_m"] ? root["coverage_radius_m"].as<double>() : 20.0;
-  metadata.source_run_id = root["source"] && root["source"]["run_id"]
-                               ? root["source"]["run_id"].as<std::string>()
-                               : "";
+  metadata.source_run_id =
+      root["source"] && root["source"]["run_id"] ? root["source"]["run_id"].as<std::string>() : "";
   metadata.T_map_slam = read_matrix4(root, "T_map_slam");
 
   if (metadata.schema_version != 1) {
@@ -94,19 +92,17 @@ MapLoadResult load_map_bundle(const std::string& map_dir, int num_threads) {
   small_gicp::PointCloud::Ptr raw(new small_gicp::PointCloud);
   raw->resize(pcd.points.size());
   for (std::size_t i = 0; i < pcd.points.size(); ++i) {
-    raw->point(i) << static_cast<double>(pcd.points[i].x()),
-        static_cast<double>(pcd.points[i].y()),
+    raw->point(i) << static_cast<double>(pcd.points[i].x()), static_cast<double>(pcd.points[i].y()),
         static_cast<double>(pcd.points[i].z()), 1.0;
   }
 
-  auto preprocessed = small_gicp::preprocess_points(
-      *raw, metadata.voxel_size_m, 10, num_threads > 0 ? num_threads : 4);
+  auto preprocessed = small_gicp::preprocess_points(*raw, metadata.voxel_size_m, 10,
+                                                    num_threads > 0 ? num_threads : 4);
   result.cloud = preprocessed.first;
   result.tree = preprocessed.second;
 
   const auto end = std::chrono::steady_clock::now();
-  result.load_ms =
-      std::chrono::duration<double, std::milli>(end - start).count();
+  result.load_ms = std::chrono::duration<double, std::milli>(end - start).count();
   return result;
 }
 

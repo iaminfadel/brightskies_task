@@ -3,11 +3,10 @@
 // supported; anything else is rejected rather than silently misread.
 #pragma once
 
+#include <Eigen/Core>
 #include <cstdint>
 #include <string>
 #include <vector>
-
-#include <Eigen/Core>
 
 namespace brightdrive {
 
@@ -19,8 +18,7 @@ struct PcdCloud {
 // Throws std::runtime_error on malformed input.
 PcdCloud read_pcd_xyz(const std::string& path);
 
-void write_pcd_xyz(const std::string& path,
-                   const std::vector<Eigen::Vector3f>& points);
+void write_pcd_xyz(const std::string& path, const std::vector<Eigen::Vector3f>& points);
 
 bool file_exists(const std::string& path);
 

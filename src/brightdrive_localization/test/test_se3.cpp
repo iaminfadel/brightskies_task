@@ -1,6 +1,6 @@
-#include <cmath>
-
 #include <gtest/gtest.h>
+
+#include <cmath>
 
 #include "brightdrive_localization/se3.hpp"
 
