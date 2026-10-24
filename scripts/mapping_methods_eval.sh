@@ -95,6 +95,7 @@ stage_lego() {
       > "$OUT/lego_build.log" 2>&1 \
       || { tail -30 "$OUT/lego_build.log"; return 1; }
   fi
+  sudo rm -rf "$OUT/lego-run"
   docker run --rm -v /ws:/ws "$LEGO_IMAGE" \
     bash "$REPO/scripts/lego_offline.sh" "$OUT/sweeps" "$OUT/lego-run" true false
   py "python3 scripts/lego_poses_to_map.py $OUT/lego-run/lego_out $BAG $OUT/lego.tum"
@@ -103,6 +104,7 @@ stage_lego() {
 }
 
 stage_lego_zhold() {
+  sudo rm -rf "$OUT/lego-zhold-run"
   docker run --rm -v /ws:/ws "$LEGO_IMAGE" \
     bash "$REPO/scripts/lego_offline.sh" "$OUT/sweeps" "$OUT/lego-zhold-run" true true
   py "python3 scripts/lego_poses_to_map.py $OUT/lego-zhold-run/lego_out $BAG $OUT/lego-zhold.tum"
