@@ -42,19 +42,16 @@ def stamp_seconds(stamp):
 
 
 def make_pointcloud2(typestore, stamp_s, points):
-    header = typestore.types["std_msgs/msg/Header"]()
-    header.frame_id = "hero/lidar"
-    header.stamp = typestore.types["builtin_interfaces/msg/Time"]()
-    header.stamp.sec = int(stamp_s)
-    header.stamp.nanosec = int(round((stamp_s - int(stamp_s)) * 1e9))
-    msg = typestore.types["sensor_msgs/msg/PointCloud2"]()
-    msg.header = header
-    msg.height = 1
-    msg.width = len(points)
-    msg.is_bigendian = False
-    msg.point_step = 16
-    msg.row_step = 16 * len(points)
-    msg.is_dense = True
+    stamp = typestore.types["builtin_interfaces/msg/Time"](
+        sec=int(stamp_s), nanosec=int(round((stamp_s - int(stamp_s)) * 1e9))
+    )
+    header = typestore.types["std_msgs/msg/Header"](stamp=stamp, frame_id="hero/lidar")
+    fields = [
+        typestore.types["sensor_msgs/msg/PointField"](
+            name=name, offset=offset, datatype=7, count=1
+        )
+        for name, offset in LIDAR_FIELDS
+    ]
     packed = np.zeros(
         len(points),
         dtype=np.dtype(
@@ -69,22 +66,25 @@ def make_pointcloud2(typestore, stamp_s, points):
     packed["x"] = points[:, 0]
     packed["y"] = points[:, 1]
     packed["z"] = points[:, 2]
-    msg.fields = [
-        typestore.types["sensor_msgs/msg/PointField"](
-            name=name, offset=offset, datatype=7, count=1
-        )
-        for name, offset in LIDAR_FIELDS
-    ]
-    msg.data = packed.tobytes()
+    msg = typestore.types["sensor_msgs/msg/PointCloud2"](
+        header=header,
+        height=1,
+        width=len(points),
+        fields=fields,
+        is_bigendian=False,
+        point_step=16,
+        row_step=16 * len(points),
+        data=packed.tobytes(),
+        is_dense=True,
+    )
     return msg
 
 
 def make_clock(typestore, stamp_s):
-    msg = typestore.types["rosgraph_msgs/msg/Clock"]()
-    msg.clock = typestore.types["builtin_interfaces/msg/Time"]()
-    msg.clock.sec = int(stamp_s)
-    msg.clock.nanosec = int(round((stamp_s - int(stamp_s)) * 1e9))
-    return msg
+    clock = typestore.types["builtin_interfaces/msg/Time"](
+        sec=int(stamp_s), nanosec=int(round((stamp_s - int(stamp_s)) * 1e9))
+    )
+    return typestore.types["rosgraph_msgs/msg/Clock"](clock=clock)
 
 
 def write_bag(out_dir, sweeps, typestore):
