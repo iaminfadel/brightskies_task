@@ -59,8 +59,8 @@ History:
 
 | Date | Gate | Transition | Evidence |
 |---|---|---|---|
-| 2026-10-24 | ci/lint, ci/build-test on PRs | required from day one | first green run on PR (this bootstrap, v0.1) |
-| pending | carla-smoke on staging | advisory now; required after N green + 1 forced-fail | run history + forced-fail run |
+| 2026-10-24 | ci/lint, ci/build-test on PRs | required, proven green | PR #21 (feature→staging) and #22 (promotion→main), all checks SUCCESS; v0.1 tagged at fa1f765 |
+| pending | carla-smoke on staging | advisory; BLOCKED on WIF: the GCP workload-identity provider's attribute condition only accepts refs/heads/main, so staging pushes fail auth (`unauthorized_client`). Recreate the provider with a condition accepting staging (and dispatch) before this gate can be proven | run 40088184551 |
 | pending | full KPI matrix on promotion | requires scenario harness (#10) + evaluator (#11) | promotion run + forced-fail run |
 
 ## Workflows
@@ -102,13 +102,13 @@ under the existing lifecycle rules; small reports on GitHub.
 
 ## v0.1 bootstrap
 
-Bootstrap: `scripts/ci_bootstrap.sh` (idempotent, `make ci-bootstrap`):
-squash-merge-only policy, creates `staging` from `main`, and applies branch
-protection with the current ratchet state as required checks (PRs only, no
-force push, branches must be up to date, conversation resolution required).
-Tag current main as `v0.1` once the first PR goes green. Note: required
-checks on a private repo need GitHub Pro - the repo is public, so protection
-works on the free plan.
+Bootstrap (executed 2026-10-24): repo is public (required checks need GitHub
+Pro on private repos), squash-merge-only policy, `staging` created from
+`main`, branch protection live on both branches with `ci / lint` +
+`ci / build-test` required (PRs only, no force push, up-to-date branches,
+conversation resolution). First PR #21 → staging and promotion PR #22 → main
+both green; `v0.1` tagged at fa1f765. Re-run anytime with `make ci-bootstrap`
+(`scripts/ci_bootstrap.sh` is idempotent).
 
 ## Mapping CI (planned; not built yet)
 
