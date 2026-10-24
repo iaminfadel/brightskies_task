@@ -1,19 +1,50 @@
 # LeGO-LOAM run params for the CARLA rig (brightdrive mapping sensors).
 #
-# Laser geometry matches the rig defaults already (16 ch, 1800 cols, +/-15 deg,
-# ground_scan_index 7).  The port nests some params under group prefixes
-# (laser., mapping.) per its loam_config.yaml; /** + dotted names apply them
-# to every node the executable spawns, and unknown names are inert warnings.
-/**:
+# IMPORTANT: the port declares its params from UNINITIALIZED members, so the
+# defaults are garbage -- every laser.* parameter MUST be set explicitly
+# (the 10-22 spike's loam_carla_full.yaml did the same).  Section keys are
+# the node names (image_projection / feature_association / map_optimization);
+# group prefixes (laser., mapping.) per the port's loam_config.yaml.
+image_projection:
   ros__parameters:
-    # research patch (declared flat by mapOptimization)
+    laser:
+      num_vertical_scans: 16
+      num_horizontal_scans: 1800
+      vertical_angle_bottom: -15.0
+      vertical_angle_top: 15.0
+      sensor_mount_angle: 0.0
+      ground_scan_index: 7
+      scan_period: 0.1
+    image_projection:
+      segment_valid_point_num: 5
+      segment_valid_line_num: 3
+      segment_theta: 60.0
+
+feature_association:
+  ros__parameters:
+    laser:
+      num_vertical_scans: 16
+      num_horizontal_scans: 1800
+      scan_period: 0.1
+    mapping:
+      mapping_frequency_divider: 1
+    featureAssociation:
+      edge_threshold: 0.1
+      surf_threshold: 0.1
+      nearest_feature_search_distance: 5.0
+
+map_optimization:
+  ros__parameters:
+    # research patch (declared flat by MapOptimization)
     imu_topic: /carla/hero/imu
     imu_damping: true
     ground_z_hold: false
     imu_period: 0.1
-    # port params, dotted per its loam_config.yaml
-    laser.scan_period: 0.1
-    scan_period: 0.1
-    mapping.mapping_frequency_divider: 1
-    mapping.enable_loop_closure: true
-    enable_loop_closure: true
+    mapping:
+      enable_loop_closure: true
+      surrounding_keyframe_search_radius: 50.0
+      surrounding_keyframe_search_num: 50
+      history_keyframe_search_radius: 7.0
+      history_keyframe_search_num: 25
+      history_keyframe_fitness_score: 0.3
+      global_map_visualization_search_radius: 500.0

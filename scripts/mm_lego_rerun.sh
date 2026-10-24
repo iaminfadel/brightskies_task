@@ -35,7 +35,7 @@ fi
 if [ ! -f "$OUT/lego/map.pcd" ]; then
   LOG "lego run (imu damping)"
   sudo rm -rf "$OUT/lego-run"
-  docker run --rm -v /ws:/ws legoloam:mm \
+  docker run --rm -v /ws:/ws -v "$REPO/docker/legoloam/loam_carla.yaml:/opt/lego/loam_carla.yaml:ro" legoloam:mm \
     bash "$REPO/scripts/lego_offline.sh" "$OUT/sweeps" "$OUT/lego-run" true false \
     || LOG "lego docker run FAILED"
   py "python3 scripts/lego_poses_to_map.py $OUT/lego-run/lego_out $BAG $OUT/lego.tum" \
@@ -48,7 +48,7 @@ fi
 if [ ! -f "$OUT/lego-zhold/map.pcd" ]; then
   LOG "lego zhold run"
   sudo rm -rf "$OUT/lego-zhold-run"
-  docker run --rm -v /ws:/ws legoloam:mm \
+  docker run --rm -v /ws:/ws -v "$REPO/docker/legoloam/loam_carla.yaml:/opt/lego/loam_carla.yaml:ro" legoloam:mm \
     bash "$REPO/scripts/lego_offline.sh" "$OUT/sweeps" "$OUT/lego-zhold-run" true true \
     || LOG "zhold docker run FAILED"
   py "python3 scripts/lego_poses_to_map.py $OUT/lego-zhold-run/lego_out $BAG $OUT/lego-zhold.tum" \
