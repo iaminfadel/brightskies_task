@@ -410,6 +410,8 @@ def main():
     parser.add_argument("--pose-graph", action="store_true",
                         help="KISS odometry + GNSS factors + ICP loop closures, "
                              "globally optimized (offline SLAM)")
+    parser.add_argument("--pg-dump", default="",
+                        help="pose-graph mode: dump graph inputs to this .npz (debug)")
     args = parser.parse_args()
 
     out_dir = Path(args.out)
@@ -488,6 +490,20 @@ def main():
               f"detecting loops", flush=True)
         loop_edges = pg.build_loop_edges(scans, initial, scan_stamps)
         print(f"pose graph: {len(loop_edges)} loop edges; optimizing", flush=True)
+        if args.pg_dump:
+            np.savez(
+                args.pg_dump,
+                initial=initial,
+                stamps=scan_stamps,
+                odom_i=[e["i"] for e in odom_edges],
+                odom_j=[e["j"] for e in odom_edges],
+                odom_m=np.asarray([e["m"] for e in odom_edges]),
+                gnss_i=[e["i"] for e in gnss_edges],
+                gnss_p=np.asarray([e["p"] for e in gnss_edges]),
+                loop_i=[e["i"] for e in loop_edges],
+                loop_j=[e["j"] for e in loop_edges],
+                loop_m=np.asarray([e["m"] for e in loop_edges]),
+            )
         optimized = pg.optimize(initial, odom_edges, gnss_edges, loop_edges)
         slam_poses = np.asarray(
             [np.linalg.inv(T_map_slam) @ pg.state_to_matrix(state) for state in optimized]
