@@ -74,7 +74,7 @@ def make_pointcloud2(typestore, stamp_s, points):
         is_bigendian=False,
         point_step=16,
         row_step=16 * len(points),
-        data=packed.tobytes(),
+        data=packed.view(np.uint8),
         is_dense=True,
     )
     return msg
