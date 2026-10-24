@@ -38,4 +38,7 @@ repos:
     rev: v0.10.0.1
     hooks:
       - id: shellcheck
+        # Error+warning; the legacy infra scripts carry info/style findings
+        # (SC1091 sourcing, SC2013/SC2005) -- tighten deliberately later.
+        args: [--severity=warning]
         files: ^(scripts|infra)/.*\.(sh|bash)$

@@ -1,10 +1,10 @@
+#include <gtest/gtest.h>
+
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <string>
 #include <vector>
-
-#include <gtest/gtest.h>
 
 #include "brightdrive_localization/hash.hpp"
 #include "brightdrive_localization/map_loader.hpp"
@@ -18,8 +18,7 @@ std::string write_bundle(const std::filesystem::path& dir, int point_count = 200
   std::vector<Eigen::Vector3f> points;
   points.reserve(static_cast<std::size_t>(point_count));
   for (int i = 0; i < point_count; ++i) {
-    points.emplace_back(static_cast<float>(i % 10) * 0.5f,
-                        static_cast<float>(i / 10) * 0.5f,
+    points.emplace_back(static_cast<float>(i % 10) * 0.5f, static_cast<float>(i / 10) * 0.5f,
                         static_cast<float>(i % 3) * 0.1f);
   }
   const std::string pcd_path = (dir / "map.pcd").string();
@@ -36,8 +35,7 @@ std::string write_bundle(const std::filesystem::path& dir, int point_count = 200
        << "  alt_m: 0.0\n"
        << "  stamp: 1.5\n"
        << "T_map_slam: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]\n"
-       << "pcd_sha256: "
-       << (corrupt_hash ? std::string(64, 'a') : hash) << "\n"
+       << "pcd_sha256: " << (corrupt_hash ? std::string(64, 'a') : hash) << "\n"
        << "voxel_size_m: 0.25\n"
        << "point_count: " << point_count << "\n"
        << "coverage_radius_m: 20.0\n"

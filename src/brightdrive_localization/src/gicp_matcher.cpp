@@ -1,13 +1,10 @@
 #include "brightdrive_localization/gicp_matcher.hpp"
 
+#include <Eigen/Eigenvalues>
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <memory>
-#include <vector>
-
-#include <Eigen/Eigenvalues>
-
 #include <small_gicp/ann/traits.hpp>
 #include <small_gicp/factors/gicp_factor.hpp>
 #include <small_gicp/registration/reduction.hpp>
@@ -16,25 +13,21 @@
 #include <small_gicp/registration/termination_criteria.hpp>
 #include <small_gicp/util/downsampling_omp.hpp>
 #include <small_gicp/util/normal_estimation_omp.hpp>
+#include <vector>
 
 namespace brightdrive {
 namespace {
 
-using Registration = small_gicp::Registration<
-    small_gicp::GICPFactor,
-    small_gicp::SerialReduction,
-    small_gicp::NullFactor,
-    small_gicp::DistanceRejector,
-    small_gicp::GaussNewtonOptimizer>;
+using Registration = small_gicp::Registration<small_gicp::GICPFactor, small_gicp::SerialReduction,
+                                              small_gicp::NullFactor, small_gicp::DistanceRejector,
+                                              small_gicp::GaussNewtonOptimizer>;
 
 double degrees_to_radians(double degrees) { return degrees * M_PI / 180.0; }
 
 }  // namespace
 
-GicpMatcher::GicpMatcher(
-    const GicpSettings& settings,
-    small_gicp::PointCloud::ConstPtr map_cloud,
-    std::shared_ptr<const small_gicp::KdTree<small_gicp::PointCloud>> map_tree)
+GicpMatcher::GicpMatcher(const GicpSettings& settings, small_gicp::PointCloud::ConstPtr map_cloud,
+                         std::shared_ptr<const small_gicp::KdTree<small_gicp::PointCloud>> map_tree)
     : settings_(settings), map_cloud_(std::move(map_cloud)), map_tree_(std::move(map_tree)) {}
 
 MatchResult GicpMatcher::align(const std::vector<Eigen::Vector3f>& raw_scan,
@@ -92,20 +85,17 @@ MatchResult GicpMatcher::align(const std::vector<Eigen::Vector3f>& raw_scan,
 
   result.iterations = fine.iterations;
   result.T_target_source = fine.T_target_source;
-  const Eigen::Isometry3d fine_motion =
-      coarse.T_target_source.inverse() * fine.T_target_source;
+  const Eigen::Isometry3d fine_motion = coarse.T_target_source.inverse() * fine.T_target_source;
   result.fine_motion_m = fine_motion.translation().norm();
-  result.fine_rotation_rad =
-      Eigen::AngleAxisd(fine_motion.linear()).angle();
+  result.fine_rotation_rad = Eigen::AngleAxisd(fine_motion.linear()).angle();
   result.coarse_error = coarse.error;
   result.fine_error = fine.error;
   // small_gicp's step-size criterion never fires on the flat along-road
   // direction of noise-free corridor scans. A fine stage that exhausted its
   // budget without materially moving off the coarse solution is converged in
   // pose space; accuracy is still enforced by the RMSE/inlier/condition gates.
-  const bool fine_stalled =
-      result.fine_motion_m <= settings_.fine_motion_gate_m &&
-      result.fine_rotation_rad <= settings_.fine_rotation_gate_rad;
+  const bool fine_stalled = result.fine_motion_m <= settings_.fine_motion_gate_m &&
+                            result.fine_rotation_rad <= settings_.fine_rotation_gate_rad;
   result.converged = fine.converged || fine_stalled;
 
   // Geometric quality: nearest-neighbour residual of every downsampled source
@@ -139,13 +129,12 @@ MatchResult GicpMatcher::align(const std::vector<Eigen::Vector3f>& raw_scan,
   result.hessian_condition =
       lambda_min > 0.0 ? lambda_max / lambda_min : std::numeric_limits<double>::infinity();
 
-  const bool hessian_usable =
-      std::isfinite(result.hessian_condition) && result.hessian_condition < settings_.condition_gate &&
-      lambda_min > 1e-12;
+  const bool hessian_usable = std::isfinite(result.hessian_condition) &&
+                              result.hessian_condition < settings_.condition_gate &&
+                              lambda_min > 1e-12;
   if (hessian_usable && inliers > 6 && result.rmse_m > 0.0) {
-    const double sigma_sq =
-        result.rmse_m * result.rmse_m * static_cast<double>(inliers) /
-        static_cast<double>(inliers - 6);
+    const double sigma_sq = result.rmse_m * result.rmse_m * static_cast<double>(inliers) /
+                            static_cast<double>(inliers - 6);
     result.covariance = sigma_sq * hessian.inverse();
   } else {
     result.covariance = Eigen::Matrix<double, 6, 6>::Zero();

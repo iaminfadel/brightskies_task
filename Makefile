@@ -53,7 +53,7 @@ map-eval-loops:
 map-eval: map-check map-eval-ate map-eval-loops
 
 map-install:
-	./scripts/vm-run.sh --fg "docker exec brightdrive-deps bash -lc 'rm -rf /ws/maps/current/$(MAP_ID) && mkdir -p /ws/maps/current/$(MAP_ID) && cp $(MAP_BUILDS)/$(MAP_ID)/map.pcd $(MAP_BUILDS)/$(MAP_ID)/map.yaml $(MAP_BUILDS)/$(MAP_ID)/trajectory.tum /ws/maps/current/$(MAP_ID)/ && test ! -e /ws/maps/current/$(MAP_ID)/map_eval.yaml && test ! -e /ws/maps/current/$(MAP_ID)/validation'" 
+	./scripts/vm-run.sh --fg "docker exec brightdrive-deps bash -lc 'rm -rf /ws/maps/current/$(MAP_ID) && mkdir -p /ws/maps/current/$(MAP_ID) && cp $(MAP_BUILDS)/$(MAP_ID)/map.pcd $(MAP_BUILDS)/$(MAP_ID)/map.yaml $(MAP_BUILDS)/$(MAP_ID)/trajectory.tum /ws/maps/current/$(MAP_ID)/ && test ! -e /ws/maps/current/$(MAP_ID)/map_eval.yaml && test ! -e /ws/maps/current/$(MAP_ID)/validation'"
 
 map-verify:
 	./scripts/vm-run.sh --fg "python3 /ws/brightdrive/scripts/map_verify.py $(MAP_BUILDS)/$(MAP_ID)"

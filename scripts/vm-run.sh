@@ -22,18 +22,18 @@ pid, and run.sh; the wrapper prints the job id immediately.
 EOF
 }
 
-mode=detach
+mode="detach"
 do_sync=1
 log_target=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --sync-only) mode=sync; shift ;;
-    --fg) mode=fg; shift ;;
-    --status) mode=status; shift ;;
+    --sync-only) mode="sync"; shift ;;
+    --fg) mode="fg"; shift ;;
+    --status) mode="status"; shift ;;
     --logs)
       if [ $# -lt 2 ]; then usage; exit 2; fi
-      mode=logs; log_target="$2"; shift 2
+      mode="logs"; log_target="$2"; shift 2
       ;;
     --no-sync) do_sync=0; shift ;;
     -h|--help) usage; exit 0 ;;

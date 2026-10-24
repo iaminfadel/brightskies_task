@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>From the saved map to the sensor mounts · Architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --paper: #f5f5f5;
+      --ink: #2d3142;
+      --muted: #4f5d75;
+      --soft: #7a8399;
+      --accent: #eb6c36;
+      --accent-tint: rgba(235,108,54,0.08);
+      --rule: rgba(45,49,66,0.12);
+      --node-stroke: rgba(45,49,66,0.25);
+      --sans: 'Geist', system-ui, sans-serif;
+      --serif: 'Instrument Serif', serif;
+      --mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--sans);
+      background: var(--paper);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 1320px; width: 100%; }
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      max-width: 900px;
+      font-family: var(--serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--ink);
+      margin-bottom: 0.75rem;
+    }
+    .lede {
+      max-width: 800px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.55;
+      margin-bottom: 1.5rem;
+    }
+    .canvas { width: 100%; overflow-x: auto; }
+    svg { width: 100%; min-width: 1000px; display: block; }
+    .caption {
+      margin-top: 1rem;
+      color: var(--soft);
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.04em;
+      line-height: 1.6;
+    }
+    .node { fill: #ffffff; stroke: rgba(45,49,66,0.25); stroke-width: 1; }
+    .node.external { fill: rgba(45,49,66,0.02); stroke-dasharray: 4 3; }
+    .node.focal { fill: var(--accent-tint); stroke: var(--accent); stroke-width: 1.2; }
+    .tag { fill: rgba(45,49,66,0.08); stroke: rgba(45,49,66,0.30); stroke-width: 0.8; }
+    .tag.focal { fill: rgba(235,108,54,0.18); stroke: rgba(235,108,54,0.50); }
+    .tag-text { fill: var(--muted); font: 600 8px var(--mono); letter-spacing: 0.08em; }
+    .tag-text.focal { fill: var(--accent); }
+    .node-title { fill: var(--ink); font: 600 12px var(--mono); letter-spacing: -0.01em; }
+    .node-sub { fill: var(--muted); font: 8px var(--mono); }
+    .label { fill: var(--muted); font: 8px var(--mono); letter-spacing: 0.04em; }
+    .label.build { fill: var(--soft); }
+    .legend-key { fill: var(--muted); font: 500 8px var(--mono); letter-spacing: 0.12em; }
+    .legend-text { fill: var(--muted); font: 8px var(--sans); }
+    .legend-note { fill: var(--soft); font: 8px var(--mono); letter-spacing: 0.04em; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture · Coordinate frames</p>
+    <h1>From the saved map to the sensor mounts</h1>
+    <p class="lede">The saved map aligns through <span style="font-family: var(--mono);">T_map_slam</span>; runtime TF runs map → odom → base_link. The sensor mounts hang off hero, not base_link.</p>
+
+    <div class="canvas">
+      <svg viewBox="0 0 1160 860" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="frames-and-transforms-title frames-and-transforms-desc">
+        <title id="frames-and-transforms-title">From the saved map to the sensor mounts</title>
+        <desc id="frames-and-transforms-desc">Frame graph showing the build-time T_map_slam alignment, the runtime map to odom to base_link to hero chain, and the static hero to lidar, gnss, and imu mounts.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+          </marker>
+          <marker id="arrow-build" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#7a8399"/>
+          </marker>
+        </defs>
+
+        <rect width="1160" height="860" fill="#f5f5f5"/>
+
+        <g fill="none" stroke="#4f5d75" stroke-width="1">
+          <path d="M890 172 V210 Q890 218 882 218 H588 Q580 218 580 226 V250" marker-end="url(#arrow)"/>
+          <line x1="580" y1="342" x2="580" y2="400" marker-end="url(#arrow)"/>
+          <line x1="580" y1="492" x2="580" y2="550" marker-end="url(#arrow)"/>
+          <line x1="470" y1="596" x2="340" y2="596" marker-end="url(#arrow)"/>
+          <line x1="690" y1="596" x2="820" y2="596" marker-end="url(#arrow)"/>
+          <line x1="580" y1="642" x2="580" y2="690" marker-end="url(#arrow)"/>
+        </g>
+        <line x1="320" y1="126" x2="780" y2="126" fill="none" stroke="#7a8399" stroke-width="1" stroke-dasharray="5 4" marker-end="url(#arrow-build)"/>
+
+        <rect x="508" y="104" width="84" height="12" rx="2" fill="#f5f5f5"/>
+        <text class="label build" x="550" y="114" text-anchor="middle">T_map_slam</text>
+        <rect x="674" y="198" width="122" height="12" rx="2" fill="#f5f5f5"/>
+        <text class="label" x="735" y="208" text-anchor="middle">map→odom · EKF</text>
+        <rect x="588" y="360" width="116" height="12" rx="2" fill="#f5f5f5"/>
+        <text class="label" x="646" y="370" text-anchor="middle">odom→base · KISS-ICP</text>
+        <rect x="588" y="510" width="96" height="12" rx="2" fill="#f5f5f5"/>
+        <text class="label" x="636" y="520" text-anchor="middle">URDF · 1.394 m</text>
+        <rect x="362" y="572" width="88" height="12" rx="2" fill="#f5f5f5"/>
+        <text class="label" x="406" y="582" text-anchor="middle">T_hero_lidar</text>
+        <rect x="714" y="572" width="80" height="12" rx="2" fill="#f5f5f5"/>
+        <text class="label" x="754" y="582" text-anchor="middle">T_hero_imu</text>
+        <rect x="592" y="654" width="84" height="12" rx="2" fill="#f5f5f5"/>
+        <text class="label" x="634" y="664" text-anchor="middle">T_hero_gnss</text>
+
+        <g>
+          <rect class="node external" x="100" y="80" width="220" height="92" rx="6"/>
+          <rect class="tag" x="108" y="88" width="24" height="12" rx="2"/>
+          <text class="tag-text" x="120" y="97" text-anchor="middle">BLD</text>
+          <text class="node-title" x="210" y="118" text-anchor="middle">slam</text>
+          <text class="node-sub" x="210" y="134" text-anchor="middle">saved map · build</text>
+
+          <rect class="node focal" x="780" y="80" width="220" height="92" rx="6"/>
+          <rect class="tag focal" x="788" y="88" width="24" height="12" rx="2"/>
+          <text class="tag-text focal" x="800" y="97" text-anchor="middle">MAP</text>
+          <text class="node-title" x="890" y="118" text-anchor="middle">map</text>
+          <text class="node-sub" x="890" y="134" text-anchor="middle">local ENU · anchor</text>
+
+          <rect class="node" x="470" y="250" width="220" height="92" rx="6"/>
+          <rect class="tag" x="478" y="258" width="24" height="12" rx="2"/>
+          <text class="tag-text" x="490" y="267" text-anchor="middle">ODM</text>
+          <text class="node-title" x="580" y="288" text-anchor="middle">odom</text>
+          <text class="node-sub" x="580" y="304" text-anchor="middle">local · KISS-ICP</text>
+
+          <rect class="node" x="470" y="400" width="220" height="92" rx="6"/>
+          <rect class="tag" x="478" y="408" width="24" height="12" rx="2"/>
+          <text class="tag-text" x="490" y="417" text-anchor="middle">BAS</text>
+          <text class="node-title" x="580" y="438" text-anchor="middle">base_link</text>
+          <text class="node-sub" x="580" y="454" text-anchor="middle">rear axle · REP-103</text>
+
+          <rect class="node" x="470" y="550" width="220" height="92" rx="6"/>
+          <rect class="tag" x="478" y="558" width="24" height="12" rx="2"/>
+          <text class="tag-text" x="490" y="567" text-anchor="middle">VEH</text>
+          <text class="node-title" x="580" y="588" text-anchor="middle">hero</text>
+          <text class="node-sub" x="580" y="604" text-anchor="middle">actor origin · +0.30 m</text>
+
+          <rect class="node" x="120" y="550" width="220" height="92" rx="6"/>
+          <rect class="tag" x="128" y="558" width="24" height="12" rx="2"/>
+          <text class="tag-text" x="140" y="567" text-anchor="middle">LID</text>
+          <text class="node-title" x="230" y="588" text-anchor="middle">hero/lidar</text>
+          <text class="node-sub" x="230" y="604" text-anchor="middle">[0, 0, 2.4] · mount</text>
+
+          <rect class="node" x="820" y="550" width="220" height="92" rx="6"/>
+          <rect class="tag" x="828" y="558" width="24" height="12" rx="2"/>
+          <text class="tag-text" x="840" y="567" text-anchor="middle">IMU</text>
+          <text class="node-title" x="930" y="588" text-anchor="middle">hero/imu</text>
+          <text class="node-sub" x="930" y="604" text-anchor="middle">[2, 0, 2.0] · mount</text>
+
+          <rect class="node" x="470" y="690" width="220" height="92" rx="6"/>
+          <rect class="tag" x="478" y="698" width="24" height="12" rx="2"/>
+          <text class="tag-text" x="490" y="707" text-anchor="middle">GNS</text>
+          <text class="node-title" x="580" y="728" text-anchor="middle">hero/gnss</text>
+          <text class="node-sub" x="580" y="744" text-anchor="middle">[1, 0, 2.0] · mount</text>
+        </g>
+
+        <line x1="0" y1="800" x2="1160" y2="800" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+        <text class="legend-key" x="40" y="824">LEGEND</text>
+        <line x1="120" y1="820" x2="148" y2="820" stroke="#4f5d75" stroke-width="1" marker-end="url(#arrow)"/>
+        <text class="legend-text" x="160" y="824">runtime TF</text>
+        <line x1="254" y1="820" x2="282" y2="820" stroke="#7a8399" stroke-width="1" stroke-dasharray="5 4" marker-end="url(#arrow-build)"/>
+        <text class="legend-text" x="294" y="824">build-time metadata</text>
+        <rect x="430" y="812" width="18" height="12" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1.2"/>
+        <text class="legend-text" x="456" y="824">focal frame</text>
+        <text class="legend-note" x="40" y="848">T_map_slam aligns the saved SLAM frame; it is not published as a runtime TF. Runtime chain: map → odom → base_link → hero → sensors.</text>
+      </svg>
+    </div>
+
+    <p class="caption">Composed base_link offsets: lidar [1.394, 0, 2.700] · gnss [2.394, 0, 2.300] · imu [3.394, 0, 2.300].</p>
+  </div>
+</body>
+</html>

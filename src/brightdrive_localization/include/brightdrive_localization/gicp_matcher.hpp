@@ -3,15 +3,13 @@
 // the contract's quality gates.
 #pragma once
 
+#include <Eigen/Core>
 #include <cstddef>
 #include <memory>
-#include <string>
-#include <vector>
-
-#include <Eigen/Core>
-
 #include <small_gicp/ann/kdtree.hpp>
 #include <small_gicp/points/point_cloud.hpp>
+#include <string>
+#include <vector>
 
 namespace brightdrive {
 
@@ -53,8 +51,7 @@ struct MatchResult {
 
 class GicpMatcher {
  public:
-  GicpMatcher(const GicpSettings& settings,
-              small_gicp::PointCloud::ConstPtr map_cloud,
+  GicpMatcher(const GicpSettings& settings, small_gicp::PointCloud::ConstPtr map_cloud,
               std::shared_ptr<const small_gicp::KdTree<small_gicp::PointCloud>> map_tree);
 
   // raw_scan is XYZ in the LiDAR frame; init_T_map_lidar is the prediction.

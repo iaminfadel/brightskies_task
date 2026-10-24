@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>From one loop to a validated map · Process</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --paper: #f5f5f5;
+      --ink: #2d3142;
+      --muted: #4f5d75;
+      --soft: #7a8399;
+      --accent: #eb6c36;
+      --accent-tint: rgba(235,108,54,0.08);
+      --rule: rgba(45,49,66,0.12);
+      --rule-strong: rgba(45,49,66,0.20);
+      --lane: rgba(45,49,66,0.018);
+      --node-stroke: rgba(45,49,66,0.25);
+      --sans: 'Geist', system-ui, sans-serif;
+      --serif: 'Instrument Serif', serif;
+      --mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--sans);
+      background: var(--paper);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 1320px; width: 100%; }
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      max-width: 900px;
+      font-family: var(--serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--ink);
+      margin-bottom: 0.75rem;
+    }
+    .lede {
+      max-width: 780px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.55;
+      margin-bottom: 1.5rem;
+    }
+    .canvas { width: 100%; overflow-x: auto; }
+    svg { width: 100%; min-width: 1000px; display: block; }
+    .caption {
+      margin-top: 1rem;
+      color: var(--soft);
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.04em;
+      line-height: 1.6;
+    }
+    .lane-label { fill: var(--muted); font: 500 8px var(--mono); letter-spacing: 0.10em; }
+    .step-label { fill: var(--muted); font: 500 8px var(--mono); letter-spacing: 0.10em; }
+    .step-label.focal { fill: var(--accent); }
+    .step-num { fill: var(--ink); font: 600 8px var(--mono); }
+    .step-num.focal { fill: var(--accent); }
+    .node-mask { fill: var(--paper); }
+    .node { fill: #ffffff; stroke: var(--node-stroke); stroke-width: 1; }
+    .node.focal { fill: var(--accent-tint); stroke: var(--accent); stroke-width: 1.2; }
+    .role { fill: rgba(45,49,66,0.08); stroke: rgba(45,49,66,0.30); stroke-width: 0.8; }
+    .role.focal { fill: rgba(235,108,54,0.18); stroke: rgba(235,108,54,0.50); }
+    .role-text { fill: var(--muted); font: 600 8px var(--mono); letter-spacing: 0.08em; }
+    .role-text.focal { fill: var(--accent); }
+    .node-title { fill: var(--ink); font: 600 12px var(--sans); }
+    .node-sub { fill: var(--muted); font: 8px var(--mono); }
+    .arrow-label { fill: var(--soft); font: 8px var(--mono); letter-spacing: 0.06em; }
+    .arrow-label.focal { fill: var(--accent); }
+    .legend-key { fill: var(--muted); font: 500 8px var(--mono); letter-spacing: 0.12em; }
+    .legend-text { fill: var(--muted); font: 8px var(--sans); }
+    .legend-metric { fill: var(--soft); font: 8px var(--mono); letter-spacing: 0.04em; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Process · BrightDrive mapping</p>
+    <h1>From one CARLA loop to a validated map</h1>
+    <p class="lede">Eight stages across five owners. The held-out GICP gate is the pivot: it turns a dense point cloud into a map the runtime is allowed to trust.</p>
+
+    <div class="canvas">
+      <svg viewBox="0 0 1292 608" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="mapping-pipeline-e2e-title mapping-pipeline-e2e-desc">
+        <title id="mapping-pipeline-e2e-title">From one CARLA loop to a validated map</title>
+        <desc id="mapping-pipeline-e2e-desc">Process diagram showing a mapping run move from VM provisioning and deployment through recording, KISS-ICP, accumulation, held-out validation, publication, and runtime loading.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+          </marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/>
+          </marker>
+        </defs>
+
+        <rect width="1292" height="608" fill="#f5f5f5"/>
+        <rect x="144" y="48" width="1148" height="96" fill="rgba(45,49,66,0.018)"/>
+        <rect x="144" y="240" width="1148" height="96" fill="rgba(45,49,66,0.018)"/>
+        <rect x="144" y="432" width="1148" height="96" fill="rgba(45,49,66,0.018)"/>
+
+        <g stroke="rgba(45,49,66,0.12)" stroke-width="0.8">
+          <line x1="0" y1="48" x2="1292" y2="48"/>
+          <line x1="0" y1="144" x2="1292" y2="144"/>
+          <line x1="0" y1="240" x2="1292" y2="240"/>
+          <line x1="0" y1="336" x2="1292" y2="336"/>
+          <line x1="0" y1="432" x2="1292" y2="432"/>
+          <line x1="0" y1="528" x2="1292" y2="528"/>
+        </g>
+        <line x1="144" y1="48" x2="144" y2="528" stroke="rgba(45,49,66,0.20)" stroke-width="1"/>
+
+        <g text-anchor="middle">
+          <rect x="204" y="8" width="16" height="16" rx="8" fill="rgba(45,49,66,0.12)"/>
+          <text class="step-num" x="212" y="20">01</text>
+          <text class="step-label" x="212" y="40">PROVISION</text>
+
+          <rect x="344" y="8" width="16" height="16" rx="8" fill="rgba(45,49,66,0.12)"/>
+          <text class="step-num" x="352" y="20">02</text>
+          <text class="step-label" x="352" y="40">DEPLOY</text>
+
+          <rect x="484" y="8" width="16" height="16" rx="8" fill="rgba(45,49,66,0.12)"/>
+          <text class="step-num" x="492" y="20">03</text>
+          <text class="step-label" x="492" y="40">RECORD</text>
+
+          <rect x="624" y="8" width="16" height="16" rx="8" fill="rgba(45,49,66,0.12)"/>
+          <text class="step-num" x="632" y="20">04</text>
+          <text class="step-label" x="632" y="40">SLAM</text>
+
+          <rect x="764" y="8" width="16" height="16" rx="8" fill="rgba(45,49,66,0.12)"/>
+          <text class="step-num" x="772" y="20">05</text>
+          <text class="step-label" x="772" y="40">FILTER</text>
+
+          <rect x="904" y="8" width="16" height="16" rx="8" fill="rgba(235,108,54,0.20)"/>
+          <text class="step-num focal" x="912" y="20">06</text>
+          <text class="step-label focal" x="912" y="40">VALIDATE</text>
+
+          <rect x="1044" y="8" width="16" height="16" rx="8" fill="rgba(45,49,66,0.12)"/>
+          <text class="step-num" x="1052" y="20">07</text>
+          <text class="step-label" x="1052" y="40">PUBLISH</text>
+
+          <rect x="1184" y="8" width="16" height="16" rx="8" fill="rgba(45,49,66,0.12)"/>
+          <text class="step-num" x="1192" y="20">08</text>
+          <text class="step-label" x="1192" y="40">CONSUME</text>
+        </g>
+
+        <g class="lane-label" text-anchor="middle">
+          <text x="72" y="92">CONTROL</text>
+          <text x="72" y="104">PLANE</text>
+          <text x="72" y="188">CARLA</text>
+          <text x="72" y="200">BRIDGE</text>
+          <text x="72" y="284">OFFLINE</text>
+          <text x="72" y="296">BUILD</text>
+          <text x="72" y="388">VALIDATION</text>
+          <text x="72" y="476">ARTIFACTS</text>
+          <text x="72" y="488">RUNTIME</text>
+        </g>
+
+        <g fill="none" stroke="#4f5d75" stroke-width="1">
+          <line x1="272" y1="96" x2="292" y2="96" marker-end="url(#arrow)"/>
+          <path d="M412 96 H484 Q492 96 492 104 V156" marker-end="url(#arrow)"/>
+          <path d="M552 192 H624 Q632 192 632 200 V252" marker-end="url(#arrow)"/>
+          <line x1="692" y1="288" x2="712" y2="288" marker-end="url(#arrow)"/>
+          <line x1="1112" y1="480" x2="1132" y2="480" marker-end="url(#arrow)"/>
+        </g>
+        <g fill="none" stroke="#eb6c36" stroke-width="1.2">
+          <path d="M832 288 H904 Q912 288 912 296 V348" marker-end="url(#arrow-accent)"/>
+          <path d="M972 384 H1044 Q1052 384 1052 392 V444" marker-end="url(#arrow-accent)"/>
+        </g>
+
+        <rect x="500" y="120" width="88" height="12" rx="2" fill="#f5f5f5"/>
+        <text class="arrow-label" x="544" y="130" text-anchor="middle">6,256 SCANS</text>
+        <rect x="920" y="312" width="68" height="12" rx="2" fill="#f5f5f5"/>
+        <text class="arrow-label" x="954" y="322" text-anchor="middle">PCD + TUM</text>
+        <rect x="1060" y="408" width="104" height="12" rx="2" fill="#f5f5f5"/>
+        <text class="arrow-label focal" x="1112" y="418" text-anchor="middle">PASS · 18/20</text>
+
+        <g text-anchor="middle">
+          <g>
+            <rect class="node-mask" x="152" y="60" width="120" height="72" rx="6"/>
+            <rect class="node" x="152" y="60" width="120" height="72" rx="6"/>
+            <rect class="role" x="160" y="68" width="24" height="12" rx="2"/>
+            <text class="role-text" x="172" y="77">CTL</text>
+            <text class="node-title" x="212" y="96">Provision VM</text>
+            <text class="node-sub" x="212" y="112">Spot · Docker</text>
+          </g>
+          <g>
+            <rect class="node-mask" x="292" y="60" width="120" height="72" rx="6"/>
+            <rect class="node" x="292" y="60" width="120" height="72" rx="6"/>
+            <rect class="role" x="300" y="68" width="24" height="12" rx="2"/>
+            <text class="role-text" x="312" y="77">CTL</text>
+            <text class="node-title" x="352" y="96">Deploy HEAD</text>
+            <text class="node-sub" x="352" y="112">git archive</text>
+          </g>
+          <g>
+            <rect class="node-mask" x="432" y="156" width="120" height="72" rx="6"/>
+            <rect class="node" x="432" y="156" width="120" height="72" rx="6"/>
+            <rect class="role" x="440" y="164" width="24" height="12" rx="2"/>
+            <text class="role-text" x="452" y="173">SIM</text>
+            <text class="node-title" x="492" y="192">Record one loop</text>
+            <text class="node-sub" x="492" y="208">pure pursuit · bag</text>
+          </g>
+          <g>
+            <rect class="node-mask" x="572" y="252" width="120" height="72" rx="6"/>
+            <rect class="node" x="572" y="252" width="120" height="72" rx="6"/>
+            <rect class="role" x="580" y="260" width="24" height="12" rx="2"/>
+            <text class="role-text" x="592" y="269">BLD</text>
+            <text class="node-title" x="632" y="288">KISS-ICP</text>
+            <text class="node-sub" x="632" y="304">voxel 0.5 · 50 m</text>
+          </g>
+          <g>
+            <rect class="node-mask" x="712" y="252" width="120" height="72" rx="6"/>
+            <rect class="node" x="712" y="252" width="120" height="72" rx="6"/>
+            <rect class="role" x="720" y="260" width="24" height="12" rx="2"/>
+            <text class="role-text" x="732" y="269">BLD</text>
+            <text class="node-title" x="772" y="288">Accumulate</text>
+            <text class="node-sub" x="772" y="304">voxel 0.25 · k=16</text>
+          </g>
+          <g>
+            <rect class="node-mask" x="852" y="348" width="120" height="72" rx="6"/>
+            <rect class="node focal" x="852" y="348" width="120" height="72" rx="6"/>
+            <rect class="role focal" x="860" y="356" width="24" height="12" rx="2"/>
+            <text class="role-text focal" x="872" y="365">VAL</text>
+            <text class="node-title" x="912" y="384">Held-out GICP</text>
+            <text class="node-sub" x="912" y="400">18/20 · 0.117 m</text>
+          </g>
+          <g>
+            <rect class="node-mask" x="992" y="444" width="120" height="72" rx="6"/>
+            <rect class="node" x="992" y="444" width="120" height="72" rx="6"/>
+            <rect class="role" x="1000" y="452" width="24" height="12" rx="2"/>
+            <text class="role-text" x="1012" y="461">ART</text>
+            <text class="node-title" x="1052" y="480">Publish</text>
+            <text class="node-sub" x="1052" y="496">map.pcd · manifest</text>
+          </g>
+          <g>
+            <rect class="node-mask" x="1132" y="444" width="120" height="72" rx="6"/>
+            <rect class="node" x="1132" y="444" width="120" height="72" rx="6"/>
+            <rect class="role" x="1140" y="452" width="24" height="12" rx="2"/>
+            <text class="role-text" x="1152" y="461">RUN</text>
+            <text class="node-title" x="1192" y="480">Load + localize</text>
+            <text class="node-sub" x="1192" y="496">hash · KD-tree</text>
+          </g>
+        </g>
+
+        <line x1="0" y1="528" x2="1292" y2="528" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+        <text class="legend-key" x="40" y="552">LEGEND</text>
+        <line x1="120" y1="548" x2="148" y2="548" stroke="#4f5d75" stroke-width="1" marker-end="url(#arrow)"/>
+        <text class="legend-text" x="160" y="552">handoff</text>
+        <line x1="236" y1="548" x2="264" y2="548" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+        <text class="legend-text" x="276" y="552">validation gate</text>
+        <text class="legend-metric" x="420" y="552">STEPS 01–08</text>
+        <text class="legend-metric" x="540" y="552">OWNER = LANE</text>
+        <text class="legend-metric" x="676" y="552">6,256 SCANS</text>
+        <text class="legend-metric" x="796" y="552">3,635 M TRAJECTORY</text>
+        <text class="legend-metric" x="964" y="552">208 S WALL</text>
+        <text class="legend-metric" x="40" y="580">RESULT · 18/20 HELD-OUT SCANS ACCEPTED · 0.117 M MEDIAN · 2,772,333 POINTS · CLOSURE 1.84 M</text>
+      </svg>
+    </div>
+
+    <p class="caption">One loop · 6,256 scans · 625.5 s simulation time · 208 s wall · held-out gate 18/20 accepted at 0.117 m median.</p>
+  </div>
+</body>
+</html>

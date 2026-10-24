@@ -16,16 +16,13 @@ Eigen::Vector3d geodetic_to_ecef(double lat_deg, double lon_deg, double alt_m) {
   const double cos_lat = std::cos(lat);
   const double normal = kSemiMajorAxis / std::sqrt(1.0 - e2 * sin_lat * sin_lat);
 
-  return Eigen::Vector3d{
-      (normal + alt_m) * cos_lat * std::cos(lon),
-      (normal + alt_m) * cos_lat * std::sin(lon),
-      (normal * (1.0 - e2) + alt_m) * sin_lat};
+  return Eigen::Vector3d{(normal + alt_m) * cos_lat * std::cos(lon),
+                         (normal + alt_m) * cos_lat * std::sin(lon),
+                         (normal * (1.0 - e2) + alt_m) * sin_lat};
 }
 
-Eigen::Vector3d ecef_to_enu(const Eigen::Vector3d& ecef,
-                            const Eigen::Vector3d& anchor_ecef,
-                            double anchor_lat_deg,
-                            double anchor_lon_deg) {
+Eigen::Vector3d ecef_to_enu(const Eigen::Vector3d& ecef, const Eigen::Vector3d& anchor_ecef,
+                            double anchor_lat_deg, double anchor_lon_deg) {
   const double lat = anchor_lat_deg * kDegToRad;
   const double lon = anchor_lon_deg * kDegToRad;
   const double sin_lat = std::sin(lat);
@@ -44,8 +41,8 @@ Eigen::Vector3d geodetic_to_enu(double lat_deg, double lon_deg, double alt_m,
                                 const GeoAnchor& anchor) {
   const Eigen::Vector3d anchor_ecef =
       geodetic_to_ecef(anchor.lat_deg, anchor.lon_deg, anchor.alt_m);
-  return ecef_to_enu(geodetic_to_ecef(lat_deg, lon_deg, alt_m), anchor_ecef,
-                     anchor.lat_deg, anchor.lon_deg);
+  return ecef_to_enu(geodetic_to_ecef(lat_deg, lon_deg, alt_m), anchor_ecef, anchor.lat_deg,
+                     anchor.lon_deg);
 }
 
 double wrap_angle(double radians) {
