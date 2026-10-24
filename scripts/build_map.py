@@ -425,6 +425,9 @@ def main():
                              "globally optimized (offline SLAM)")
     parser.add_argument("--pg-dump", default="",
                         help="pose-graph mode: dump graph inputs to this .npz (debug)")
+    parser.add_argument("--pg-load", default="",
+                        help="pose-graph mode: load graph inputs from this .npz "
+                             "and skip KISS + loop detection (same --sweep-points)")
     parser.add_argument("--sweep-points", type=int, default=0,
                         help="merge per-tick lidar fragments into full rotations "
                              "of this many points (28800 for this rig)")
@@ -442,21 +445,22 @@ def main():
     scans, scan_stamps, gnss, imu = read_bag(args.bag, args.max_scans, args.sweep_points)
     print(f"scans={len(scans)} gnss={len(gnss)} imu={len(imu)}", flush=True)
 
-    print("running kiss-icp", flush=True)
-    slam_poses = run_kiss(
-        scans,
-        scan_stamps,
-        imu,
-        gnss,
-        base_lidar,
-        base_gnss,
-        args.kiss_voxel,
-        args.max_range,
-        args.min_motion_th,
-        args.fixed_threshold,
-        args.imu_delta,
-        args.gnss_delta,
-    )
+    if not args.pg_load:
+        print("running kiss-icp", flush=True)
+        slam_poses = run_kiss(
+            scans,
+            scan_stamps,
+            imu,
+            gnss,
+            base_lidar,
+            base_gnss,
+            args.kiss_voxel,
+            args.max_range,
+            args.min_motion_th,
+            args.fixed_threshold,
+            args.imu_delta,
+            args.gnss_delta,
+        )
     if args.kiss_only:
         positions = np.asarray([pose[:3, 3] for pose in slam_poses])
         steps = np.linalg.norm(np.diff(positions, axis=0), axis=1)
@@ -485,26 +489,50 @@ def main():
     T_map_base = T_map_gnss @ np.linalg.inv(T_base_gnss)
     T_map_slam = T_map_base @ T_base_lidar
 
-    if args.pose_graph:
+    if args.pose_graph or args.pg_load:
         import pose_graph as pg
 
-        print("pose graph: initial states from KISS + anchor", flush=True)
-        initial = np.asarray(
-            [pg.matrix_to_state(T_map_slam @ pose) for pose in slam_poses]
-        )
-        odom_edges = [
-            {"i": k, "j": k + 1, "m": pg.relative(initial[k], initial[k + 1])}
-            for k in range(len(initial) - 1)
-        ]
-        lever = float(base_gnss[0]) - float(base_lidar[0])
-        _, gnss_positions = scan_priors(gnss, imu, scan_stamps, lever)
-        gnss_edges = [
-            {"i": k, "p": gnss_positions[k, :3].tolist()}
-            for k in range(0, len(initial), 3)
-        ]
-        print(f"pose graph: {len(odom_edges)} odom, {len(gnss_edges)} gnss edges; "
-              f"detecting loops", flush=True)
-        loop_edges = pg.build_loop_edges(scans, initial, scan_stamps)
+        if args.pg_load:
+            data = np.load(args.pg_load)
+            initial = data["initial"]
+            odom_edges = [
+                {"i": int(i), "j": int(j), "m": m}
+                for i, j, m in zip(data["odom_i"], data["odom_j"], data["odom_m"])
+            ]
+            gnss_edges = [
+                {"i": int(i), "p": p}
+                for i, p in zip(data["gnss_i"], data["gnss_p"])
+            ]
+            loop_edges = [
+                {"i": int(i), "j": int(j), "m": m}
+                for i, j, m in zip(data["loop_i"], data["loop_j"], data["loop_m"])
+            ]
+            if len(initial) != len(scans):
+                raise SystemExit(
+                    f"pg_load has {len(initial)} states for {len(scans)} scans; "
+                    "use the same --sweep-points"
+                )
+            print(f"pose graph: loaded {len(initial)} states, "
+                  f"{len(loop_edges)} loop edges from {args.pg_load}", flush=True)
+        else:
+            print("pose graph: initial states from KISS + anchor", flush=True)
+            initial = np.asarray(
+                [pg.matrix_to_state(T_map_slam @ pose) for pose in slam_poses]
+            )
+            odom_edges = [
+                {"i": k, "j": k + 1, "m": pg.relative(initial[k], initial[k + 1])}
+                for k in range(len(initial) - 1)
+            ]
+            lever = float(base_gnss[0]) - float(base_lidar[0])
+            _, gnss_positions = scan_priors(gnss, imu, scan_stamps, lever)
+            gnss_edges = [
+                {"i": k, "p": gnss_positions[k, :3].tolist()}
+                for k in range(0, len(initial), 3)
+            ]
+        if not args.pg_load:
+            print(f"pose graph: {len(odom_edges)} odom, {len(gnss_edges)} gnss edges; "
+                  f"detecting loops", flush=True)
+            loop_edges = pg.build_loop_edges(scans, initial, scan_stamps)
         print(f"pose graph: {len(loop_edges)} loop edges; optimizing", flush=True)
         if args.pg_dump:
             np.savez(
@@ -647,6 +675,7 @@ def main():
         "kiss_voxel": float(args.kiss_voxel),
         "max_range": float(args.max_range),
         "coverage_radius": float(args.coverage_radius),
+        "sweep_points": int(args.sweep_points),
         "gnss_pose": bool(args.gnss_pose),
         "gnss_yaw": bool(args.gnss_yaw),
         "imu_delta": bool(args.imu_delta),
@@ -690,7 +719,7 @@ def main():
                 "gnss_positions_course_yaw"
                 if (args.gnss_pose and args.gnss_yaw)
                 else "pose_graph_kiss_gnss_loops"
-                if args.pose_graph
+                if (args.pose_graph or args.pg_load)
                 else "gnss_imu_scan_rotation"
                 if args.gnss_pose
                 else "kiss_icp"
