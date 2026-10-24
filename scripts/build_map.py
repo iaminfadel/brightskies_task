@@ -148,15 +148,14 @@ def quaternion_from_matrix(matrix):
 def read_bag(bag_dir, max_scans=0, sweep_merge=False):
     """Read lidar/gnss/imu. With sweep_merge, per-tick lidar fragments (CARLA
     publishes a partial arc each tick) are merged into full rotations: a
-    sweep closes when the accumulated unwrapped azimuth spans one revolution,
-    so the merge is independent of point rate. The merged stamp is the last
-    fragment's stamp."""
+    sweep closes when the pending points cover the full azimuth circle
+    (largest angular gap small) -- coverage, not counted angle, because
+    fragment arcs are ~70% of a rotation and overlap. The merged stamp is the
+    last fragment's stamp."""
     typestore = get_typestore(Stores.ROS2_HUMBLE)
     scans, gnss, imu = [], [], []
     scan_stamps = []
     pending = []
-    cumulative = 0.0
-    last_az = None
     with Reader(bag_dir) as reader:
         for connection, _, raw in reader.messages():
             topic = connection.topic
@@ -167,17 +166,16 @@ def read_bag(bag_dir, max_scans=0, sweep_merge=False):
             if topic == LIDAR_TOPIC:
                 points = pointcloud2_xyz(msg)
                 if sweep_merge:
-                    azimuths = np.arctan2(points[:, 1], points[:, 0])
-                    if last_az is not None:
-                        cumulative += float(wrap_angle(azimuths[0] - last_az))
-                    deltas = np.diff(azimuths)
-                    cumulative += float(np.sum(wrap_angle(deltas)))
-                    last_az = float(azimuths[-1])
                     pending.append(points)
-                    if abs(cumulative) >= 2.0 * math.pi - 0.3:
-                        scans.append(np.concatenate(pending, axis=0))
+                    merged = np.concatenate(pending, axis=0)
+                    azimuths = np.sort(np.arctan2(merged[:, 1], merged[:, 0]))
+                    gaps = np.diff(azimuths)
+                    wrap_gap = 2.0 * math.pi - (azimuths[-1] - azimuths[0])
+                    largest_gap = max(float(gaps.max()), wrap_gap) if len(gaps) else math.pi
+                    if largest_gap <= 0.44:
+                        scans.append(merged)
                         scan_stamps.append(stamp)
-                        pending, cumulative, last_az = [], 0.0, None
+                        pending = []
                 else:
                     scans.append(points)
                     scan_stamps.append(stamp)
