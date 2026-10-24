@@ -78,5 +78,6 @@ kill "$SPAWN_PID" "$HEARTBEAT_PID" 2>/dev/null
   echo "drive_rc=$DRC"
   du -sh "$BAG" "$EVAL_BAG"
   ls "$BAG"
-} > /ws/map_run.status
+} > /ws/map_run.status 2>/dev/null || true
 echo "MAP_RUN_DONE $(date -u +%H:%M:%S)"
+exit "$DRC"
