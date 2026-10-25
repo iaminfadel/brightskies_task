@@ -147,7 +147,7 @@ compose-config:
 # the laptop never builds ROS locally.
 build:
 	. ./docker/deps.lock && docker run --rm -v $(WS_DIR):/ws \
-	  "$$DEPS_IMAGE" bash -lc 'source /opt/brightdrive/setup.bash && colcon build --base-paths /ws/brightdrive/src --build-base /ws/build --install-base /ws/install --merge-install'
+	  "$$DEPS_IMAGE" bash -lc 'source /opt/brightdrive/setup.bash && colcon build --base-paths /ws/brightdrive/src --build-base /ws/build --install-base /ws/install'
 
 # The compose smoke: brings the runtime route up through dependencies, then
 # the one-shot smoke service drives it and writes evidence to $(EVIDENCE).
