@@ -109,10 +109,12 @@ vm-snapshot:
 # files in place.
 
 COMPOSE ?= docker compose
+WS_DIR ?= /ws
 
 # Flow through to compose interpolation when set on the make command line;
 # unset values fall back to the compose defaults (empty env == unset for
-# the ${VAR:-default} interpolation form).
+# the ${VAR:-default} interpolation form). WS_DIR is also used directly in
+# the build recipe, hence the default above.
 export WS_DIR MAP_DIR CARLA_TOWN OBJECTS_FILE BRIDGE_FIXED_DELTA_SECONDS
 export KISS_PARAMS EKF_PARAMS LOCALIZATION_PARAMS EVIDENCE METRICS_FILE
 export MAP_DRIVE_SECONDS MAP_SPAWN MAP_BUILDER_FLAGS
