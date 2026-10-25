@@ -93,8 +93,9 @@ services:
       carla:
         condition: service_healthy
     healthcheck:
-      # The bridge is "up" when /clock flows: everything downstream keys on it.
-      test: ["CMD-SHELL", "source /opt/brightdrive/setup.bash && timeout 20 ros2 topic echo --no-daemon --once /clock >/dev/null"]
+      # The bridge is "up" when /clock flows: everything downstream keys on
+      # it. CMD-SHELL runs /bin/sh (dash), so use `.` -- `source` is bash-only.
+      test: ["CMD-SHELL", ". /opt/brightdrive/setup.bash && timeout 20 ros2 topic echo --no-daemon --once /clock >/dev/null"]
       interval: 30s
       timeout: 25s
       retries: 5
