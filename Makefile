@@ -99,3 +99,77 @@ vm-status:
 
 vm-snapshot:
 	./infra/snapshot.sh
+
+# --- compose routes (#26) ---------------------------------------------------
+# One docker-compose.yml, routes as profiles: runtime (make up), test
+# (make test), eval (make eval), mapping (make map-compose / map-build).
+# Additive alongside the legacy vm-run.sh path above; both share host ports
+# 2000/8765 and must not run at once (stop_stack.sh stops the legacy stack).
+# Every tunable is an env override -- see .env.example; never edit config
+# files in place.
+
+COMPOSE ?= docker compose
+
+# Flow through to compose interpolation when set on the make command line;
+# unset values fall back to the compose defaults (empty env == unset for
+# the ${VAR:-default} interpolation form).
+export WS_DIR MAP_DIR CARLA_TOWN OBJECTS_FILE BRIDGE_FIXED_DELTA_SECONDS
+export KISS_PARAMS EKF_PARAMS LOCALIZATION_PARAMS EVIDENCE METRICS_FILE
+export MAP_DRIVE_SECONDS MAP_SPAWN MAP_BUILDER_FLAGS
+
+# Recorder/builder defaults are deliberately NEUTRAL: the recorder deletes
+# MAP_BAG before recording, so the legacy map targets' golden bags are only
+# ever touched when named explicitly here.
+COMPOSE_MAP_BAG ?= /ws/bags/map_full5
+COMPOSE_MAP_ID ?= town05-compose
+
+.PHONY: up down ps logs compose-config build test eval map-compose map-build
+
+up:
+	$(COMPOSE) --profile runtime up -d
+
+down:
+	$(COMPOSE) --profile runtime --profile test --profile eval --profile mapping down --remove-orphans
+
+ps:
+	$(COMPOSE) --profile runtime --profile test --profile eval --profile mapping ps
+
+logs:
+	$(COMPOSE) logs -f $(SVC)
+
+compose-config:
+	$(COMPOSE) --profile runtime --profile test --profile eval --profile mapping config
+
+# Build the ROS workspace into $(WS_DIR)/install with the pinned deps image
+# (digest from docker/deps.lock). Run on the VM or any Linux+Docker host;
+# the laptop never builds ROS locally.
+build:
+	. ./docker/deps.lock && docker run --rm -v $(WS_DIR):/ws \
+	  "$$DEPS_IMAGE" bash -lc 'source /opt/brightdrive/setup.bash && colcon build --base-paths /ws/brightdrive/src --build-base /ws/build --install-base /ws/install --merge-install'
+
+# The compose smoke: brings the runtime route up through dependencies, then
+# the one-shot smoke service drives it and writes evidence to $(EVIDENCE).
+# GPU host only; on the VM run it through vm-run.sh (as with the legacy
+# targets) so the SSH-held session keeps the idle-stop guard calm.
+test:
+	-$(COMPOSE) --profile runtime --profile test down --remove-orphans --timeout 10
+	$(COMPOSE) --profile runtime --profile test run --rm smoke
+
+# Post-drive evaluator over artifacts only -- no carla, and never
+# co-scheduled with the estimator (GT isolation).
+eval:
+	$(COMPOSE) --profile eval run --rm evaluator
+
+# Mapping route: recorder -> map-builder with compose-native sequencing
+# (the builder waits for the recorder via service_completed_successfully).
+# Long job on the VM: wrap in vm-run.sh with a heartbeat (see the legacy
+# map target) when running detached.
+map-compose:
+	MAP_BAG='$(COMPOSE_MAP_BAG)' MAP_EVAL_BAG='$(COMPOSE_MAP_BAG)_eval' \
+	MAP_ID='$(COMPOSE_MAP_ID)' \
+	  $(COMPOSE) --profile mapping run --rm map-builder
+
+# Builder only, from an existing bag: --no-deps skips the recorder.
+map-build:
+	MAP_BAG='$(COMPOSE_MAP_BAG)' MAP_ID='$(COMPOSE_MAP_ID)' \
+	  $(COMPOSE) --profile mapping run --rm --no-deps map-builder

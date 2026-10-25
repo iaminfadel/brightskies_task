@@ -33,6 +33,19 @@ if ! command -v nvidia-ctk >/dev/null 2>&1; then
   nvidia-ctk runtime configure --runtime=docker
 fi
 
+if ! docker compose version >/dev/null 2>&1; then
+  echo "=== Installing docker compose v2 plugin ==="
+  # Ubuntu jammy's docker.io ships no compose plugin; pin the static binary
+  # (the compose runtime of #26 depends on it).
+  COMPOSE_VERSION=v2.34.0
+  mkdir -p /usr/local/lib/docker/cli-plugins
+  curl -fsSL \
+    "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-x86_64" \
+    -o /usr/local/lib/docker/cli-plugins/docker-compose
+  chmod 0755 /usr/local/lib/docker/cli-plugins/docker-compose
+  docker compose version
+fi
+
 systemctl enable --now docker
 systemctl restart docker
 
