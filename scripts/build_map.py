@@ -235,8 +235,11 @@ def gnss_enu(gnss, scan_stamps):
     for i, (stamp, j) in enumerate(zip(scan_stamps, gnss_index)):
         if j > 0 and abs(gnss[j - 1, 0] - stamp) < abs(gnss[j, 0] - stamp):
             j -= 1
+        # CARLA's GNSS sensor is plain equirectangular about the georeference
+        # origin (verified: world->ENU is identity+translation for this map);
+        # no extra scale factor.
         east[i] = math.radians(gnss[j, 2] - lon0) * radius * math.cos(math.radians(lat0))
-        north[i] = math.radians(gnss[j, 1] - lat0) * radius / 0.9933056
+        north[i] = math.radians(gnss[j, 1] - lat0) * radius
         alt[i] = float(gnss[j, 3]) - float(gnss[0, 3])
     return east, north, alt
 
@@ -296,7 +299,7 @@ def scan_priors(gnss, imu, scan_stamps, lever_m):
             math.radians(lat0)
         )
         north = (
-            math.radians(gnss[j, 1] - lat0) * radius / 0.9933056
+            math.radians(gnss[j, 1] - lat0) * radius
         )
         positions[i, 0] = east - lever_m * math.cos(yaws[i])
         positions[i, 1] = north - lever_m * math.sin(yaws[i])
@@ -310,7 +313,7 @@ def gnss_course_priors(gnss, imu, scan_stamps, lever_m):
     lat0 = float(gnss[0, 1])
     lon0 = float(gnss[0, 2])
     east = np.radians(gnss[:, 2] - lon0) * radius * math.cos(math.radians(lat0))
-    north = np.radians(gnss[:, 1] - lat0) * radius / 0.9933056
+    north = np.radians(gnss[:, 1] - lat0) * radius
     count = len(gnss)
     courses = np.zeros(count)
     # While the vehicle is stationary the GNSS course is undefined; seed with
@@ -621,20 +624,23 @@ def main():
                 for k in range(len(initial) - 1)
             ]
             lever = float(base_gnss[0]) - float(base_lidar[0])
-            _, gnss_positions = scan_priors(gnss, imu, scan_stamps, lever)
+            east, north, alt = gnss_enu(gnss, scan_stamps)
             course, _ = gnss_course_priors(gnss, imu, scan_stamps, lever)
-            # Yaw observability: attach course-over-ground yaw where the
-            # course is actually moving (stale stationary values carry no
-            # information). The initial yaw convention is then irrelevant --
-            # the optimizer recovers the frame from these factors alone.
+            # GNSS factors: antenna ENU positions with the antenna->lidar
+            # lever modeled in-graph (rotates with the state yaw), plus
+            # course-over-ground yaw where the course is actually moving
+            # (stale stationary values carry no information). The initial
+            # yaw convention is irrelevant -- the optimizer recovers the
+            # frame from these factors alone.
             moving = np.abs(wrap_angle(course - np.roll(course, 15))) > math.radians(2.0)
             gnss_edges = []
             for k in range(0, len(initial), 3):
-                edge = {"i": k, "p": gnss_positions[k, :3].tolist()}
+                edge = {"i": k, "p": [east[k], north[k], alt + 0.4], "lever": lever}
                 if moving[k]:
                     edge["yaw"] = float(course[k])
                 gnss_edges.append(edge)
-            print(f"pose graph: {sum('yaw' in e for e in gnss_edges)} yaw factors", flush=True)
+            print(f"pose graph: {sum('yaw' in e for e in gnss_edges)} yaw factors, "
+                  f"lever {lever:.2f} m", flush=True)
         if not args.pg_load or args.pg_redo_loops:
             if args.pg_load:
                 print("pose graph: re-detecting loops from loaded states", flush=True)

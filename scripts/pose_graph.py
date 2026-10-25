@@ -95,7 +95,14 @@ def optimize(states, odom_edges, gnss_edges, loop_edges, iterations=30, verbose=
             cost += float(r @ ODOM_INFO @ r)
         for edge in gnss_edges:
             i, p = edge["i"], np.asarray(edge["p"], dtype=float)
-            r = np.array([sts[i, 0] - p[0], sts[i, 1] - p[1], sts[i, 3] - p[2]])
+            lever = edge.get("lever", 0.0)
+            if lever:
+                c, s = math.cos(sts[i, 2]), math.sin(sts[i, 2])
+                r = np.array([sts[i, 0] - (p[0] - lever * c),
+                              sts[i, 1] - (p[1] - lever * s),
+                              sts[i, 3] - p[2]])
+            else:
+                r = np.array([sts[i, 0] - p[0], sts[i, 1] - p[1], sts[i, 3] - p[2]])
             cost += float(r @ GNSS_INFO @ r)
         for edge in loop_edges:
             i, j, m = edge["i"], edge["j"], np.asarray(edge["m"], dtype=float)
@@ -119,11 +126,29 @@ def optimize(states, odom_edges, gnss_edges, loop_edges, iterations=30, verbose=
 
         for edge in gnss_edges:
             i, p = edge["i"], np.asarray(edge["p"], dtype=float)
-            residual = np.array([states[i, 0] - p[0], states[i, 1] - p[1], states[i, 3] - p[2]])
-            weight = huber_weight(residual, np.diag(GNSS_INFO))
-            jac = np.zeros((3, 4))  # residual = selector @ state
-            jac[0, 0] = jac[1, 1] = jac[2, 3] = 1.0
-            accumulate(h, b, [(i, jac)], residual, GNSS_INFO, weight)
+            lever = edge.get("lever", 0.0)
+            if lever:
+                # Antenna factor: the node is the LIDAR pose; the antenna sits
+                # `lever` metres ahead along the body x-axis, so the lever arm
+                # rotates with the state's yaw (extrinsic modeled in-graph).
+                c, s = math.cos(states[i, 2]), math.sin(states[i, 2])
+                residual = np.array([
+                    states[i, 0] - (p[0] - lever * c),
+                    states[i, 1] - (p[1] - lever * s),
+                    states[i, 3] - p[2],
+                ])
+                weight = huber_weight(residual, np.diag(GNSS_INFO))
+                jac = np.zeros((3, 4))
+                jac[0, 0] = jac[1, 1] = jac[2, 3] = 1.0
+                jac[0, 2] = -lever * s   # d(-lever*cos)/dyaw
+                jac[1, 2] = lever * c    # d(-lever*sin)/dyaw
+                accumulate(h, b, [(i, jac)], residual, GNSS_INFO, weight)
+            else:
+                residual = np.array([states[i, 0] - p[0], states[i, 1] - p[1], states[i, 3] - p[2]])
+                weight = huber_weight(residual, np.diag(GNSS_INFO))
+                jac = np.zeros((3, 4))  # residual = selector @ state
+                jac[0, 0] = jac[1, 1] = jac[2, 3] = 1.0
+                accumulate(h, b, [(i, jac)], residual, GNSS_INFO, weight)
             # Course-over-ground yaw factor: absolute ENU yaw observation that
             # makes the heading gauge observable (positions alone cannot see a
             # constant yaw offset). Nodes without a valid course carry no yaw
