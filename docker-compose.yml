@@ -94,8 +94,9 @@ services:
         condition: service_healthy
     healthcheck:
       # The bridge is "up" when /clock flows: everything downstream keys on
-      # it. CMD-SHELL runs /bin/sh (dash), so use `.` -- `source` is bash-only.
-      test: ["CMD-SHELL", ". /opt/brightdrive/setup.bash && timeout 20 ros2 topic echo --no-daemon --once /clock >/dev/null"]
+      # it. Run under bash: CMD-SHELL is /bin/sh, and /opt/brightdrive/
+      # setup.bash uses `source` internally, which dash lacks.
+      test: ["CMD-SHELL", "timeout 25 bash -c '. /opt/brightdrive/setup.bash && timeout 20 ros2 topic echo --no-daemon --once /clock >/dev/null'"]
       interval: 30s
       timeout: 25s
       retries: 5
