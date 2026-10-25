@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 .PHONY: vm-provision vm-up vm-down vm-ssh vm-status vm-snapshot \
-        map map-record map-check map-eval map-eval-ate map-eval-loops map-verify \
+        map map-gnss-imu map-record map-check map-eval map-eval-ate map-eval-loops map-verify \
         map-install map-upload map-pull \
         ci-lint ci-bootstrap ci-vm-build-test
 
@@ -23,8 +23,8 @@ ci-bootstrap:
 ci-vm-build-test:
 	./scripts/vm-run.sh --fg "docker exec brightdrive-deps bash -lc '$(PY_RUN) && colcon build --packages-select brightdrive_interfaces brightdrive_localization brightdrive_bringup && colcon test --packages-select brightdrive_localization && colcon test-result --verbose'"
 
-MAP_ID ?= town05-v2
-MAP_BAG ?= /ws/bags/map_full2
+MAP_ID ?= town05-pg
+MAP_BAG ?= /ws/bags/map_full4
 MAP_EVAL_BAG ?= $(MAP_BAG)_eval
 MAP_DRIVE_SECONDS ?= 900
 MAP_RECORD_ATTEMPTS ?= 3
@@ -35,8 +35,17 @@ MAP_BUCKET ?= gs://brightskies-artifacts-330586358676/maps
 
 PY_ENV = source /opt/brightdrive/setup.bash; source /ws/install/setup.bash; cd /ws/brightdrive
 
+# Lidar SLAM: KISS-ICP odometry + GNSS/level-arm/course-yaw factors + GNSS-vetoed
+# ICP loop closures, solved as one pose graph. Long job: runs detached on the
+# VM with a heartbeat so the idle-stop guard leaves it alone.
 map:
-	./scripts/vm-run.sh --fg "docker exec brightdrive-deps bash -lc '$(PY_ENV) && python3 scripts/build_map.py $(MAP_BAG) $(MAP_BUILDS)/$(MAP_ID) --map-id $(MAP_ID) --spawn=$(MAP_SPAWN) --gnss-pose --gnss-yaw --imu-delta'"
+	./scripts/vm-run.sh "bash -c 'while :; do sudo touch /var/lib/brightskies/heartbeat 2>/dev/null || true; sleep 120; done & HP=$$!; docker exec brightdrive-deps bash -lc \"$(PY_ENV) && python3 scripts/build_map.py $(MAP_BAG) $(MAP_BUILDS)/$(MAP_ID) --map-id $(MAP_ID) --spawn=$(MAP_SPAWN) --pose-graph\"; rc=$$?; kill $$HP 2>/dev/null; exit $$rc'"
+
+# Deterministic diagnostic baseline (no lidar): GNSS antenna positions + IMU
+# yaw. Passes gates only because the CARLA rig's GNSS/IMU are noise-free --
+# never the shipping map path.
+map-gnss-imu:
+	./scripts/vm-run.sh --fg "docker exec brightdrive-deps bash -lc '$(PY_ENV) && python3 scripts/build_map.py $(MAP_BAG) $(MAP_BUILDS)/$(MAP_ID) --map-id $(MAP_ID) --spawn=$(MAP_SPAWN) --gnss-imu'"
 
 map-record:
 	./scripts/vm-run.sh "bash /ws/brightdrive/scripts/validation/record_mapping.sh $(MAP_BAG) $(MAP_DRIVE_SECONDS) $(MAP_EVAL_BAG) $(MAP_RECORD_ATTEMPTS)"

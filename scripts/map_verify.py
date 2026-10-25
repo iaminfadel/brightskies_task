@@ -129,8 +129,8 @@ def main():
     if not 0.0 <= float(validation.get("residual_m", 1e9)) < float(validation.get("threshold_m", 0.5)):
         fail(errors, "T_map_carla_validation.residual_m must be below threshold_m")
     heldout = map_eval.get("heldout", {})
-    if heldout.get("count") != 20:
-        fail(errors, "heldout.count must be 20")
+    if not heldout.get("count", 0) >= 20:
+        fail(errors, "heldout.count must be >= 20 (map_check gate needs the sample size)")
     if not (root / heldout.get("directory", "validation/heldout")).is_dir():
         fail(errors, "heldout directory missing")
     gicp_sha = heldout.get("gicp_settings_sha256")

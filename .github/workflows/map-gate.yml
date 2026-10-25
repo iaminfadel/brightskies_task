@@ -1,0 +1,56 @@
+name: map-gate
+
+# Map-bundle regression gate (advisory until proven green + forced-fail
+# control, then required per the docs/ci.md ratchet). Dispatch on a pin bump:
+# pulls the pinned bundle from GCS, verifies the bundle contract, and runs
+# all three gates on the VM (held-out GICP, ATE vs GT, loop consistency).
+# Every gate exits non-zero on failure and writes JSON/PNG evidence into the
+# bundle's validation/, which is collected as the workflow artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      map_id:
+        description: pinned map bundle id in gs://brightskies-artifacts-330586358676/maps/
+        default: town05-v14-pg
+      bag:
+        description: mapping bag on the VM (estimator bag; eval bag is <bag>_eval)
+        default: /ws/bags/map_full4
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: map-gate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/330586358676/locations/global/workloadIdentityPools/github/providers/github-oidc
+          service_account: brightskies-ci@project-e038f785-ff95-4654-ba6.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Run map gates on VM
+        env:
+          MAP_ID: ${{ inputs.map_id || 'town05-v14-pg' }}
+          BAG: ${{ inputs.bag || '/ws/bags/map_full4' }}
+          BUCKET: brightskies-artifacts-330586358676
+        run: |
+          python3 scripts/vm_job.py run \
+            --command "rm -rf /ws/maps/builds/$MAP_ID && mkdir -p /ws/maps/builds/$MAP_ID \
+              && gsutil -m cp -r gs://$BUCKET/maps/$MAP_ID/* /ws/maps/builds/$MAP_ID/ \
+              && python3 /ws/brightdrive/scripts/map_verify.py /ws/maps/builds/$MAP_ID \
+              && docker exec brightdrive-deps bash -lc 'source /opt/brightdrive/setup.bash; source /ws/install/setup.bash; cd /ws/brightdrive \
+                 && ros2 run brightdrive_localization map_check /ws/maps/builds/$MAP_ID \
+                 && python3 scripts/eval_ate.py /ws/maps/builds/$MAP_ID $BAG ${BAG}_eval \
+                 && python3 scripts/eval_loops.py $BAG /ws/maps/builds/$MAP_ID' \
+              && mkdir -p /ws/evidence && cp -r /ws/maps/builds/$MAP_ID/validation /ws/evidence/map-validation" \
+            --artifact-dir artifacts/map-gate \
+            --collect /ws/evidence \
+            --max-retries 1

@@ -1,0 +1,23 @@
+{
+  "map_id": "town05-v12-gnss-imu",
+  "point_count": 1876510,
+  "trajectory_length_m": 3584.2564340889203,
+  "coverage_radius_m": 20.0,
+  "bounds": {
+    "min": [
+      -48.69090333740154,
+      -324.13734971568346,
+      -2.5867160320281983
+    ],
+    "max": [
+      396.75114432594705,
+      125.59925336558943,
+      13.380944633483887
+    ]
+  },
+  "scan_count": 6274,
+  "heldout_count": 20,
+  "mean_scan_points": 9915.680108383805,
+  "scenarios": {},
+  "note": "per-scenario coverage is filled once scenario routes are pinned"
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "map_id": "town05-v14-pg",
+  "poses": 6270,
+  "dropped_dt": 0,
+  "abs_rmse_m": 0.036640566824006904,
+  "abs_p95_m": 0.080417767841822,
+  "abs_max_m": 0.19167178918685193,
+  "aligned_rmse_m": 0.03660565998424197,
+  "aligned_max_m": 0.19172355320367412,
+  "yaw_rmse_deg": 0.6946090188404745,
+  "yaw_p95_deg": 1.6375555450298112,
+  "gates": {
+    "abs_rmse_max_m": 0.3,
+    "abs_p95_max_m": 0.6,
+    "yaw_rmse_max_deg": 2.0
+  },
+  "passed": true,
+  "source": "carla_pseudo_odom eval bag (evaluation path only)"
+}

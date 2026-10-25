@@ -71,7 +71,7 @@ def read_gnss_enu(bag_dir, lat0, lon0):
             if msg.status.status < 0:
                 continue
             east = math.radians(msg.longitude - lon0) * radius * math.cos(math.radians(lat0))
-            north = math.radians(msg.latitude - lat0) * radius / 0.9933056
+            north = math.radians(msg.latitude - lat0) * radius
             out.append((stamp_seconds(msg.header.stamp), east, north))
     return np.asarray(out)
 
@@ -134,6 +134,39 @@ def evaluate(map_dir, estimator_bag, eval_bag, args):
         return mapped.T
 
     yaw_offset = math.atan2(t_mc[1, 0], t_mc[0, 0])
+    base_hero_x = float(map_eval.get("base_hero", [1.394, 0.0, 0.300])[0])
+    base_gnss_x = float(map_eval.get("base_gnss", [2.394, 0.0, 2.300])[0])
+    new_semantics = (
+        map_eval.get("transform_semantics") == "ros_base_link_to_map_base_link"
+    )
+
+    def gt_base_antenna(xy_raw, yaw_raw):
+        """Raw GT hero poses -> (map base_link xy, map yaw, map antenna xy)."""
+        if new_semantics:
+            c, s = np.cos(yaw_raw), np.sin(yaw_raw)
+            base_raw = xy_raw - np.column_stack([c, s]) * base_hero_x
+            base_map = to_map_xy(base_raw)
+            yaw_map = wrap(yaw_raw + yaw_offset)
+        else:
+            # Legacy bundle: T_map_carla maps raw hero poses to the map at the
+            # spawn base pose, so add the frozen base->hero lever before
+            # converting the mapped hero pose to base_link.
+            yaw0 = wrap(yaw_raw[0] + yaw_offset)
+            t_legacy = t_mc.copy()
+            t_legacy[:3, 3] += np.r_[
+                base_hero_x * math.cos(yaw0),
+                base_hero_x * math.sin(yaw0),
+                0.0,
+            ]
+            hero = (t_legacy[:2, :2] @ xy_raw.T + t_legacy[:2, 3:4]).T
+            yaw_map = wrap(yaw_raw + yaw_offset)
+            base_map = hero - np.column_stack(
+                [np.cos(yaw_map), np.sin(yaw_map)]
+            ) * base_hero_x
+        antenna = base_map + np.column_stack(
+            [np.cos(yaw_map), np.sin(yaw_map)]
+        ) * base_gnss_x
+        return base_map, yaw_map, antenna
 
     if len(gnss):
         near = np.abs(gnss[:, 0, None] - stamps_gt[None, :]).argmin(axis=0)
@@ -144,15 +177,15 @@ def evaluate(map_dir, estimator_bag, eval_bag, args):
         }
         errors = {}
         for name, (xy_raw, yaw_raw) in candidates.items():
-            errors[name] = np.linalg.norm(to_map_xy(xy_raw) - gn_xy, axis=1).mean()
+            antenna = gt_base_antenna(xy_raw, yaw_raw)[2]
+            errors[name] = np.linalg.norm(antenna - gn_xy, axis=1).mean()
         name = min(errors, key=errors.get)
         xy_gt, yaw_gt = candidates[name]
-        yaw_gt = wrap(yaw_gt + yaw_offset)
-        print(f"ATE convention: {name} (mean GNSS agreement after T_map_carla: "
+        xy_gt_map, yaw_gt, _ = gt_base_antenna(xy_gt, yaw_gt)
+        print(f"ATE convention: {name} (mean GNSS antenna agreement in map: "
               f"{errors[name]:.3f} m; alternatives {', '.join(f'{k}={v:.1f}' for k, v in errors.items())})")
-
-    # T_map_carla maps ROS-world xy to map xy (built from the spawn; no pitch).
-    xy_gt_map = to_map_xy(xy_gt)
+    else:
+        xy_gt_map, yaw_gt, _ = gt_base_antenna(xy_gt, yaw_gt)
 
     idx = np.abs(stamps_gt[:, None] - stamps_tum[None, :]).argmin(axis=1)
     dt = np.abs(stamps_gt - stamps_tum[idx])

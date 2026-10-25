@@ -20,7 +20,12 @@ import scipy.sparse.linalg as spla
 ODOM_INFO = np.diag([40.0, 40.0, 5000.0, 20.0])  # 1/sigma^2; yaw sigma ~0.8 deg (KISS per-scan accuracy -- looser lets yaw random-walk through stops)
 GNSS_INFO = np.diag([25.0, 25.0, 4.0])          # (x, y, z)
 GNSS_YAW_INFO = 10.0                            # course-over-ground yaw, 1/sigma^2 (sigma ~ 0.32 rad; noisier than odometry)
-LOOP_INFO = np.diag([100.0, 100.0, 150.0, 50.0])
+# xy at GNSS-parity: measured loop-edge agreement with the GNSS-implied
+# relative pose is ~0.09 m median but 0.2-0.5 m in the tails (submap/voxel
+# floor). Loop sigma tighter than GNSS sigma lets the loop scaffold drag an
+# exact-GNSS rig ~1 m median; parity keeps loops corrective, not dominant.
+# yaw stays tight: measured agreement is 0.19 deg median, 2.5 deg max.
+LOOP_INFO = np.diag([25.0, 25.0, 150.0, 25.0])
 HUBER_DELTA = 3.0  # in residual sigmas
 
 
@@ -203,7 +208,8 @@ def optimize(states, odom_edges, gnss_edges, loop_edges, iterations=30, verbose=
 
 
 def build_loop_edges(scans, states, stamps, submap_half=45, radius=10.0,
-                     min_dt=60.0, voxel=0.25, max_corr=1.5, max_pairs=200):
+                     min_dt=60.0, voxel=0.25, max_corr=1.5, max_pairs=200,
+                     max_dyaw_deg=45.0):
     """ICP loop-closure edges between revisited keyframes (uses current states
     for gating; measurements are scan-to-submap registrations)."""
     from pathlib import Path
@@ -211,16 +217,23 @@ def build_loop_edges(scans, states, stamps, submap_half=45, radius=10.0,
 
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from build_map import voxel_downsample
-    from eval_loops import icp
+    from eval_loops import icp_planar
     from scipy.spatial import cKDTree
 
     xy = states[:, :2]
+    yaws = states[:, 2]
     tree = cKDTree(xy)
     candidates = []
     for i in range(len(xy)):
         for j in tree.query_ball_point(xy[i], radius):
-            if j - i > 5 and stamps[j] - stamps[i] >= min_dt:
-                candidates.append((j - i, i, j))
+            if j - i > 5 and stamps[j] - stamps[i] < min_dt:
+                continue
+            # Same-heading revisits only: opposite-direction and cross-street
+            # candidates are the classic ICP mis-locks.
+            dyaw = math.degrees(abs(wrap(yaws[j] - yaws[i])))
+            if dyaw > max_dyaw_deg:
+                continue
+            candidates.append((j - i, i, j))
     candidates.sort(reverse=True)
     pairs, used = [], np.zeros(len(xy), dtype=bool)
     for _, i, j in candidates:
@@ -244,7 +257,7 @@ def build_loop_edges(scans, states, stamps, submap_half=45, radius=10.0,
         submap = voxel_downsample(submap, voxel)
         source = voxel_downsample(scans[i], voxel)
         source_map = scan_in_world(i, source)
-        transform, inliers = icp(source_map, cKDTree(submap), np.eye(4), max_corr)
+        transform, inliers = icp_planar(source_map, cKDTree(submap), np.eye(4), max_corr)
         if inliers < 0.6 or np.linalg.norm(transform[:3, 3]) > 8.0:
             print(f"LOOP_EDGE_REJECTED i={i} j={j} correction="
                   f"{np.linalg.norm(transform[:3, 3]):.3f}m inliers={inliers:.2f}", flush=True)
@@ -259,6 +272,28 @@ def build_loop_edges(scans, states, stamps, submap_half=45, radius=10.0,
         print(f"LOOP_EDGE i={i} j={j} correction={edges[-1]['correction_m']:.3f}m "
               f"inliers={inliers:.2f}", flush=True)
     return edges
+
+
+def vet_loop_edges(loop_edges, reference_states, max_trans=0.3, max_yaw_deg=10.0):
+    """Drop loop edges inconsistent with a reference trajectory (GNSS
+    positions + resolved yaw): a revisit pair's ICP-measured relative pose
+    must agree with the reference-implied relative pose. Catches ICP
+    mis-locks on repeated geometry (parallel streets, corridor slides)
+    BEFORE they enter the graph -- vetting against an already-solved graph
+    that absorbed the bad edges sees no residual and keeps them."""
+    kept = []
+    for edge in loop_edges:
+        implied = relative(reference_states[edge["i"]], reference_states[edge["j"]])
+        m = np.asarray(edge["m"], dtype=float)
+        d_trans = float(np.linalg.norm(m[:2] - implied[:2]))
+        d_yaw = math.degrees(abs(wrap(m[2] - implied[2])))
+        if d_trans > max_trans or d_yaw > max_yaw_deg:
+            print(f"LOOP_EDGE_VETOED i={edge['i']} j={edge['j']} "
+                  f"d_trans={d_trans:.3f}m d_yaw={d_yaw:.1f}deg "
+                  f"corr={edge.get('correction_m', float('nan')):.2f}m", flush=True)
+            continue
+        kept.append(edge)
+    return kept
 
 
 def self_test():
@@ -321,6 +356,14 @@ def self_test():
     print(f"pose_graph self-test: yaw rmse {np.degrees(np.sqrt((yaw_err ** 2).mean())):.2f} deg "
           f"from a 25 deg rotated init")
     assert np.degrees(np.sqrt((yaw_err ** 2).mean())) < 3.0, "yaw gauge not recovered"
+    # vet_loop_edges: keeps reference-consistent edges, drops mis-locks
+    good = {"i": 5, "j": 60, "m": relative(truth[5], truth[60]), "correction_m": 0.0}
+    bad = {"i": 6, "j": 61,
+           "m": relative(truth[6], truth[61]) + np.array([2.0, 0.0, 0.0, 0.0]),
+           "correction_m": 0.0}
+    kept = vet_loop_edges([good, bad], truth)
+    assert len(kept) == 1 and kept[0] is good, "vet_loop_edges failed"
+
     print("POSE_GRAPH_SELF_TEST ok")
 
 

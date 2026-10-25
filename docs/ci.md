@@ -110,11 +110,10 @@ conversation resolution). First PR #21 → staging and promotion PR #22 → main
 both green; `v0.1` tagged at fa1f765. Re-run anytime with `make ci-bootstrap`
 (`scripts/ci_bootstrap.sh` is idempotent).
 
-## Mapping CI (planned; not built yet)
+## Mapping CI (map-gate workflow)
 
 The map is a data artifact, not code state: mapping is a periodic data
 pipeline, localization is the software product that consumes a pinned map.
-The split (agreed, implementation pending):
 
 - CI always tests against a **named, immutable, hash-verified map** - never
   "latest".
@@ -124,3 +123,12 @@ The split (agreed, implementation pending):
   pin-bump PR through the normal promotion gates.
 - One variable per promotion: code gated against the old map, maps gated
   with the current code.
+
+Implemented (2026-10-25): `.github/workflows/map-gate.yml` (workflow_dispatch,
+advisory per the ratchet) pulls the pinned bundle from GCS, runs
+`scripts/map_verify.py` plus the three gates on the VM (`map_check`,
+`eval_ate.py`, `eval_loops.py` — all exit non-zero on failure and write
+JSON/PNG evidence, collected as the workflow artifact). First pinned map:
+`town05-v14-pg` (lidar pose-graph SLAM, ADR 0002). Promotion = upload with
+`make map-upload MAP_ID=<id>`, then dispatch map-gate on the pin, then pin
+bump in the localizer config via PR.

@@ -11,11 +11,11 @@ Colab dependency.
 | Area | State |
 |---|---|
 | CARLA 0.9.15 + ROS 2 bridge on GCP, IAP-only | working (validated in #18) |
-| Town05 full-loop mapping bag (6256 scans, 208 s wall) | working |
-| Saved map `town05-v2` (2,772,333 points, closure 1.84 m, held-out 0.1175 m / 90 %) | **validated and published to GCS** |
+| Town05 full-loop mapping bag (6274 scans, 3.6 km loop) | working |
+| Saved map `town05-v14-pg` — lidar pose-graph SLAM (2,283,500 points; ATE 0.037 m RMSE / 0.69 deg yaw; held-out 94 % / 0.120 m; loops 0.113 m median) | **all three gates PASS** (ADR 0002) |
 | Localization stack (KISS-ICP + GICP + EKF + health) | working; E2E locked on `town05-v2` |
 | OpenSCENARIO S1-S4 harness + evaluator + KPI gates | pending (#10, #11) |
-| CI (`lint`, `build-test`, `carla-smoke`, `carla-full`, WIF) | `lint`+`build-test` live on PRs; smoke advisory on `staging`; full matrix pending (#10, #11) |
+| CI (`lint`, `build-test`, `carla-smoke`, `map-gate`, WIF) | `lint`+`build-test` live on PRs; smoke advisory on `staging`; map-gate advisory (dispatch); full matrix pending (#10, #11) |
 
 Until the scenario harness and evaluator land, this README documents the mapping and
 localization path that is complete and reproducible today.
@@ -73,6 +73,38 @@ logs `LOCKED ... rmse=... inliers=...`. Health is on `/localization/status`
 
 `make vm-down` stops the VM; the idle-stop guard stops it after 30 minutes without an SSH
 session or heartbeat.
+
+## Mapping pipeline (lidar SLAM, canonical)
+
+The saved map is built by offline pose-graph SLAM over a sensor-only bag
+(`/carla/hero/{lidar,gnss,imu}`, no ground truth):
+
+- **Odometry edges**: KISS-ICP on full 10 Hz sweeps (the sync bridge makes every
+  lidar message one complete rotation; KISS diverges on per-tick fragments).
+- **GNSS factors**: antenna ENU positions with the antenna→lidar lever arm
+  modeled in-graph, plus course-over-ground yaw where the vehicle is moving.
+- **Loop closures**: ICP scan-to-submap registrations between same-heading
+  revisits, each **vetoed against the GNSS-implied relative pose** before it
+  enters the graph (mis-locks on repeated geometry otherwise drag the solution
+  and hide their own residual).
+- Solved by sparse LM/Gauss-Newton (`scripts/pose_graph.py`, SE(2)+z, Huber).
+
+```bash
+make map-record               # record the mapping bag + separate eval bag
+make map                      # pose-graph build (detached, heartbeated; ~1 h)
+make map-eval                 # all three gates: held-out GICP, ATE vs GT, loops
+```
+
+`make map-gnss-imu` builds a GNSS+IMU-only map (no lidar). It is a diagnostic
+baseline: it passes the gates only because the CARLA rig's GNSS/IMU are
+noise-free, so it is never the shipping path. For preemption-resilient long
+builds, `build_map.py --pg-dump/--pg-load/--pg-optimized` checkpoints the
+graph stages (the dump stores antenna positions; lever and yaw factors are
+rebuilt from the bag on load).
+
+Gates (map bundle must pass all three): held-out GICP ≥80% accepted and median
+RMSE ≤0.20 m; ATE abs RMSE ≤0.30 m, p95 ≤0.60 m, yaw RMSE ≤2.0°; loop
+consistency ≥10 pairs, median correction ≤0.15 m, p95 ≤0.40 m.
 
 ## Saved map `town05-v2`
 

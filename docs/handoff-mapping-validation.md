@@ -1,5 +1,15 @@
 # Handoff: mapping pipeline validation (2026-10-25)
 
+> **Resolved later that day**: the open threads below are closed by ADR 0002.
+> The lidar pose-graph map `town05-v14-pg` passes all three gates (ATE 0.037 m
+> RMSE / 0.080 m p95 / 0.69 deg yaw; held-out 94 % / 0.120 m; loops 0.113 m
+> median / 0.238 m p95). Root causes found after this doc: the `--pg-dump`
+> format dropped the GNSS lever/yaw keys (a `--pg-load` solve constrained
+> lidar poses to antenna positions — a systematic 1 m error); loop edges need
+> GNSS-implied-relative vetoing + GNSS-parity weights; the loop gate now
+> scores the search-free inter-visit residual (walked ICP basin fragility was
+> reporting multi-metre slides on consistent maps).
+
 Context: verify + validate the whole mapping pipeline, then refactor, simplify,
 document, and make it human-operable. Validation is done and the mapper is
 dramatically improved but not yet passing all gates. This doc hands off the

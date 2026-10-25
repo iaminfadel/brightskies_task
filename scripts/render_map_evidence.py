@@ -56,6 +56,7 @@ def main():
 
     cloud = read_pcd(bundle / "map.pcd")
     trajectory = read_tum(bundle / "trajectory.tum")
+    map_id = json.loads((bundle / "map.yaml").read_text()).get("map_id", "map")
     consistency = json.loads((bundle / "validation" / "map_consistency.json").read_text())
     start, end = trajectory[0], trajectory[-1]
     closure = float(np.linalg.norm(end[:2] - start[:2]))
@@ -76,8 +77,8 @@ def main():
         )
     if loops:
         extra_lines += (
-            f"\nloop consistency  {loops['pairs']} pairs  median {loops['median_correction_m']:.2f} m"
-            f"  p95 {loops['p95_correction_m']:.2f} m  [{'PASS' if loops['passed'] else 'FAIL'}]"
+            f"\nloop consistency  {loops['pairs']} pairs  median {loops['median_residual_m']:.2f} m"
+            f"  p95 {loops['p95_residual_m']:.2f} m  [{'PASS' if loops['passed'] else 'FAIL'}]"
         )
 
     # 1. Overview ---------------------------------------------------------
@@ -93,7 +94,7 @@ def main():
     ax.annotate("", xy=end[:2], xytext=start[:2],
                 arrowprops=dict(arrowstyle="->", color="#ff3860", lw=1.6))
     ax.text(0.02, 0.98,
-            f"town05-v2  {len(cloud):,} points  {len(trajectory)} poses\n"
+            f"{map_id}  {len(cloud):,} points  {len(trajectory)} poses\n"
             f"closure {closure:.2f} m  held-out {consistency['accepted']}/"
             f"{consistency['scans']} accepted  median RMSE "
             f"{consistency['median_rmse_m']:.3f} m" + extra_lines,
@@ -126,7 +127,7 @@ def main():
     ax.set_xlabel("x [m]", labelpad=8)
     ax.set_ylabel("y [m]", labelpad=8)
     ax.set_zlabel("z [m]", labelpad=8)
-    ax.set_title("town05-v2 perspective view (height-colored)", fontsize=14)
+    ax.set_title(f"{map_id} perspective view (height-colored)", fontsize=14)
     fig.tight_layout()
     fig.savefig(out / "map_perspective.png")
     plt.close(fig)

@@ -1,0 +1,465 @@
+{
+  "schema_version": 1,
+  "map_id": "town05-v12-gnss-imu",
+  "pairs": 56,
+  "median_correction_m": 0.07363826937472004,
+  "p95_correction_m": 0.22533477970160196,
+  "max_correction_m": 0.526553716930329,
+  "gates": {
+    "min_pairs": 10,
+    "median_max_m": 0.15,
+    "p95_max_m": 0.4
+  },
+  "passed": true,
+  "note": "planar (yaw + xy) ICP correction of the recorded pose against the other visit's submap; doubled walls in the map show up as large corrections",
+  "pairs_detail": [
+    {
+      "scan_i": 2527,
+      "scan_j": 3957,
+      "dt_s": 143.00000213100003,
+      "correction_m": 0.04969640335250357,
+      "correction_yaw_deg": 0.010900939720022049,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1111,
+      "scan_j": 4487,
+      "dt_s": 337.600005031,
+      "correction_m": 0.01633294366719596,
+      "correction_yaw_deg": 0.014166684171129162,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 2572,
+      "scan_j": 4002,
+      "dt_s": 143.00000213000004,
+      "correction_m": 0.07898436999967108,
+      "correction_yaw_deg": 0.02029627812842078,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1144,
+      "scan_j": 4519,
+      "dt_s": 337.50000502899996,
+      "correction_m": 0.013059755400764005,
+      "correction_yaw_deg": 0.0015650797346210418,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 2082,
+      "scan_j": 3513,
+      "dt_s": 143.10000213300003,
+      "correction_m": 0.21675217569193395,
+      "correction_yaw_deg": 0.03246923227384922,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1637,
+      "scan_j": 3066,
+      "dt_s": 142.90000213000002,
+      "correction_m": 0.07426386280416855,
+      "correction_yaw_deg": 0.013930216319796495,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1598,
+      "scan_j": 3028,
+      "dt_s": 143.00000213099997,
+      "correction_m": 0.09395790245025608,
+      "correction_yaw_deg": 0.013440129407918335,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1568,
+      "scan_j": 2998,
+      "dt_s": 143.00000213100003,
+      "correction_m": 0.16292391765886127,
+      "correction_yaw_deg": 0.02519812622433861,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1668,
+      "scan_j": 3098,
+      "dt_s": 143.00000213100003,
+      "correction_m": 0.09189516338306945,
+      "correction_yaw_deg": 0.00838971762894024,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1723,
+      "scan_j": 3152,
+      "dt_s": 142.90000213000002,
+      "correction_m": 0.12277286942067536,
+      "correction_yaw_deg": 0.012835706278965105,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1786,
+      "scan_j": 3215,
+      "dt_s": 142.90000212999996,
+      "correction_m": 0.1696971683071229,
+      "correction_yaw_deg": 0.02072122994873192,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1823,
+      "scan_j": 3252,
+      "dt_s": 142.90000213000002,
+      "correction_m": 0.043793746832878004,
+      "correction_yaw_deg": 0.0006057683995616418,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1756,
+      "scan_j": 3185,
+      "dt_s": 142.90000212900003,
+      "correction_m": 0.017808186583524337,
+      "correction_yaw_deg": 0.0040322800718938,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1928,
+      "scan_j": 3357,
+      "dt_s": 142.90000212899997,
+      "correction_m": 0.11804882297746072,
+      "correction_yaw_deg": 0.017516505932368753,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1855,
+      "scan_j": 3284,
+      "dt_s": 142.90000213000002,
+      "correction_m": 0.08231754994523481,
+      "correction_yaw_deg": 0.01772988446065686,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1967,
+      "scan_j": 3396,
+      "dt_s": 142.90000212900003,
+      "correction_m": 0.04666455404702413,
+      "correction_yaw_deg": 0.003079417912901706,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1896,
+      "scan_j": 3325,
+      "dt_s": 142.90000212999996,
+      "correction_m": 0.18439911410192875,
+      "correction_yaw_deg": 0.022616557110219634,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1999,
+      "scan_j": 3428,
+      "dt_s": 142.90000212899997,
+      "correction_m": 0.17502667333925534,
+      "correction_yaw_deg": 0.02485265753111413,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 2031,
+      "scan_j": 3460,
+      "dt_s": 142.90000212999996,
+      "correction_m": 0.028499446638029776,
+      "correction_yaw_deg": 0.0038316367731359236,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 1072,
+      "scan_j": 4449,
+      "dt_s": 337.70000503299997,
+      "correction_m": 0.0203602510789585,
+      "correction_yaw_deg": 0.01202163686168645,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 2151,
+      "scan_j": 3580,
+      "dt_s": 142.90000213000002,
+      "correction_m": 0.026158698768790137,
+      "correction_yaw_deg": 0.006769681667353953,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 2293,
+      "scan_j": 3722,
+      "dt_s": 142.90000212900003,
+      "correction_m": 0.09160080019811558,
+      "correction_yaw_deg": 0.014440425335335098,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 2254,
+      "scan_j": 3683,
+      "dt_s": 142.90000212899997,
+      "correction_m": 0.1438727389511548,
+      "correction_yaw_deg": 0.021563196879970624,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 2324,
+      "scan_j": 3753,
+      "dt_s": 142.90000212899997,
+      "correction_m": 0.08909732181811816,
+      "correction_yaw_deg": 0.016135955414780294,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 2397,
+      "scan_j": 3826,
+      "dt_s": 142.90000212900003,
+      "correction_m": 0.2416890172289112,
+      "correction_yaw_deg": 0.04561995056815152,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 2187,
+      "scan_j": 3616,
+      "dt_s": 142.90000212899997,
+      "correction_m": 0.034896280004051275,
+      "correction_yaw_deg": 0.0018564943933157745,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 2224,
+      "scan_j": 3653,
+      "dt_s": 142.90000212899997,
+      "correction_m": 0.10339735848672604,
+      "correction_yaw_deg": 0.020302203556828238,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 2428,
+      "scan_j": 3857,
+      "dt_s": 142.90000212900003,
+      "correction_m": 0.07301267594527153,
+      "correction_yaw_deg": 0.011052173244157137,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 2366,
+      "scan_j": 3795,
+      "dt_s": 142.90000212900003,
+      "correction_m": 0.000520395266943958,
+      "correction_yaw_deg": 0.0007353112947422055,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 2479,
+      "scan_j": 3908,
+      "dt_s": 142.90000212900003,
+      "correction_m": 0.13557175824635706,
+      "correction_yaw_deg": 0.026242266979143638,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 5573,
+      "scan_j": 6273,
+      "dt_s": 70.000001043,
+      "correction_m": 0.526553716930329,
+      "correction_yaw_deg": 0.1609867542282851,
+      "inlier_ratio": 0.969402228976697
+    },
+    {
+      "scan_i": 5604,
+      "scan_j": 6243,
+      "dt_s": 63.900000951999914,
+      "correction_m": 0.2972122853293431,
+      "correction_yaw_deg": 0.06903961715778732,
+      "inlier_ratio": 0.9975806451612903
+    },
+    {
+      "scan_i": 1538,
+      "scan_j": 2968,
+      "dt_s": 143.00000213100003,
+      "correction_m": 0.19524688042264438,
+      "correction_yaw_deg": 0.03109793200641724,
+      "inlier_ratio": 0.9997899159663866
+    },
+    {
+      "scan_i": 1042,
+      "scan_j": 4419,
+      "dt_s": 337.700005032,
+      "correction_m": 0.07571369404753069,
+      "correction_yaw_deg": 0.03919914279237067,
+      "inlier_ratio": 0.9944344703770197
+    },
+    {
+      "scan_i": 1175,
+      "scan_j": 4551,
+      "dt_s": 337.60000503,
+      "correction_m": 0.022119006475028756,
+      "correction_yaw_deg": 0.0034431869582264418,
+      "inlier_ratio": 1.0
+    },
+    {
+      "scan_i": 2603,
+      "scan_j": 4036,
+      "dt_s": 143.30000213500006,
+      "correction_m": 0.11356288281566247,
+      "correction_yaw_deg": 0.03252876108724251,
+      "inlier_ratio": 0.9963428571428572
+    },
+    {
+      "scan_i": 2634,
+      "scan_j": 4068,
+      "dt_s": 143.400002137,
+      "correction_m": 0.09560531102400534,
+      "correction_yaw_deg": 0.0225882065842398,
+      "inlier_ratio": 0.9773065476190477
+    },
+    {
+      "scan_i": 1206,
+      "scan_j": 4587,
+      "dt_s": 338.100005038,
+      "correction_m": 0.032744600009355515,
+      "correction_yaw_deg": 0.0087474737301103,
+      "inlier_ratio": 0.9894698620188817
+    },
+    {
+      "scan_i": 2665,
+      "scan_j": 4099,
+      "dt_s": 143.400002137,
+      "correction_m": 0.15369004812677675,
+      "correction_yaw_deg": 0.03969615948629426,
+      "inlier_ratio": 0.9987794955248169
+    },
+    {
+      "scan_i": 864,
+      "scan_j": 2791,
+      "dt_s": 192.70000287199997,
+      "correction_m": 0.024075004541920436,
+      "correction_yaw_deg": 0.008175025577051308,
+      "inlier_ratio": 0.9885482083487255
+    },
+    {
+      "scan_i": 1240,
+      "scan_j": 4621,
+      "dt_s": 338.100005038,
+      "correction_m": 0.06890519974722596,
+      "correction_yaw_deg": 0.026502929942287087,
+      "inlier_ratio": 0.9912694255281997
+    },
+    {
+      "scan_i": 834,
+      "scan_j": 2761,
+      "dt_s": 192.70000287099998,
+      "correction_m": 0.16211192389527448,
+      "correction_yaw_deg": 0.04545353633347918,
+      "inlier_ratio": 0.9869115061535456
+    },
+    {
+      "scan_i": 804,
+      "scan_j": 2731,
+      "dt_s": 192.70000287100004,
+      "correction_m": 0.012013754467793873,
+      "correction_yaw_deg": 0.006101155842137296,
+      "inlier_ratio": 0.9899425287356322
+    },
+    {
+      "scan_i": 0,
+      "scan_j": 6132,
+      "dt_s": 613.200009137,
+      "correction_m": 0.011037425944481689,
+      "correction_yaw_deg": 0.041619166071870724,
+      "inlier_ratio": 0.8656418446795767
+    },
+    {
+      "scan_i": 31,
+      "scan_j": 6213,
+      "dt_s": 618.2000092119999,
+      "correction_m": 0.028667498002729563,
+      "correction_yaw_deg": 0.052027158485386256,
+      "inlier_ratio": 0.7954818072770892
+    },
+    {
+      "scan_i": 62,
+      "scan_j": 6183,
+      "dt_s": 612.100009121,
+      "correction_m": 0.030356917779139004,
+      "correction_yaw_deg": 0.039700673500877484,
+      "inlier_ratio": 0.7929160796941035
+    },
+    {
+      "scan_i": 93,
+      "scan_j": 5758,
+      "dt_s": 566.500008441,
+      "correction_m": 0.024454839863707414,
+      "correction_yaw_deg": 0.029223712070676103,
+      "inlier_ratio": 0.8637547585654177
+    },
+    {
+      "scan_i": 124,
+      "scan_j": 5847,
+      "dt_s": 572.300008528,
+      "correction_m": 0.0071035658522147485,
+      "correction_yaw_deg": 0.020242524753227166,
+      "inlier_ratio": 0.8608626515603259
+    },
+    {
+      "scan_i": 155,
+      "scan_j": 5817,
+      "dt_s": 566.200008437,
+      "correction_m": 0.062221657440914756,
+      "correction_yaw_deg": 0.07722631511857064,
+      "inlier_ratio": 0.7954317771989581
+    },
+    {
+      "scan_i": 186,
+      "scan_j": 5658,
+      "dt_s": 547.200008154,
+      "correction_m": 0.015074399012025829,
+      "correction_yaw_deg": 0.06004186443080256,
+      "inlier_ratio": 0.8595404595404595
+    },
+    {
+      "scan_i": 217,
+      "scan_j": 5946,
+      "dt_s": 572.900008537,
+      "correction_m": 0.00014503534839998208,
+      "correction_yaw_deg": 0.054897885772309835,
+      "inlier_ratio": 0.8563979141596471
+    },
+    {
+      "scan_i": 248,
+      "scan_j": 6033,
+      "dt_s": 578.50000862,
+      "correction_m": 0.006752334994637011,
+      "correction_yaw_deg": 0.03035515769002845,
+      "inlier_ratio": 0.8498712616359675
+    },
+    {
+      "scan_i": 279,
+      "scan_j": 6003,
+      "dt_s": 572.4000085289999,
+      "correction_m": 0.04021581129141881,
+      "correction_yaw_deg": 0.06951565211137799,
+      "inlier_ratio": 0.7888286116134218
+    },
+    {
+      "scan_i": 2696,
+      "scan_j": 4143,
+      "dt_s": 144.70000215699997,
+      "correction_m": 0.21988336719249887,
+      "correction_yaw_deg": 0.056634268316735646,
+      "inlier_ratio": 0.9630134319641814
+    },
+    {
+      "scan_i": 2113,
+      "scan_j": 3550,
+      "dt_s": 143.70000214100003,
+      "correction_m": 0.18215094882708188,
+      "correction_yaw_deg": 0.023193164230451858,
+      "inlier_ratio": 0.9954328420178534
+    },
+    {
+      "scan_i": 1507,
+      "scan_j": 2938,
+      "dt_s": 143.100002132,
+      "correction_m": 0.025881037394273762,
+      "correction_yaw_deg": 0.0061571260687586105,
+      "inlier_ratio": 0.9785373608903021
+    }
+  ]
+}
