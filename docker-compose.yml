@@ -179,7 +179,10 @@ services:
         source /opt/brightdrive/setup.bash;
         source /ws/install/setup.bash 2>/dev/null || true;
         exec ros2 launch brightdrive_bringup localization.launch.py
-        map_dir:=${MAP_DIR:-/ws/maps/current/town05-v14-pg}
+    # ADR 0003 (#34): the estimator takes the map by subscription on
+    # /localization/map_cloud; the served bundle is chosen by the map-server
+    # service's MAP_DIR, and the georeference must match it (localization.yaml
+    # map.anchor_*, override via LOCALIZATION_PARAMS when MAP_DIR changes).
 
   foxglove:
     <<: *ros

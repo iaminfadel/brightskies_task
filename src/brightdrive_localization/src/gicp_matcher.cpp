@@ -9,6 +9,7 @@
 #include <small_gicp/factors/gicp_factor.hpp>
 #include <small_gicp/registration/reduction.hpp>
 #include <small_gicp/registration/registration.hpp>
+#include <small_gicp/registration/registration_helper.hpp>
 #include <small_gicp/registration/rejector.hpp>
 #include <small_gicp/registration/termination_criteria.hpp>
 #include <small_gicp/util/downsampling_omp.hpp>
@@ -29,6 +30,20 @@ double degrees_to_radians(double degrees) { return degrees * M_PI / 180.0; }
 GicpMatcher::GicpMatcher(const GicpSettings& settings, small_gicp::PointCloud::ConstPtr map_cloud,
                          std::shared_ptr<const small_gicp::KdTree<small_gicp::PointCloud>> map_tree)
     : settings_(settings), map_cloud_(std::move(map_cloud)), map_tree_(std::move(map_tree)) {}
+
+std::pair<small_gicp::PointCloud::Ptr,
+          std::shared_ptr<small_gicp::KdTree<small_gicp::PointCloud>>>
+GicpMatcher::build_map_cloud(const std::vector<Eigen::Vector3f>& points, double voxel_size_m,
+                             int knn, int num_threads) {
+  small_gicp::PointCloud::Ptr raw(new small_gicp::PointCloud);
+  raw->resize(points.size());
+  for (std::size_t i = 0; i < points.size(); ++i) {
+    raw->point(i) << static_cast<double>(points[i].x()), static_cast<double>(points[i].y()),
+        static_cast<double>(points[i].z()), 1.0;
+  }
+  return small_gicp::preprocess_points(
+      *raw, voxel_size_m, knn, num_threads > 0 ? num_threads : 4);
+}
 
 MatchResult GicpMatcher::align(const std::vector<Eigen::Vector3f>& raw_scan,
                                const Eigen::Isometry3d& init_T_map_lidar,

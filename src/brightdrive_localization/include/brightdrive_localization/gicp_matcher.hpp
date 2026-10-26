@@ -9,6 +9,7 @@
 #include <small_gicp/ann/kdtree.hpp>
 #include <small_gicp/points/point_cloud.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace brightdrive {
@@ -53,6 +54,14 @@ class GicpMatcher {
  public:
   GicpMatcher(const GicpSettings& settings, small_gicp::PointCloud::ConstPtr map_cloud,
               std::shared_ptr<const small_gicp::KdTree<small_gicp::PointCloud>> map_tree);
+
+  // Voxel-downsamples and estimates normals for a raw XYZ cloud, producing
+  // the (cloud, tree) pair the constructor consumes. Shared by the offline
+  // bundle loader and the served-cloud path (#34).
+  static std::pair<small_gicp::PointCloud::Ptr,
+                   std::shared_ptr<small_gicp::KdTree<small_gicp::PointCloud>>>
+  build_map_cloud(const std::vector<Eigen::Vector3f>& points, double voxel_size_m, int knn,
+                  int num_threads);
 
   // raw_scan is XYZ in the LiDAR frame; init_T_map_lidar is the prediction.
   // crop_center_map supports the local 80 m crop from the contract.

@@ -10,7 +10,18 @@ localization_core:
       imu: hero/imu
 
     map:
-      dir: /ws/maps/current/town05-v14-pg
+      # ADR 0003 (#34): the cloud is consumed by subscription on
+      # /localization/map_cloud, not loaded in process. Only the georeference
+      # is configured here -- it must be kept in step with the bundle the
+      # map_server serves (map.yaml anchor, source first_gnss_fix). Deploying
+      # a different bundle means overriding these (LOCALIZATION_PARAMS) and
+      # MAP_DIR together.
+      id: town05-v14-pg
+      anchor_lat_deg: 0.0008546875172470436
+      anchor_lon_deg: -0.0014887973462199867
+      anchor_alt_m: 2.033297300338745
+      # Fatal exit if the map_server delivers no cloud in this window.
+      cloud_timeout_s: 30.0
       voxel_size_m: 0.25
 
     pipeline:
@@ -77,3 +88,4 @@ localization_core:
       gnss: /carla/hero/gnss
       imu: /localization/imu
       filtered: /odometry/filtered
+      map_cloud: /localization/map_cloud
