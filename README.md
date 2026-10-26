@@ -204,6 +204,29 @@ Bootstrap: `make ci-bootstrap` (squash-merge policy, `staging` branch, branch
 protection with the required checks; needs the repo to be public or GitHub
 Pro).
 
+### Published pipeline image (evaluator path)
+
+On every push to `main`, `.github/workflows/publish-image.yml` builds and
+pushes `ghcr.io/iaminfadel/brightdrive:<commit-sha>` from `docker/Dockerfile`:
+the pinned public deps image plus a `colcon install` of this workspace. SHA
+tags are never deleted, so a build that later fails the KPI gate keeps its
+tag for debugging and is never confused with the shippable image.
+
+`.github/workflows/promote-stable.yml` points the `stable` tag at a SHA only
+after the `carla-full` KPI gate passes; `stable` is never moved by a red run.
+
+Evaluator path on any machine with Docker + the NVIDIA Container Toolkit:
+
+```bash
+git clone https://github.com/iaminfadel/brightskies_task.git
+cd brightskies_task
+make test          # compose pulls the published image by default
+```
+
+`make build` remains the documented hermetic fallback (builds the workspace
+into `/ws/install` with the pinned deps image) when the published image is
+unavailable or you are working offline.
+
 ## Repository layout
 
 ```

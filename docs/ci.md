@@ -77,6 +77,10 @@ History:
 - `.github/workflows/carla-full.yml` - tier 4 (dispatch-only until #10/#11).
 - `.github/workflows/wif-smoke.yml` - WIF auth smoke, no keys anywhere.
 
+Published pipeline image (see README, "Published pipeline image (evaluator path)"):
+
+- `.github/workflows/publish-image.yml` - builds `docker/Dockerfile` (deps image + colcon install) and pushes `ghcr.io/.../brightdrive:<sha>` on every push to `main`. SHA tags are retained.
+- `.github/workflows/promote-stable.yml` - moves `stable` to a SHA only after `carla-full` succeeds.
 Local equivalents: `make ci-lint`, `make ci-vm-build-test` (same colcon
 command as CI, on the VM deps container - the laptop never builds ROS).
 

@@ -1,0 +1,12 @@
+.git
+**/build
+**/install
+**/log
+maps
+bags
+evidence
+__pycache__
+.pytest_cache
+.ruff_cache
+*.pyc
+docs/results

@@ -1,0 +1,51 @@
+name: promote-stable
+
+# Promote the `stable` tag only after the KPI gate of record passes. The SHA
+# tag published by publish-image.yml is immutable; this workflow just points
+# `stable` at the SHA that the passing run tested. A red KPI gate never
+# touches `stable`, so evaluators pulling `stable` always get a known-good
+# image.
+on:
+  workflow_run:
+    workflows: ["carla-full"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Commit SHA whose image to promote (must already be published)
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  promote:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Resolve commit SHA
+        id: sha
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "sha=${{ github.event.inputs.commit_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Promote SHA tag to stable
+        run: |
+          set -euo pipefail
+          IMAGE=ghcr.io/${{ github.repository_owner }}/brightdrive
+          SHA=${{ steps.sha.outputs.sha }}
+          docker pull "${IMAGE}:${SHA}"
+          docker tag "${IMAGE}:${SHA}" "${IMAGE}:stable"
+          docker push "${IMAGE}:stable"

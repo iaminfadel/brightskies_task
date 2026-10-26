@@ -1,0 +1,45 @@
+name: publish-image
+
+# Publish the BrightDrive pipeline image on every push to main. The image is
+# FROM the pinned public deps image plus a colcon install of the workspace
+# (docker/Dockerfile); it is the runtime of the compose services.
+#
+# Tagging: one tag per commit SHA. SHA tags are never deleted, so a build
+# that later fails the KPI gate keeps its tag for debugging and is never
+# confused with the shippable image.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (commit-SHA tag)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/brightdrive:${{ github.sha }}
+          build-args: |
+            COMMIT_SHA=${{ github.sha }}
+            DEPS_IMAGE=ghcr.io/iaminfadel/brightdrive-deps@sha256:263332dd8da9b062726d15953ccddce1a11cb9754779840289e059792cd60c64
