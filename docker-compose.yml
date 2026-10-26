@@ -1,0 +1,316 @@
+# BrightDrive compose runtime -- the canonical inner runtime (#26).
+#
+# One file, routes over shared services, selected by compose profiles:
+#
+#   runtime  (make up)        carla + bridge (which spawns the hero) +
+#                             localization + status + foxglove + map-server:
+#                             the normal running route.
+#   test     (make test)      the runtime route + the one-shot smoke driver
+#                             that proves it end to end and writes evidence.
+#   eval     (make eval)      artifact-consuming evaluator -- post-drive,
+#                             never co-scheduled with the estimator so the
+#                             GT-isolation audit stays truthful. No carla,
+#                             no runtime dependency: bags and metrics only.
+#   mapping  (make map-*)     carla + bridge -> recorder -> map-builder as
+#                             sequential one-shot services
+#                             (depends_on: service_completed_successfully):
+#                             bag in, map + tiles out.
+#
+# The legacy vm-run.sh path stays valid until this route is green
+# everywhere; the two share host ports 2000/8765 and must not run at once
+# (scripts/validation/stop_stack.sh stops the legacy stack).
+#
+# Every tunable is an environment override (see .env.example); never edit
+# config files in place. Workspace layout on VM and evaluator machines
+# alike: ${WS_DIR:-/ws} contains brightdrive/ (this repo), install/
+# (make build), maps/, bags/, evidence/.
+#
+# Command conventions (learned the hard way):
+# - commands are explicit [bash, -lc, <script>] argv lists: compose splits
+#   plain string commands on whitespace.
+# - the script is a FOLDED scalar (>-) with every statement ; separated and
+#   wrapped argument lines at the SAME indent: literal blocks (|-) keep
+#   newlines, and a newline is a command separator in bash -- a wrapped
+#   flag line becomes its own (broken) command.
+
+name: brightdrive
+
+x-ros: &ros
+  image: ${DEPS_IMAGE:-ghcr.io/iaminfadel/brightdrive-deps@sha256:263332dd8da9b062726d15953ccddce1a11cb9754779840289e059792cd60c64}
+  network_mode: host
+  shm_size: 4g
+  init: true
+  working_dir: /ws/brightdrive
+  volumes:
+    - ${WS_DIR:-/ws}:/ws
+    # One shared /dev/shm across every ROS service. FastDDS (the Humble
+    # default RMW) picks SHM transport for same-host peers; with per-
+    # container tmpfs each participant gets its own segments -- discovery
+    # still works over UDP, but data and service calls are silently lost
+    # (the smoke hung forever in /carla/spawn_object exactly this way).
+    # Sharing one tmpfs recreates the legacy single-container semantics.
+    - ros-shm:/dev/shm
+
+volumes:
+  ros-shm:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=4g
+
+services:
+  carla:
+    image: ${CARLA_IMAGE:-carlasim/carla:0.9.15@sha256:1af47c314443f4a2d0869ac399c5b5eabde138a5bc39dd31dcbb1540e22f5588}
+    profiles: [runtime, mapping]
+    network_mode: host
+    shm_size: 4g
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 1m
+    logging:
+      driver: json-file
+      options:
+        max-size: 100m
+        max-file: "3"
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # The map URL must be the FIRST argument: UE4 only treats the leading
+    # positional as the startup map; after the flags it is silently ignored
+    # and the server boots Town10HD_Opt. A hot `load_world` right before the
+    # first RGB camera then segfaults 0.9.15 (Signal 11, observed). Booting
+    # directly on the target town avoids the hot-load entirely.
+    command:
+      - /bin/bash
+      - -lc
+      - >-
+        exec ./CarlaUE4.sh /Game/Carla/Maps/${CARLA_TOWN:-Town05}
+        -RenderOffScreen -nosound -quality-level=Low
+        -ResX=1280 -ResY=720 -carla-server -world-port=2000
+    healthcheck:
+      # TCP open == the RPC listener is up; the bridge waits for a full RPC
+      # round trip on the target town before starting. Cold boot is
+      # 6.5-25.5 min (#18), hence start_period.
+      test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/127.0.0.1/2000'"]
+      interval: 10s
+      timeout: 6s
+      retries: 12
+      start_period: 30m
+
+  bridge:
+    <<: *ros
+    profiles: [runtime, mapping]
+    restart: on-failure
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: "3"
+    depends_on:
+      carla:
+        condition: service_healthy
+    healthcheck:
+      # The bridge is "up" when /clock flows: everything downstream keys on
+      # it. bash wrapper: CMD-SHELL is /bin/sh and setup.bash uses `source`
+      # internally; ros2 CLI cold start takes ~15-20 s, so the probe gets a
+      # generous 60 s before docker kills it (137s earlier meant too tight).
+      test: ["CMD-SHELL", "timeout 60 bash -c '. /opt/brightdrive/setup.bash && timeout 50 ros2 topic echo --no-daemon --once /clock >/dev/null'"]
+      interval: 30s
+      timeout: 65s
+      retries: 10
+      start_period: 3m
+    # The hero spawn rides the bridge command (like the town load) so a
+    # bridge restart is self-healing: CARLA crashing resets the world, and
+    # a separate one-shot `spawn` service would never re-run, leaving the
+    # runtime without the camera rig. Spawn only after /clock proves the
+    # bridge is ticking and /carla/spawn_object exists.
+    command:
+      - /bin/bash
+      - -lc
+      - >-
+        source /opt/brightdrive/setup.bash;
+        python3 /ws/brightdrive/scripts/validation/load_carla_town.py
+        --town ${CARLA_TOWN:-Town05} --timeout 1800;
+        ros2 run carla_ros_bridge bridge --ros-args
+        -p host:=127.0.0.1 -p port:=2000 -p timeout:=60
+        -p town:=Carla/Maps/${CARLA_TOWN:-Town05}
+        -p passive:=false -p synchronous_mode:=true
+        -p synchronous_mode_wait_for_vehicle_control_command:=false
+        -p fixed_delta_seconds:=${BRIDGE_FIXED_DELTA_SECONDS:-0.1}
+        -p register_all_sensors:=true -p ego_vehicle_role_name:=hero &
+        bridge_pid=$$!;
+        until timeout 5 ros2 topic echo --no-daemon --once /clock
+        >/dev/null 2>&1; do sleep 2; done;
+        if ! python3 /ws/brightdrive/scripts/validation/wait_graph.py
+        --topic /carla/hero/lidar --publisher --timeout 10; then
+        ros2 launch carla_spawn_objects carla_spawn_objects.launch.py
+        objects_definition_file:=${OBJECTS_FILE:-/ws/brightdrive/config/validation/objects.json}; fi;
+        if ! timeout 180 ros2 topic echo --no-daemon --once
+        /carla/hero/camera_front/image >/dev/null 2>&1; then
+        echo "camera produced no frame; restarting the bridge" >&2;
+        kill $$bridge_pid; wait $$bridge_pid; exit 1; fi;
+        wait $$bridge_pid
+
+  localization:
+    <<: *ros
+    profiles: [runtime]
+    restart: on-failure
+    depends_on:
+      bridge:
+        condition: service_healthy
+    environment:
+      # Param-file overrides (#26 config-over-code rule): point these at
+      # copies outside the repo (e.g. under $(WS_DIR)/config-override/)
+      # instead of editing the installed YAML.
+      KISS_PARAMS: ${KISS_PARAMS:-}
+      EKF_PARAMS: ${EKF_PARAMS:-}
+      LOCALIZATION_PARAMS: ${LOCALIZATION_PARAMS:-}
+    command:
+      - /bin/bash
+      - -lc
+      - >-
+        source /opt/brightdrive/setup.bash;
+        source /ws/install/setup.bash 2>/dev/null || true;
+        exec ros2 launch brightdrive_bringup localization.launch.py
+        map_dir:=${MAP_DIR:-/ws/maps/current/town05-v2}
+
+  status:
+    # Placeholder /localization/status publisher; the production health
+    # contract lands with #20. Part of the runtime route so the smoke has
+    # the full estimator surface to audit.
+    <<: *ros
+    profiles: [runtime]
+    restart: on-failure
+    depends_on:
+      bridge:
+        condition: service_healthy
+    command:
+      - /bin/bash
+      - -lc
+      - >-
+        source /opt/brightdrive/setup.bash;
+        exec python3 /ws/brightdrive/scripts/validation/localization_status.py
+
+  foxglove:
+    <<: *ros
+    profiles: [runtime]
+    restart: on-failure
+    depends_on:
+      bridge:
+        condition: service_healthy
+    command:
+      - /bin/bash
+      - -lc
+      - >-
+        source /opt/brightdrive/setup.bash;
+        exec ros2 run foxglove_bridge foxglove_bridge --ros-args
+        -p port:=8765 -p address:=127.0.0.1 -p use_sim_time:=true
+    # Loopback only: reached from the laptop through the IAP tunnel
+    # (-L 8765:127.0.0.1:8765); never a public port (#16/#17 rule).
+
+  map-server:
+    # Full-map serving fallback: publishes the saved map as a latched
+    # cloud. #27 replaces this service in place with the tiled map_server;
+    # the service name and the /localization/map_cloud contract stay.
+    <<: *ros
+    profiles: [runtime]
+    restart: on-failure
+    command:
+      - /bin/bash
+      - -lc
+      - >-
+        source /opt/brightdrive/setup.bash;
+        source /ws/install/setup.bash 2>/dev/null || true;
+        exec python3 /ws/brightdrive/scripts/publish_map_cloud.py
+        --map-dir ${MAP_DIR:-/ws/maps/current/town05-v2}
+        --topic /localization/map_cloud --frame map
+
+  smoke:
+    # One-shot driver over the runtime route: readiness waits, hero drive,
+    # topic rates, runtime GT-isolation audit, bags, timings, evidence.
+    # Reached through `make test` (compose run), never `up`.
+    <<: *ros
+    profiles: [test]
+    environment:
+      EVIDENCE: ${EVIDENCE:-/ws/evidence/compose-smoke}
+    depends_on:
+      carla:
+        condition: service_healthy
+      bridge:
+        condition: service_healthy
+      localization:
+        condition: service_started
+      status:
+        condition: service_started
+      foxglove:
+        condition: service_started
+    command:
+      - /bin/bash
+      - -lc
+      - >-
+        source /opt/brightdrive/setup.bash;
+        exec bash /ws/brightdrive/scripts/validation/compose_smoke.sh
+
+  evaluator:
+    # Post-drive, artifact-consuming: source GT-isolation audit + KPI gate
+    # over a metrics file. Deliberately no runtime dependency and no carla
+    # -- the evaluator is never co-scheduled with the estimator. ATE,
+    # heading, and latency metrics from bags land here with #29.
+    <<: *ros
+    profiles: [eval]
+    command:
+      - /bin/bash
+      - -lc
+      - >-
+        cd /ws/brightdrive;
+        python3 scripts/isolation_audit.py;
+        exec python3 scripts/kpi_gate.py ${METRICS_FILE:-/ws/evidence/metrics.json}
+
+  recorder:
+    # Mapping route stage 1: hero with the mapping sensor set
+    # (objects_map.json adds the GT odometry sensor), teleport, drive one
+    # loop, record the sensor bag + the separate GT eval bag. One-shot.
+    <<: *ros
+    profiles: [mapping]
+    depends_on:
+      carla:
+        condition: service_healthy
+      bridge:
+        condition: service_healthy
+    command:
+      - /bin/bash
+      - -lc
+      - >-
+        exec bash /ws/brightdrive/scripts/map_run.sh
+        ${MAP_BAG:-/ws/bags/map_full5} ${MAP_DRIVE_SECONDS:-900}
+        ${MAP_EVAL_BAG:-/ws/bags/map_full5_eval}
+
+  map-builder:
+    # Mapping route stage 2: bag in, map + tiles out. Sequenced after the
+    # recorder via compose-native service_completed_successfully;
+    # `docker compose run --no-deps map-builder` (make map-build) skips the
+    # recorder when rebuilding from an existing bag.
+    <<: *ros
+    profiles: [mapping]
+    depends_on:
+      recorder:
+        condition: service_completed_successfully
+    command:
+      - /bin/bash
+      - -lc
+      - >-
+        source /opt/brightdrive/setup.bash;
+        source /ws/install/setup.bash 2>/dev/null || true;
+        cd /ws/brightdrive;
+        exec python3 scripts/build_map.py
+        ${MAP_BAG:-/ws/bags/map_full5} /ws/maps/builds/${MAP_ID:-town05-compose}
+        --map-id ${MAP_ID:-town05-compose}
+        --spawn=${MAP_SPAWN:--164.732162,-95.141876,0.300000,-179.913696}
+        ${MAP_BUILDER_FLAGS:---pose-graph}

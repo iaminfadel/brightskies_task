@@ -51,7 +51,7 @@
             "pitch": 0.0,
             "yaw": 0.0
           },
-          "sensor_tick": 0.01,
+          "sensor_tick": 0.1,
           "noise_accel_stddev_x": 0.0,
           "noise_accel_stddev_y": 0.0,
           "noise_accel_stddev_z": 0.0,

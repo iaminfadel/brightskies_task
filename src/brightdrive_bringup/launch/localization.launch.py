@@ -17,9 +17,15 @@ def _launch(context, *args, **kwargs):
     with open(urdf, "r", encoding="utf-8") as handle:
         robot_description = handle.read()
 
-    localization_params = os.path.join(share, "config", "localization.yaml")
-    ekf_params = os.path.join(share, "config", "ekf.yaml")
-    kiss_params = os.path.join(share, "config", "kiss_icp.yaml")
+    # Param files default to the installed copies but are overridable from
+    # the environment (the compose #26 config-over-code rule: overrides
+    # point at files outside the repo, never edits in place).
+    localization_params = (
+        os.environ.get("LOCALIZATION_PARAMS")
+        or os.path.join(share, "config", "localization.yaml")
+    )
+    ekf_params = os.environ.get("EKF_PARAMS") or os.path.join(share, "config", "ekf.yaml")
+    kiss_params = os.environ.get("KISS_PARAMS") or os.path.join(share, "config", "kiss_icp.yaml")
 
     actions = [
         Node(
