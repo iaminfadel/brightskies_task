@@ -179,7 +179,7 @@ services:
         source /opt/brightdrive/setup.bash;
         source /ws/install/setup.bash 2>/dev/null || true;
         exec ros2 launch brightdrive_bringup localization.launch.py
-        map_dir:=${MAP_DIR:-/ws/maps/current/town05-v2}
+        map_dir:=${MAP_DIR:-/ws/maps/current/town05-v14-pg}
 
   foxglove:
     <<: *ros
@@ -212,7 +212,7 @@ services:
         source /opt/brightdrive/setup.bash;
         source /ws/install/setup.bash 2>/dev/null || true;
         exec python3 /ws/brightdrive/scripts/publish_map_cloud.py
-        --map-dir ${MAP_DIR:-/ws/maps/current/town05-v2}
+        --map-dir ${MAP_DIR:-/ws/maps/current/town05-v14-pg}
         --topic /localization/map_cloud --frame map
 
   smoke:

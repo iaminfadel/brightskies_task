@@ -12,7 +12,7 @@ ros2 launch brightdrive_bringup localization.launch.py >"$OUT/launch.log" 2>&1 &
 LP=$!
 python3 /ws/brightdrive/scripts/reliable_clock_relay.py >"$OUT/relay.log" 2>&1 &
 RP=$!
-python3 /ws/brightdrive/scripts/publish_map_cloud.py --map-dir /ws/maps/current/town05-v2 >"$OUT/cloud.log" 2>&1 &
+python3 /ws/brightdrive/scripts/publish_map_cloud.py --map-dir /ws/maps/current/town05-v14-pg >"$OUT/cloud.log" 2>&1 &
 CP=$!
 trap 'kill $LP $RP $CP ${BP:-} 2>/dev/null || true' EXIT INT TERM
 sleep 10

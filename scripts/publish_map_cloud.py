@@ -77,7 +77,7 @@ class MapCloudPublisher(Node):
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--map-dir", default="/ws/maps/current/town05-v2")
+    parser.add_argument("--map-dir", default="/ws/maps/current/town05-v14-pg")
     parser.add_argument("--topic", default="/localization/map_cloud")
     parser.add_argument("--frame", default="map")
     parser.add_argument("--period", type=float, default=0.0)

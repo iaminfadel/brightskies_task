@@ -23,7 +23,9 @@ ci-bootstrap:
 ci-vm-build-test:
 	./scripts/vm-run.sh --fg "docker exec brightdrive-deps bash -lc '$(PY_RUN) && colcon build --packages-select brightdrive_interfaces brightdrive_localization brightdrive_bringup && colcon test --packages-select brightdrive_localization && colcon test-result --verbose'"
 
-MAP_ID ?= town05-pg
+# The pinned, gate-passing bundle (ADR 0002); the runtime and the install
+# target must resolve to the same id (#35).
+MAP_ID ?= town05-v14-pg
 MAP_BAG ?= /ws/bags/map_full4
 MAP_EVAL_BAG ?= $(MAP_BAG)_eval
 MAP_DRIVE_SECONDS ?= 900

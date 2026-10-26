@@ -81,7 +81,7 @@ def generate_launch_description():
     return LaunchDescription(
         [
             DeclareLaunchArgument("use_sim_time", default_value="true"),
-            DeclareLaunchArgument("map_dir", default_value="/ws/maps/current/town05-v2"),
+            DeclareLaunchArgument("map_dir", default_value="/ws/maps/current/town05-v14-pg"),
             DeclareLaunchArgument("rviz", default_value="false"),
             OpaqueFunction(function=_launch),
         ]
