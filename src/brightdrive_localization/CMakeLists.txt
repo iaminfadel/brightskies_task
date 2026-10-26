@@ -65,9 +65,18 @@ target_link_libraries(map_check brightdrive_localization_core)
 install(TARGETS localization_core map_check
   DESTINATION lib/${PROJECT_NAME}
 )
+# brightdrive_localization_core is consumed downstream by
+# brightdrive_map_server (read_pcd_xyz reuse, ADR 0003).
+install(TARGETS brightdrive_localization_core
+  EXPORT export_brightdrive_localization
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+)
 install(DIRECTORY include/
   DESTINATION include
 )
+ament_export_targets(export_brightdrive_localization HAS_LIBRARY_TARGET)
+ament_export_dependencies(Eigen3 yaml-cpp small_gicp)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest QUIET)

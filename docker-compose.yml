@@ -199,9 +199,11 @@ services:
     # (-L 8765:127.0.0.1:8765); never a public port (#16/#17 rule).
 
   map-server:
-    # Full-map serving fallback: publishes the saved map as a latched
-    # cloud. #27 replaces this service in place with the tiled map_server;
-    # the service name and the /localization/map_cloud contract stay.
+    # Tiled serving with a full-map fallback (ADR 0003, #33): the service
+    # name and the /localization/map_cloud contract are unchanged; only the
+    # command moved from publish_map_cloud.py to the C++ map_server. All
+    # serving knobs are YAML parameters (brightdrive_bringup config
+    # map_server.yaml) with MAP_SERVER_* env overrides here.
     <<: *ros
     profiles: [runtime]
     restart: on-failure
@@ -211,9 +213,19 @@ services:
       - >-
         source /opt/brightdrive/setup.bash;
         source /ws/install/setup.bash 2>/dev/null || true;
-        exec python3 /ws/brightdrive/scripts/publish_map_cloud.py
-        --map-dir ${MAP_DIR:-/ws/maps/current/town05-v14-pg}
-        --topic /localization/map_cloud --frame map
+        exec ros2 run brightdrive_map_server map_server --ros-args
+        --params-file ${MAP_SERVER_PARAMS:-/ws/install/brightdrive_bringup/share/brightdrive_bringup/config/map_server.yaml}
+        -p serving.map_dir:=${MAP_DIR:-/ws/maps/current/town05-v14-pg}
+        -p serving.pose_topic:=${MAP_SERVER_POSE_TOPIC:-/localization/pose}
+        -p serving.mode:=${MAP_SERVER_MODE:-auto}
+        -p serving.lidar_range_m:=${MAP_SERVER_LIDAR_RANGE_M:-50.0}
+        -p serving.margin_m:=${MAP_SERVER_MARGIN_M:-10.0}
+        -p serving.hysteresis_m:=${MAP_SERVER_HYSTERESIS_M:-15.0}
+        -p serving.downsample_voxel_m:=${MAP_SERVER_VOXEL_M:-0.0}
+        -p serving.publish_rate_hz:=${MAP_SERVER_PUBLISH_HZ:-0.0}
+        -p serving.pose_stale_s:=${MAP_SERVER_POSE_STALE_S:-2.0}
+        -p serving.initial_pose_x:=${MAP_SERVER_INITIAL_X:-0.0}
+        -p serving.initial_pose_y:=${MAP_SERVER_INITIAL_Y:-0.0}
 
   smoke:
     # One-shot driver over the runtime route: readiness waits, hero drive,

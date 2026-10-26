@@ -1,0 +1,21 @@
+# brightdrive_map_server defaults (ADR 0003, #33). The tile grid is NOT a
+# knob here: build_map.py fixes it and the server reads origin + tile size
+# from map_index.yaml. Compose overrides these with MAP_SERVER_* env vars
+# (see .env.example); persistent overrides point at a copy outside the repo
+# via MAP_SERVER_PARAMS, never edits in place.
+map_server:
+  ros__parameters:
+    use_sim_time: true
+
+    serving:
+      mode: auto                 # full | windowed | auto
+      map_dir: /ws/maps/current/town05-v14-pg
+      pose_topic: /localization/pose
+      lidar_range_m: 50.0        # R_load = lidar_range_m + margin_m
+      margin_m: 10.0
+      hysteresis_m: 15.0         # R_evict = R_load + hysteresis_m
+      downsample_voxel_m: 0.0    # <= 0 keeps the builder's downsample
+      publish_rate_hz: 0.0       # 0 publishes on serving-set change only
+      pose_stale_s: 2.0          # older topic pose -> full-map fallback
+      initial_pose_x: 0.0        # auto-mode seed until /localization/pose
+      initial_pose_y: 0.0        # produces its first pose
