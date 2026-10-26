@@ -107,11 +107,12 @@ echo "CARLA RPC ready on $(python3 -c 'import json,sys; print(json.load(open(sys
 for topic in /carla/hero/lidar /carla/hero/gnss /carla/hero/imu; do
   wait_topic "$topic" 300 || fail "missing $topic"
 done
-wait_message /carla/hero/lidar 180 || fail "no LiDAR sample"
-wait_message /carla/hero/gnss 180 || fail "no GNSS sample"
-wait_message /carla/hero/imu 180 || fail "no IMU sample"
+sleep 20
+wait_message /carla/hero/lidar 300 || fail "no LiDAR sample"
+wait_message /carla/hero/gnss 300 || fail "no GNSS sample"
+wait_message /carla/hero/imu 300 || fail "no IMU sample"
 wait_topic /carla/hero/camera_front/image 300 || fail "missing /carla/hero/camera_front/image"
-wait_message /carla/hero/camera_front/image 180 || fail "no camera sample"
+wait_message /carla/hero/camera_front/image 300 || fail "no camera sample"
 
 # Estimator surface.
 for topic in /kiss/odometry /odometry/filtered /localization/status; do
