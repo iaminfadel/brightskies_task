@@ -43,6 +43,21 @@ x-ros: &ros
   working_dir: /ws/brightdrive
   volumes:
     - ${WS_DIR:-/ws}:/ws
+    # One shared /dev/shm across every ROS service. FastDDS (the Humble
+    # default RMW) picks SHM transport for same-host peers; with per-
+    # container tmpfs each participant gets its own segments -- discovery
+    # still works over UDP, but data and service calls are silently lost
+    # (the smoke hung forever in /carla/spawn_object exactly this way).
+    # Sharing one tmpfs recreates the legacy single-container semantics.
+    - ros-shm:/dev/shm
+
+volumes:
+  ros-shm:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=4g
 
 services:
   carla:
