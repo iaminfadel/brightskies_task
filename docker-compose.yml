@@ -3,7 +3,7 @@
 # One file, routes over shared services, selected by compose profiles:
 #
 #   runtime  (make up)        carla + bridge (which spawns the hero) +
-#                             localization + status + foxglove + map-server:
+#                             localization + foxglove + map-server:
 #                             the normal running route.
 #   test     (make test)      the runtime route + the one-shot smoke driver
 #                             that proves it end to end and writes evidence.
@@ -181,23 +181,6 @@ services:
         exec ros2 launch brightdrive_bringup localization.launch.py
         map_dir:=${MAP_DIR:-/ws/maps/current/town05-v2}
 
-  status:
-    # Placeholder /localization/status publisher; the production health
-    # contract lands with #20. Part of the runtime route so the smoke has
-    # the full estimator surface to audit.
-    <<: *ros
-    profiles: [runtime]
-    restart: on-failure
-    depends_on:
-      bridge:
-        condition: service_healthy
-    command:
-      - /bin/bash
-      - -lc
-      - >-
-        source /opt/brightdrive/setup.bash;
-        exec python3 /ws/brightdrive/scripts/validation/localization_status.py
-
   foxglove:
     <<: *ros
     profiles: [runtime]
@@ -246,8 +229,6 @@ services:
       bridge:
         condition: service_healthy
       localization:
-        condition: service_started
-      status:
         condition: service_started
       foxglove:
         condition: service_started

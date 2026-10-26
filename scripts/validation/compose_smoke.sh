@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-shot smoke driver over the compose runtime route (#26). The compose
-# file brings carla/bridge/spawn/localization/status/foxglove up as
-# services; this script only verifies, drives, records, and audits:
+# file brings carla/bridge/spawn/localization/foxglove up as services; this
+# script only verifies, drives, records, and audits:
 # readiness waits, one autopilot lap, topic rates, the runtime side of the
 # GT-isolation audit, bags, timings. Evidence lands in $EVIDENCE.
 set -o pipefail
@@ -136,7 +136,7 @@ done
 # visualization camera (the source-side audit runs in the evaluator). A
 # node that cannot be inspected makes the audit vacuous, so that is a
 # failure, not a warning.
-for node in /kiss_icp_node /ekf_filter_node /localization_core /localization_status; do
+for node in /kiss_icp_node /ekf_filter_node /localization_core; do
   safe_name="${node#/}"
   info="$LOGS/node_info_$safe_name.txt"
   inspected=0
