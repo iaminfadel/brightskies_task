@@ -47,6 +47,15 @@ REQUIRED_MANIFEST = {
     "tool_versions",
     "generation_command",
 }
+REQUIRED_TILE_INDEX = {
+    "schema_version",
+    "map_id",
+    "tile_size_m",
+    "origin",
+    "tile_count",
+    "point_count",
+    "files",
+}
 PLACEHOLDERS = {"...", "TBD", "TODO", "", "unknown"}
 EVALUATOR_FILES = {
     "validation/map_consistency.json",
@@ -75,6 +84,64 @@ def check_matrix(errors, name, values):
         return
     if any(not isinstance(value, (int, float)) for value in values):
         fail(errors, f"{name} contains non-numeric values")
+
+
+def pcd_point_count(path):
+    """POINTS from a binary PCD header, without reading the payload."""
+    header = b""
+    with open(path, "rb") as handle:
+        while b"DATA " not in header:
+            chunk = handle.read(4096)
+            if not chunk:
+                break
+            header += chunk
+    for line in header.decode("ascii", errors="replace").splitlines():
+        if line.startswith("POINTS "):
+            return int(line.split()[1])
+    raise ValueError(f"{path}: no POINTS in the PCD header")
+
+
+def check_tiles(errors, root, map_yaml, tile_index):
+    """Tiling is additive (#32): the index is optional, but when it is present
+    it must describe the tiles that are on disk and partition the full map."""
+    missing = REQUIRED_TILE_INDEX - set(tile_index)
+    if missing:
+        fail(errors, f"map_index.yaml missing {sorted(missing)}")
+        return
+    if tile_index.get("map_id") != map_yaml.get("map_id"):
+        fail(errors, "map_index.yaml map_id does not match map.yaml")
+    if not float(tile_index.get("tile_size_m", 0.0)) > 0.0:
+        fail(errors, "map_index.yaml tile_size_m must be positive")
+    origin = tile_index.get("origin", {})
+    if not all(isinstance(origin.get(key), (int, float)) for key in ("x_m", "y_m")):
+        fail(errors, "map_index.yaml origin must be {x_m, y_m}")
+
+    entries = tile_index.get("files")
+    if not isinstance(entries, list):
+        fail(errors, "map_index.yaml files must be a list")
+        return
+    total = 0
+    for entry in entries:
+        path = root / entry.get("path", "")
+        if not path.is_file():
+            fail(errors, f"map_index.yaml lists missing tile {entry.get('path')}")
+            continue
+        try:
+            count = pcd_point_count(path)
+        except (OSError, ValueError) as error:
+            fail(errors, f"{entry.get('path')}: {error}")
+            continue
+        total += count
+        if count != entry.get("point_count"):
+            fail(errors, f"{entry.get('path')} point_count does not match the tile")
+        if entry.get("ix") is None or entry.get("iy") is None:
+            fail(errors, f"{entry.get('path')} must carry its ix/iy grid index")
+    if total != map_yaml.get("point_count"):
+        fail(errors, "tiles do not partition the map: point counts do not sum to point_count")
+    if tile_index.get("tile_count") != len(entries):
+        fail(errors, "map_index.yaml tile_count does not match its file list")
+    if tile_index.get("point_count") != total:
+        fail(errors, "map_index.yaml point_count does not match its tiles")
 
 
 def main():
@@ -170,6 +237,13 @@ def main():
     ).hexdigest()
     if manifest.get("bundle_sha256") != bundle:
         fail(errors, "manifest bundle_sha256 does not match the bundle")
+
+    index_path = root / "map_index.yaml"
+    if index_path.is_file():
+        try:
+            check_tiles(errors, root, map_yaml, json.loads(index_path.read_text(encoding="utf-8")))
+        except json.JSONDecodeError as error:
+            fail(errors, f"map_index.yaml is not valid JSON: {error}")
 
     print_results(errors)
     return 0 if not errors else 1
