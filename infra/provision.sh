@@ -86,7 +86,7 @@ if ! gcloud iam workload-identity-pools providers describe "$WIF_PROVIDER" \
     --display-name="GitHub OIDC" \
     --issuer-uri=https://token.actions.githubusercontent.com \
     --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref" \
-    --attribute-condition="assertion.repository == '${REPO}' && assertion.ref == 'refs/heads/main'"
+    --attribute-condition="assertion.repository == '${REPO}' && (assertion.ref == 'refs/heads/main' || assertion.ref == 'refs/heads/staging')"
 fi
 gcloud iam service-accounts add-iam-policy-binding "$CI_SA" \
   --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$WIF_POOL/attribute.repository/$REPO" \
