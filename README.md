@@ -161,6 +161,10 @@ make map-upload                  # push the bundle to GCS
 - Scans older than 300 ms are dropped; cold start tries 7 yaw starts (±45°, 15° steps)
   and relocalization tries 7 starts (±30°, 10° steps) around the last good yaw.
 - Covariance is `C = sigma^2 H^-1`; DEGRADED inflates it.
+- `scripts/eval_kpi.py` scores heading error, `/odometry/filtered` message age, and
+  latency drift from the estimator + GT bags; `scripts/kpi_gate.py` applies the #11
+  thresholds and writes the verdict into the evidence bundle. `make eval-kpi` runs
+  both on the VM.
 
 Estimator inputs are the four allowed sensors only. `/carla/hero/odometry`,
 `/carla/hero/vehicle_status`, `/carla/hero/objects`, and GT transforms are evaluation-only
@@ -207,6 +211,8 @@ src/brightdrive_localization/   map loader, GICP matcher, health, geodesy, map_c
 src/brightdrive_bringup/        launch, config, URDF, IMU relay
 scripts/build_map.py            offline mapping (KISS-ICP, GNSS poses, bundle writer)
 scripts/map_verify.py           #15 metadata and hash verification
+scripts/eval_kpi.py             heading / output-age / latency-drift evaluator
+scripts/kpi_gate.py             #11 KPI thresholds and CI gate
 scripts/map_run.sh              teleport, record a sensor-only bag, drive one loop
 scripts/carla_route_drive.py    pure-pursuit driver with a 1 m precision stop
 scripts/vm-run.sh               deploy HEAD and run commands over IAP
@@ -222,5 +228,5 @@ docs/results/map/town05-v2/     mapping evidence
 - The live stack publishes IMU at ~10 Hz in synchronous mode (contract asks for 100 Hz).
 - Held-out selection is arc-length stratified (`same_bag_arc_length`), not yet grouped by
   the S1-S4 scenario routes.
-- The scenario harness, KPI evaluator, forced-fail control, and live CI workflows are the
-  remaining implementation work.
+- The scenario harness and the full S1-S4 acceptance matrix are the remaining
+  implementation work; the heading/latency/forced-fail evaluator path is ready for it.

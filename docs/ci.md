@@ -88,6 +88,17 @@ seed. Hosted artifacts: junit XML, colcon logs, uploaded `if: always()` so
 failures keep their evidence. Big evidence (bags, maps, runs) lives in GCS
 under the existing lifecycle rules; small reports on GitHub.
 
+Run KPIs (`scripts/eval_kpi.py`) consume the estimator bag plus the separate
+GT bag and write `metrics.json`, `metrics.csv`, `metrics_summary.md`, and
+`kpi_heading_latency.png` into the evidence bundle. `scripts/kpi_gate.py`
+owns the #11 thresholds and prints one `KPI CHECK` line per metric before a
+single `KPI PASS`/`KPI FAIL`; the same gate is exercised by
+`scripts/forced_fail_control.py` so a broken heading or latency threshold
+cannot pass silently. `eval_kpi.py --self-test` also round-trips a synthetic
+bag pair, so the bag-reading path (CDR, the `base_link` <-> `hero` lever,
+`T_map_carla`, `/clock` -> sim time) is covered in CI; the build-test job
+installs `rosbags` for it.
+
 ## Failure runbook
 
 - **PR red (lint/build-test)**: your change; fix forward. Evidence is in the

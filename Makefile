@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 .PHONY: vm-provision vm-up vm-down vm-ssh vm-status vm-snapshot \
         map map-gnss-imu map-record map-check map-eval map-eval-ate map-eval-loops map-verify \
-        map-install map-upload map-pull \
+        map-install map-upload map-pull eval-kpi \
         ci-lint ci-bootstrap ci-vm-build-test
 
 PY_RUN = source /opt/brightdrive/setup.bash; source /ws/install/setup.bash 2>/dev/null || true; cd /ws/brightdrive
@@ -33,6 +33,12 @@ MAP_INSTALL ?= install/maps
 MAP_SPAWN ?= -164.732162,-95.141876,0.300000,-179.913696
 MAP_BUCKET ?= gs://brightskies-artifacts-330586358676/maps
 
+KPI_EST_BAG ?= /ws/evidence/bags/estimator
+KPI_GT_BAG ?= /ws/evidence/bags/gt
+KPI_MAP_DIR ?= $(MAP_BUILDS)/$(MAP_ID)
+KPI_SCENARIO ?= S1
+KPI_EVIDENCE ?= /ws/evidence
+
 PY_ENV = source /opt/brightdrive/setup.bash; source /ws/install/setup.bash; cd /ws/brightdrive
 
 # Lidar SLAM: KISS-ICP odometry + GNSS/level-arm/course-yaw factors + GNSS-vetoed
@@ -60,6 +66,11 @@ map-eval-loops:
 	./scripts/vm-run.sh --fg "docker exec brightdrive-deps bash -lc '$(PY_ENV) && python3 scripts/eval_loops.py $(MAP_BAG) $(MAP_BUILDS)/$(MAP_ID)'"
 
 map-eval: map-check map-eval-ate map-eval-loops
+
+# Heading, published-pose message age, and latency drift over a recorded
+# scenario run; writes metrics.json/CSV/Markdown/plot then gates them.
+eval-kpi:
+	./scripts/vm-run.sh --fg "docker exec brightdrive-deps bash -lc '$(PY_ENV) && python3 scripts/eval_kpi.py $(KPI_EST_BAG) $(KPI_GT_BAG) $(KPI_MAP_DIR) --scenario $(KPI_SCENARIO) --out-dir $(KPI_EVIDENCE) && python3 scripts/kpi_gate.py $(KPI_EVIDENCE)/metrics.json'"
 
 map-install:
 	./scripts/vm-run.sh --fg "docker exec brightdrive-deps bash -lc 'rm -rf /ws/maps/current/$(MAP_ID) && mkdir -p /ws/maps/current/$(MAP_ID) && cp $(MAP_BUILDS)/$(MAP_ID)/map.pcd $(MAP_BUILDS)/$(MAP_ID)/map.yaml $(MAP_BUILDS)/$(MAP_ID)/trajectory.tum /ws/maps/current/$(MAP_ID)/ && test ! -e /ws/maps/current/$(MAP_ID)/map_eval.yaml && test ! -e /ws/maps/current/$(MAP_ID)/validation'"
