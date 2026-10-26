@@ -23,8 +23,8 @@ for candidate in (os.path.expanduser("~/google-cloud-sdk/bin"), "/usr/lib/google
 
 PREEMPTED_EXIT = 44
 PROJECT = os.environ.get("PROJECT_ID", "project-e038f785-ff95-4654-ba6")
-ZONE = os.environ.get("ZONE", "europe-west4-c")
-VM = os.environ.get("VM_NAME", "brightskies-vm")
+ZONE = os.environ.get("ZONE", "europe-west4-a")
+VM = os.environ.get("VM_NAME", "brightdrive-vm")
 REPO = Path(__file__).resolve().parents[1]
 INFRA = REPO / "infra"
 
