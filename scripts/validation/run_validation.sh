@@ -2,6 +2,7 @@
 set -o pipefail
 
 source /opt/brightdrive/setup.bash
+source /ws/install/setup.bash 2>/dev/null || true
 
 EVIDENCE="${EVIDENCE:-/ws/evidence}"
 ROOT="${ROOT:-/ws/brightdrive}"
@@ -136,26 +137,16 @@ wait_message /carla/hero/gnss 60 || fail "no GNSS sample"
 wait_message /carla/hero/imu 60 || fail "no IMU sample"
 wait_message /carla/hero/camera_front/image 60 || fail "no camera sample"
 
-# Estimator stack: KISS-ICP + robot_localization + status stub.
+# Estimator stack: the bringup launch is the single estimator launch path,
+# with the canonical bringup configs (same stack the compose route runs).
+# localization_core owns the /localization/status contract
+# (LocalizationStatus) — no placeholder node. Requires the saved map
+# (make map-install); a missing map exits the node and the wait below fails.
 echo "==> starting estimator stack"
 if [ "${SKIP_ESTIMATOR:-0}" != "1" ]; then
-  start_bg kiss ros2 run kiss_icp kiss_icp_node --ros-args \
-    --remap pointcloud_topic:=/carla/hero/lidar \
-    -p use_sim_time:=true \
-    -p base_frame:=hero/lidar \
-    -p lidar_odom_frame:=odom_lidar \
-    -p publish_odom_tf:=true \
-    -p invert_odom_tf:=false \
-    -p publish_debug_clouds:=true \
-    --params-file "$ROOT/config/validation/kiss_icp.yaml" \
-    || fail "KISS-ICP launch"
-  start_bg ekf ros2 run robot_localization ekf_node --ros-args \
-    -r __node:=ekf_filter_node \
-    -p use_sim_time:=true \
-    --params-file "$ROOT/config/validation/ekf.yaml" \
-    || fail "EKF launch"
-  start_bg status python3 "$ROOT/scripts/validation/localization_status.py" \
-    || fail "status launch"
+  start_bg estimator ros2 launch brightdrive_bringup localization.launch.py \
+    map_dir:="${MAP_DIR:-/ws/maps/current/town05-v2}" \
+    || fail "estimator launch"
 else
   echo "==> reusing estimator"
 fi
@@ -202,10 +193,20 @@ for pair in "lidar:/carla/hero/lidar" "gnss:/carla/hero/gnss" "imu:/carla/hero/i
   timeout 8 ros2 topic hz "$topic" >"$LOGS/hz_$name.txt" 2>&1 || true
 done
 
-# Isolation audit: estimator nodes must not subscribe to the visualization camera.
-for node in /kiss_icp_node /ekf_filter_node /localization_status; do
+# Isolation audit: estimator nodes must not subscribe to the visualization
+# camera. A node that cannot be inspected makes the audit vacuous, so that
+# is a failure, not a warning (same contract as compose_smoke.sh); the
+# estimator here is localization_core, the /localization/status owner.
+for node in /kiss_icp_node /ekf_filter_node /localization_core; do
   safe_name="${node#/}"
-  ros2 node info --no-daemon "$node" >"$LOGS/node_info_$safe_name.txt" 2>&1 || true
+  info="$LOGS/node_info_$safe_name.txt"
+  inspected=0
+  for _ in $(seq 1 10); do
+    ros2 node info "$node" >"$info" 2>&1 \
+      && ! grep -q "Unable to find node" "$info" && { inspected=1; break; }
+    sleep 2
+  done
+  [ "$inspected" = 1 ] || fail "GT-isolation audit could not inspect $node"
 done
 if grep -R "/carla/hero/camera_front" "$LOGS"/node_info_*.txt; then
   fail "an estimator node subscribes to the visualization camera"
