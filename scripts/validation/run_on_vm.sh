@@ -14,6 +14,14 @@ DEPS_IMAGE="${DEPS_IMAGE:-ghcr.io/iaminfadel/brightdrive-deps:validation}"
 
 mkdir -p "$EVIDENCE/logs"
 
+# After a cold boot the job can SSH in before dockerd is accepting commands;
+# without this wait the image checks below misreport "missing image".
+for _ in $(seq 1 60); do
+  docker info >/dev/null 2>&1 && break
+  sleep 5
+done
+docker info >/dev/null 2>&1 || { echo "docker daemon not reachable" >&2; exit 1; }
+
 docker image inspect "$CARLA_IMAGE" >/dev/null 2>&1 || {
   echo "missing CARLA image: $CARLA_IMAGE" >&2
   exit 1
