@@ -120,7 +120,8 @@ class MapServerNode : public rclcpp::Node {
   }
 
   // The clock cached at startup: now() is non-const in Humble and this is
-  // called from const helpers.
+  // called from const helpers. Shared across both threads; Clock::now() is
+  // safe concurrently in Humble.
   double now_seconds() const { return clock_->now().seconds(); }
 
   // The pose that drives the window, or nullopt for the full-map fallback.
@@ -148,10 +149,12 @@ class MapServerNode : public rclcpp::Node {
   // published cloud only when it changed.
   void serve_step() {
     // ADR 0003: auto publishes the full map first as the transient-local
-    // fallback; the windowed set follows on the next step.
+    // fallback; the windowed set follows on the next step. The gate flips
+    // only once the full map is actually published, so a failed first read
+    // retries instead of silently skipping the fallback.
     if (mode_ == "auto" && !first_full_done_) {
-      first_full_done_ = true;
       swap_full();
+      first_full_done_ = true;
       return;
     }
 
@@ -164,10 +167,19 @@ class MapServerNode : public rclcpp::Node {
       }
     }
 
-    if (target == served_kind_) {
+    // served_kind_/served_set_ belong to the publish state; read them under
+    // its mutex.
+    std::string served_kind;
+    std::set<std::string> served_set;
+    {
+      const std::lock_guard<std::mutex> lock(publish_mutex_);
+      served_kind = served_kind_;
+      served_set = served_set_;
+    }
+    if (target == served_kind) {
       if (target == "window") {
-        std::set<std::string> next = serving_set(*index_, pose->x, pose->y, served_set_, window_);
-        if (next != served_set_) {
+        std::set<std::string> next = serving_set(*index_, pose->x, pose->y, served_set, window_);
+        if (next != served_set) {
           swap_window(std::move(next), *pose);
         }
       }

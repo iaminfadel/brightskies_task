@@ -216,10 +216,11 @@ services:
         exec ros2 run brightdrive_map_server map_server --ros-args
         --params-file ${MAP_SERVER_PARAMS:-/ws/install/brightdrive_bringup/share/brightdrive_bringup/config/map_server.yaml}
         -p serving.map_dir:=${MAP_DIR:-/ws/maps/current/town05-v14-pg}
+        -p serving.pose_topic:=${MAP_SERVER_POSE_TOPIC:-/localization/pose}
         -p serving.mode:=${MAP_SERVER_MODE:-auto}
         -p serving.lidar_range_m:=${MAP_SERVER_LIDAR_RANGE_M:-50.0}
         -p serving.margin_m:=${MAP_SERVER_MARGIN_M:-10.0}
-        -p serving.hysteresis_m:=${MAP_SERVER_HYSTERSIS_M:-15.0}
+        -p serving.hysteresis_m:=${MAP_SERVER_HYSTERESIS_M:-15.0}
         -p serving.downsample_voxel_m:=${MAP_SERVER_VOXEL_M:-0.0}
         -p serving.publish_rate_hz:=${MAP_SERVER_PUBLISH_HZ:-0.0}
         -p serving.pose_stale_s:=${MAP_SERVER_POSE_STALE_S:-2.0}
