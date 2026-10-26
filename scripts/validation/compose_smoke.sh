@@ -33,32 +33,27 @@ started_epoch=$(date +%s)
 carla_ready=""
 
 # CARLA RPC readiness (real client probe, not just the TCP healthcheck).
+# One fresh short-lived process per attempt, hard-bounded by `timeout`: a
+# long-lived client that survives a CARLA crash/restart can deadlock in the
+# C++ network thread (observed as a futex hang) and leaks a streaming
+# session that the render/stream ports then miss.
 echo "==> waiting for CARLA RPC"
-python3 - "$EVIDENCE" <<'PY' || fail "CARLA RPC did not become ready"
+rpc_tmp="$EVIDENCE/.carla_rpc_ready.json"
+rpc_deadline=$(( $(date +%s) + 1800 ))
+while :; do
+  if timeout 20 python3 - "$EVIDENCE" >"$LOGS/carla_rpc.log" 2>&1 <<'PY'
 import json
 import sys
-import time
 
 import carla
 
 out = sys.argv[1]
-started = time.time()
 client = carla.Client("127.0.0.1", 2000)
 client.set_timeout(2.0)
-deadline = started + 1800
-while time.time() < deadline:
-    try:
-        world = client.get_world()
-        break
-    except Exception:
-        time.sleep(1)
-else:
-    raise SystemExit("CARLA RPC did not become ready")
-elapsed = time.time() - started
-with open(f"{out}/carla_rpc_ready.json", "w", encoding="utf-8") as handle:
+world = client.get_world()
+with open(f"{out}/.carla_rpc_ready.json", "w", encoding="utf-8") as handle:
     json.dump(
         {
-            "elapsed_s": round(elapsed, 3),
             "map": world.get_map().name,
             "client_version": client.get_client_version(),
             "server_version": client.get_server_version(),
@@ -67,9 +62,32 @@ with open(f"{out}/carla_rpc_ready.json", "w", encoding="utf-8") as handle:
         indent=2,
     )
     handle.write("\n")
-print(f"CARLA RPC ready in {elapsed:.1f}s on {world.get_map().name}")
 PY
+  then
+    cat "$LOGS/carla_rpc.log" 2>/dev/null || true
+    break
+  fi
+  if [ "$(date +%s)" -ge "$rpc_deadline" ]; then
+    fail "CARLA RPC did not become ready: $(tail -1 "$LOGS/carla_rpc.log" 2>/dev/null)"
+  fi
+  sleep 2
+done
+mv "$EVIDENCE/.carla_rpc_ready.json" "$rpc_tmp"
 carla_ready=$(date +%s)
+python3 - "$rpc_tmp" "$carla_ready" "$started_epoch" <<'PY'
+import json
+import sys
+
+path, ready, started = sys.argv[1:]
+with open(path, encoding="utf-8") as handle:
+    data = json.load(handle)
+data["elapsed_s"] = int(ready) - int(started)
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(data, handle, indent=2)
+    handle.write("\n")
+PY
+mv "$rpc_tmp" "$EVIDENCE/carla_rpc_ready.json"
+echo "CARLA RPC ready on $(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["map"])' "$EVIDENCE/carla_rpc_ready.json")"
 
 # Sensor surface. Data-level asserts (wait_message) first and camera last:
 # wait_topic passes on subscriber-only topics too, and a camera failure must

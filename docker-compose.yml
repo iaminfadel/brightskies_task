@@ -2,9 +2,9 @@
 #
 # One file, routes over shared services, selected by compose profiles:
 #
-#   runtime  (make up)        carla + bridge + spawn + localization + status
-#                             + foxglove + map-server: the normal running
-#                             route.
+#   runtime  (make up)        carla + bridge (which spawns the hero) +
+#                             localization + status + foxglove + map-server:
+#                             the normal running route.
 #   test     (make test)      the runtime route + the one-shot smoke driver
 #                             that proves it end to end and writes evidence.
 #   eval     (make eval)      artifact-consuming evaluator -- post-drive,
@@ -82,15 +82,18 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    # The town rides the command line: a fresh server with the right initial
-    # map avoids the 0.9.15 segfault-after-hot-load_world (up_carla.sh).
+    # The map URL must be the FIRST argument: UE4 only treats the leading
+    # positional as the startup map; after the flags it is silently ignored
+    # and the server boots Town10HD_Opt. A hot `load_world` right before the
+    # first RGB camera then segfaults 0.9.15 (Signal 11, observed). Booting
+    # directly on the target town avoids the hot-load entirely.
     command:
       - /bin/bash
       - -lc
       - >-
-        exec ./CarlaUE4.sh -RenderOffScreen -nosound -quality-level=Low
+        exec ./CarlaUE4.sh /Game/Carla/Maps/${CARLA_TOWN:-Town05}
+        -RenderOffScreen -nosound -quality-level=Low
         -ResX=1280 -ResY=720 -carla-server -world-port=2000
-        /Game/Carla/Maps/${CARLA_TOWN:-Town05}
     healthcheck:
       # TCP open == the RPC listener is up; the bridge waits for a full RPC
       # round trip on the target town before starting. Cold boot is
@@ -123,6 +126,11 @@ services:
       timeout: 65s
       retries: 10
       start_period: 3m
+    # The hero spawn rides the bridge command (like the town load) so a
+    # bridge restart is self-healing: CARLA crashing resets the world, and
+    # a separate one-shot `spawn` service would never re-run, leaving the
+    # runtime without the camera rig. Spawn only after /clock proves the
+    # bridge is ticking and /carla/spawn_object exists.
     command:
       - /bin/bash
       - -lc
@@ -130,28 +138,19 @@ services:
         source /opt/brightdrive/setup.bash;
         python3 /ws/brightdrive/scripts/validation/load_carla_town.py
         --town ${CARLA_TOWN:-Town05} --timeout 1800;
-        exec ros2 run carla_ros_bridge bridge --ros-args
+        ros2 run carla_ros_bridge bridge --ros-args
         -p host:=127.0.0.1 -p port:=2000 -p timeout:=60
         -p town:=Carla/Maps/${CARLA_TOWN:-Town05}
         -p passive:=false -p synchronous_mode:=true
         -p synchronous_mode_wait_for_vehicle_control_command:=false
         -p fixed_delta_seconds:=${BRIDGE_FIXED_DELTA_SECONDS:-0.1}
-        -p register_all_sensors:=true -p ego_vehicle_role_name:=hero
-
-  spawn:
-    <<: *ros
-    profiles: [runtime]
-    restart: on-failure
-    depends_on:
-      bridge:
-        condition: service_healthy
-    command:
-      - /bin/bash
-      - -lc
-      - >-
-        source /opt/brightdrive/setup.bash;
-        exec ros2 launch carla_spawn_objects carla_spawn_objects.launch.py
-        objects_definition_file:=${OBJECTS_FILE:-/ws/brightdrive/config/validation/objects.json}
+        -p register_all_sensors:=true -p ego_vehicle_role_name:=hero &
+        bridge_pid=$$!;
+        until timeout 5 ros2 topic echo --no-daemon --once /clock
+        >/dev/null 2>&1; do sleep 2; done;
+        ros2 launch carla_spawn_objects carla_spawn_objects.launch.py
+        objects_definition_file:=${OBJECTS_FILE:-/ws/brightdrive/config/validation/objects.json} &
+        wait $$bridge_pid
 
   localization:
     <<: *ros
@@ -160,8 +159,6 @@ services:
     depends_on:
       bridge:
         condition: service_healthy
-      spawn:
-        condition: service_started
     environment:
       # Param-file overrides (#26 config-over-code rule): point these at
       # copies outside the repo (e.g. under $(WS_DIR)/config-override/)
@@ -242,8 +239,6 @@ services:
         condition: service_healthy
       bridge:
         condition: service_healthy
-      spawn:
-        condition: service_started
       localization:
         condition: service_started
       status:
