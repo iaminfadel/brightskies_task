@@ -3,11 +3,10 @@
 #include <yaml-cpp/yaml.h>
 
 #include <chrono>
-#include <small_gicp/registration/registration_helper.hpp>
-#include <small_gicp/util/normal_estimation_omp.hpp>
 #include <stdexcept>
 #include <vector>
 
+#include "brightdrive_localization/gicp_matcher.hpp"
 #include "brightdrive_localization/hash.hpp"
 #include "brightdrive_localization/pcd_io.hpp"
 
@@ -89,15 +88,8 @@ MapLoadResult load_map_bundle(const std::string& map_dir, int num_threads) {
     throw std::runtime_error("saved map contains no points");
   }
 
-  small_gicp::PointCloud::Ptr raw(new small_gicp::PointCloud);
-  raw->resize(pcd.points.size());
-  for (std::size_t i = 0; i < pcd.points.size(); ++i) {
-    raw->point(i) << static_cast<double>(pcd.points[i].x()), static_cast<double>(pcd.points[i].y()),
-        static_cast<double>(pcd.points[i].z()), 1.0;
-  }
-
-  auto preprocessed = small_gicp::preprocess_points(*raw, metadata.voxel_size_m, 10,
-                                                    num_threads > 0 ? num_threads : 4);
+  auto preprocessed = GicpMatcher::build_map_cloud(pcd.points, metadata.voxel_size_m, 10,
+                                                   num_threads > 0 ? num_threads : 4);
   result.cloud = preprocessed.first;
   result.tree = preprocessed.second;
 

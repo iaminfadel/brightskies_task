@@ -2,26 +2,26 @@
 """Interface test for localization_core: node contract without CARLA (#19).
 
 Runs on hosted runners alongside the gtest suite. Launches the real node
-(and robot_state_publisher for the sensor TF tree) against a synthetic map
-bundle (binary PCD + map.yaml, same contract as test_map_loader.cpp) and
-asserts the node interface:
+(and robot_state_publisher for the sensor TF tree) and asserts the node
+interface against the subscribed map contract (ADR 0003, #34):
 
-  1. /localization/status streams at ~10 Hz; with no sensor input the node
-     reports FAILED with reason "initializing" (initialization requires
-     scans + GNSS + IMU; the deeper state machine is covered by
-     test_health.cpp).
-  2. A NavSatFix near the anchor produces /localization/gnss_pose in the map
-     frame with a finite pose and positive covariance (GNSS->ENU path; this
-     needs the base_link -> hero/gnss extrinsic, which the carla_ros_bridge
-     publishes in the real stack and this test provides as static TF).
-  3. At runtime the node never subscribes to privileged (ground-truth)
+  1. The estimator takes the map by subscription: a latched
+     /localization/map_cloud published *after* the node starts (either-order
+     contract) builds the matcher -- observable as /localization/status
+     leaving "waiting_for_map". With no sensor input the node then reports
+     FAILED with reason "initializing" (initialization requires scans + GNSS
+     + IMU; the deeper state machine is covered by test_health.cpp).
+  2. A NavSatFix near the configured anchor produces /localization/gnss_pose
+     in the map frame with a finite pose and positive covariance (GNSS->ENU
+     path against the map.anchor_* parameters; this needs the base_link ->
+     hero/gnss extrinsic, which the carla_ros_bridge publishes in the real
+     stack and this test provides as static TF).
+  3. The fused EKF pose is relayed on /localization/pose as
+     PoseWithCovarianceStamped -- the map_server's windowed-serving input.
+  4. At runtime the node never subscribes to privileged (ground-truth)
      topics -- the live counterpart of scripts/isolation_audit.py.
 """
-import atexit
-import hashlib
-import os
 import struct
-import tempfile
 import threading
 import time
 import unittest
@@ -33,8 +33,11 @@ import launch_testing.actions
 import pytest
 import rclpy
 from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped
+from nav_msgs.msg import Odometry
 from rclpy.node import Node
-from sensor_msgs.msg import NavSatFix, NavSatStatus
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+from sensor_msgs.msg import NavSatFix, NavSatStatus, PointCloud2, PointField
+from std_msgs.msg import Header
 from tf2_ros import StaticTransformBroadcaster
 
 from brightdrive_interfaces.msg import LocalizationStatus
@@ -45,9 +48,11 @@ PRIVILEGED_SUBSCRIPTIONS = (
     "/carla/hero/vehicle_status",
     "/carla/hero/objects",
 )
-# Default topics.gnss / topics.filtered from config/localization.yaml.
+# Default topics.* from config/localization.yaml (map_cloud is the #34
+# subscription contract).
 EXPECTED_SUBSCRIPTIONS = (
     "/carla/hero/gnss",
+    "/localization/map_cloud",
     "/odometry/filtered",
 )
 
@@ -56,61 +61,44 @@ ANCHOR_LON_DEG = 4.895168
 ANCHOR_ALT_M = 3.7
 
 
-def write_synthetic_map(directory):
-    """Minimal valid bundle: 200-point grid PCD (binary xyz) + map.yaml."""
-    points = [
-        ((i % 10) * 0.5, (i // 10) * 0.5, (i % 3) * 0.1) for i in range(200)
-    ]
-    payload = b"".join(struct.pack("<3f", x, y, z) for x, y, z in points)
-    header = (
-        "# .PCD v0.7 - Point Cloud Data file format\n"
-        "VERSION 0.7\n"
-        "FIELDS x y z\n"
-        "SIZE 4 4 4\n"
-        "TYPE F F F\n"
-        "COUNT 1 1 1\n"
-        f"WIDTH {len(points)}\n"
-        "HEIGHT 1\n"
-        "VIEWPOINT 0 0 0 1 0 0 0\n"
-        f"POINTS {len(points)}\n"
-        "DATA binary\n"
-    ).encode("ascii")
-    pcd_path = os.path.join(directory, "map.pcd")
-    with open(pcd_path, "wb") as handle:
-        handle.write(header + payload)
-    with open(pcd_path, "rb") as handle:
-        digest = hashlib.sha256(handle.read()).hexdigest()
-    with open(os.path.join(directory, "map.yaml"), "w", encoding="ascii") as handle:
-        handle.write(
-            f"schema_version: 1\n"
-            f"map_id: interface-test-map\n"
-            f"map_frame: map\n"
-            f"anchor:\n"
-            f"  lat_deg: {ANCHOR_LAT_DEG}\n"
-            f"  lon_deg: {ANCHOR_LON_DEG}\n"
-            f"  alt_m: {ANCHOR_ALT_M}\n"
-            f"  stamp: 1.5\n"
-            f"T_map_slam: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]\n"
-            f"pcd_sha256: {digest}\n"
-            f"voxel_size_m: 0.25\n"
-            f"point_count: {len(points)}\n"
-            f"coverage_radius_m: 20.0\n"
-            f"source:\n"
-            f"  run_id: interface-test\n"
-        )
-    return pcd_path
+def make_synthetic_map_cloud():
+    """Same 200-point grid as the legacy synthetic map bundle, as PointCloud2
+    in the layout the map_server publishes (xyz float32, 12-byte step)."""
+    points = [((i % 10) * 0.5, (i // 10) * 0.5, (i % 3) * 0.1) for i in range(200)]
+    msg = PointCloud2()
+    msg.header = Header(frame_id="map")
+    msg.height = 1
+    msg.width = len(points)
+    for name, offset in (("x", 0), ("y", 4), ("z", 8)):
+        field = PointField()
+        field.name = name
+        field.offset = offset
+        field.datatype = PointField.FLOAT32
+        field.count = 1
+        msg.fields.append(field)
+    msg.is_bigendian = False
+    msg.point_step = 12
+    msg.row_step = msg.point_step * msg.width
+    msg.is_dense = True
+    msg.data = b"".join(struct.pack("<3f", x, y, z) for x, y, z in points)
+    return msg
 
 
 def generate_test_description():
-    map_dir = tempfile.mkdtemp(prefix="bd_interface_map_")
-    atexit.register(lambda: __import__("shutil").rmtree(map_dir, ignore_errors=True))
-    write_synthetic_map(map_dir)
     node = launch_ros.actions.Node(
         package="brightdrive_localization",
         executable="localization_core",
         name="localization_core",
         output="screen",
-        parameters=[{"use_sim_time": False, "map.dir": map_dir}],
+        parameters=[
+            {
+                "use_sim_time": False,
+                "map.anchor_lat_deg": ANCHOR_LAT_DEG,
+                "map.anchor_lon_deg": ANCHOR_LON_DEG,
+                "map.anchor_alt_m": ANCHOR_ALT_M,
+                "map.id": "interface-test-map",
+            }
+        ],
     )
     return launch.LaunchDescription([node, launch_testing.actions.ReadyToTest()])
 
@@ -149,6 +137,13 @@ class TestLocalizationInterface(unittest.TestCase):
         # The node's tf_buffer latches /tf_static (transient local), so the
         # late-joining localization_core still receives the frame tree.
         broadcast_frame_tree(cls.node)
+        # The map by subscription (#34): the cloud is latched AFTER the node
+        # launched, exercising the either-order startup of ADR 0003.
+        latched = QoSProfile(depth=1)
+        latched.reliability = ReliabilityPolicy.RELIABLE
+        latched.durability = DurabilityPolicy.TRANSIENT_LOCAL
+        cls.map_pub = cls.node.create_publisher(PointCloud2, "/localization/map_cloud", latched)
+        cls.map_pub.publish(make_synthetic_map_cloud())
 
     @classmethod
     def tearDownClass(cls):
@@ -163,7 +158,7 @@ class TestLocalizationInterface(unittest.TestCase):
                 return True
         return False
 
-    def test_001_status_stream_without_inputs(self):
+    def test_001_status_stream_after_subscribed_map(self):
         states = []
         self.node.create_subscription(
             LocalizationStatus,
@@ -171,21 +166,29 @@ class TestLocalizationInterface(unittest.TestCase):
             lambda msg: states.append((msg.state, msg.reason)),
             10,
         )
-        # ~10 Hz contract (issue #9): collect a healthy sample window.
-        self._spin_until(lambda: len(states) >= 10, timeout=20.0)
-        self.assertGreaterEqual(
-            len(states), 10, f"/localization/status too slow: {len(states)} msgs"
+        # Matcher built from the subscribed cloud: the status leaves
+        # "waiting_for_map" (proves the subscription contract end to end --
+        # the estimator holds FAILED/waiting_for_map until /localization/
+        # map_cloud delivers, then initialization can start).
+        self.assertTrue(
+            self._spin_until(lambda: any(r == "initializing" for _, r in states)),
+            f"matcher never built from subscribed cloud; reasons seen: "
+            f"{sorted({r for _, r in states})}",
         )
+        # ~10 Hz contract (issue #9): collect a healthy sample window.
+        self._spin_until(lambda: len(states) >= 20, timeout=20.0)
+        post_map = states[-10:]
+        self.assertGreaterEqual(len(post_map), 10, f"/localization/status too slow: {states}")
         # No scans/GNSS/IMU: initialization can never start, so the node
         # must hold FAILED with reason "initializing" (not crash, not flip
         # to OK, not stop publishing).
         self.assertTrue(
-            all(state == LocalizationStatus.FAILED for state, _ in states),
-            f"non-FAILED states without inputs: {set(states)}",
+            all(state == LocalizationStatus.FAILED for state, _ in post_map),
+            f"non-FAILED states without inputs: {set(post_map)}",
         )
         self.assertTrue(
-            all(reason == "initializing" for _, reason in states),
-            f"unexpected reasons without inputs: {set(states)}",
+            all(reason == "initializing" for _, reason in post_map),
+            f"unexpected reasons after map build: {set(post_map)}",
         )
 
     def test_002_gnss_to_gnss_pose(self):
@@ -228,7 +231,38 @@ class TestLocalizationInterface(unittest.TestCase):
             "gnss_pose covariance not populated",
         )
 
-    def test_003_runtime_isolation(self):
+    def test_003_ekf_pose_relayed_to_localization_pose(self):
+        received = []
+        self.node.create_subscription(
+            PoseWithCovarianceStamped,
+            "/localization/pose",
+            received.append,
+            10,
+        )
+        pub = self.node.create_publisher(Odometry, "/odometry/filtered", 10)
+        msg = Odometry()
+        msg.header.stamp = self.node.get_clock().now().to_msg()
+        msg.header.frame_id = "map"
+        msg.child_frame_id = "base_link"
+        msg.pose.pose.position.x = 3.25
+        msg.pose.pose.position.y = -1.5
+        msg.pose.pose.position.z = 0.4
+        msg.pose.pose.orientation.w = 1.0
+        msg.pose.covariance[0] = 0.5
+        msg.pose.covariance[7] = 0.5
+        pub.publish(msg)
+        self.assertTrue(
+            self._spin_until(lambda: bool(received)),
+            "no /localization/pose relay after publishing /odometry/filtered",
+        )
+        relay = received[-1]
+        self.assertEqual(relay.header.frame_id, "map")
+        self.assertAlmostEqual(relay.pose.pose.position.x, 3.25, places=5)
+        self.assertAlmostEqual(relay.pose.pose.position.y, -1.5, places=5)
+        self.assertAlmostEqual(relay.pose.covariance[0], 0.5, places=5)
+        self.assertAlmostEqual(relay.pose.covariance[7], 0.5, places=5)
+
+    def test_004_runtime_isolation(self):
         found = self.node.get_subscriber_names_and_types_by_node(
             "localization_core", "/"
         )
