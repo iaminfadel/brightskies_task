@@ -92,33 +92,14 @@ services:
         -ResX=1280 -ResY=720 -carla-server -world-port=2000
         /Game/Carla/Maps/${CARLA_TOWN:-Town05}
     healthcheck:
-      # TCP open == the RPC listener is up; a full RPC probe follows in
-      # carla-rpc-wait. Cold boot is 6.5-25.5 min (#18), hence start_period.
+      # TCP open == the RPC listener is up; the bridge waits for a full RPC
+      # round trip on the target town before starting. Cold boot is
+      # 6.5-25.5 min (#18), hence start_period.
       test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/127.0.0.1/2000'"]
       interval: 10s
       timeout: 6s
       retries: 12
       start_period: 30m
-
-  carla-rpc-wait:
-    # Real RPC readiness gate: TCP-open fires minutes before get_world()
-    # answers, and the bridge dies on its first 2 s connect timeout instead
-    # of retrying in-process. This one-shot waits for a full RPC round trip
-    # on the target town (it hot-loads only if the server came up on
-    # another map, which the carla command line prevents).
-    <<: *ros
-    profiles: [runtime, mapping]
-    restart: "no"
-    depends_on:
-      carla:
-        condition: service_healthy
-    command:
-      - /bin/bash
-      - -lc
-      - >-
-        source /opt/brightdrive/setup.bash;
-        exec python3 /ws/brightdrive/scripts/validation/load_carla_town.py
-        --town ${CARLA_TOWN:-Town05} --timeout 1800
 
   bridge:
     <<: *ros
@@ -130,8 +111,8 @@ services:
         max-size: 50m
         max-file: "3"
     depends_on:
-      carla-rpc-wait:
-        condition: service_completed_successfully
+      carla:
+        condition: service_healthy
     healthcheck:
       # The bridge is "up" when /clock flows: everything downstream keys on
       # it. bash wrapper: CMD-SHELL is /bin/sh and setup.bash uses `source`
@@ -147,6 +128,8 @@ services:
       - -lc
       - >-
         source /opt/brightdrive/setup.bash;
+        python3 /ws/brightdrive/scripts/validation/load_carla_town.py
+        --town ${CARLA_TOWN:-Town05} --timeout 1800;
         exec ros2 run carla_ros_bridge bridge --ros-args
         -p host:=127.0.0.1 -p port:=2000 -p timeout:=60
         -p town:=Carla/Maps/${CARLA_TOWN:-Town05}
@@ -296,8 +279,8 @@ services:
     <<: *ros
     profiles: [mapping]
     depends_on:
-      carla-rpc-wait:
-        condition: service_completed_successfully
+      carla:
+        condition: service_healthy
       bridge:
         condition: service_healthy
     command:
