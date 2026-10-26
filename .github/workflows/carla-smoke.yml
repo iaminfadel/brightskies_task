@@ -34,6 +34,6 @@ jobs:
           BUCKET: brightskies-artifacts-330586358676
         run: |
           python3 scripts/vm_job.py run \
-            --command "bash scripts/validation/run_on_vm.sh" \
+            --command "sudo bash scripts/validation/run_on_vm.sh" \
             --artifact-dir artifacts/smoke \
             --collect /ws/evidence
