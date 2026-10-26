@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: projects/330586358676/locations/global/workloadIdentityPools/github/providers/github-oidc
+          workload_identity_provider: projects/330586358676/locations/global/workloadIdentityPools/github/providers/github-oidc-v2
           service_account: brightskies-ci@project-e038f785-ff95-4654-ba6.iam.gserviceaccount.com
       - uses: google-github-actions/setup-gcloud@v2
       - name: Run full matrix on VM
