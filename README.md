@@ -13,7 +13,7 @@ Colab dependency.
 | CARLA 0.9.15 + ROS 2 bridge on GCP, IAP-only | working (validated in #18) |
 | Town05 full-loop mapping bag (6274 scans, 3.6 km loop) | working |
 | Saved map `town05-v14-pg` — lidar pose-graph SLAM (2,283,500 points; ATE 0.037 m RMSE / 0.69 deg yaw; held-out 94 % / 0.120 m; loops 0.113 m median) | **all three gates PASS** (ADR 0002) |
-| Localization stack (KISS-ICP + GICP + EKF + health) | working; E2E locked on `town05-v2` |
+| Localization stack (KISS-ICP + GICP + EKF + health) | working; E2E locked on `town05-v14-pg` |
 | OpenSCENARIO S1-S4 harness + evaluator + KPI gates | pending (#10, #11) |
 | CI (`lint`, `build-test`, `carla-smoke`, `map-gate`, WIF) | `lint`+`build-test` live on PRs; smoke advisory on `staging`; map-gate advisory (dispatch); full matrix pending (#10, #11) |
 
@@ -53,8 +53,8 @@ under `/ws/jobs/<job-id>/` and are followed with `--logs`.
 ```bash
 make vm-up                       # start the VM, wait for IAP SSH
 make vm-status                   # heartbeat, containers, GPU
-make map-pull                    # download town05-v2 from GCS + verify hashes
-make map-install                 # runtime install into /ws/maps/current/town05-v2
+make map-pull                    # download town05-v14-pg from GCS + verify hashes
+make map-install                 # runtime install into /ws/maps/current/town05-v14-pg
 ```
 
 Start (or verify) the live stack and localization inside the deps container:
@@ -67,7 +67,7 @@ Start (or verify) the live stack and localization inside the deps container:
 ./scripts/vm-run.sh --logs <job-id>
 ```
 
-The map loader logs `MAP_LOAD_COMPLETE map_id=town05-v2 load_ms=...` and the estimator
+The map loader logs `MAP_LOAD_COMPLETE map_id=town05-v14-pg load_ms=...` and the estimator
 logs `LOCKED ... rmse=... inliers=...`. Health is on `/localization/status`
 (OK=0, DEGRADED=1, FAILED=2).
 
@@ -106,25 +106,28 @@ Gates (map bundle must pass all three): held-out GICP ≥80% accepted and median
 RMSE ≤0.20 m; ATE abs RMSE ≤0.30 m, p95 ≤0.60 m, yaw RMSE ≤2.0°; loop
 consistency ≥10 pairs, median correction ≤0.15 m, p95 ≤0.40 m.
 
-## Saved map `town05-v2`
+## Saved map `town05-v14-pg`
 
-Town05, single full loop, 3635 m trajectory, 0.25 m voxels, 50 m sensor range. The map
-frame is the local ENU frame anchored at the first GNSS fix. Poses use GNSS absolute
-positions and GNSS course yaw (`pose_source: gnss_positions_course_yaw`); KISS-ICP and
-IMU provide the fallbacks.
+Town05, single full loop, 3731 m trajectory, 0.25 m voxels, 50 m sensor range, 2,283,500
+points. The map frame is the local ENU frame anchored at the first GNSS fix. Poses come
+from the pose-graph solve: KISS-ICP odometry edges, GNSS antenna factors with the lever
+arm modeled in-graph, course-over-ground yaw where the vehicle moves, and GNSS-vetoed
+ICP loop closures (ADR 0002). All three gates pass.
 
 | Gate | Result |
 |---|---|
-| Loop closure | **1.840 m** (z 0.001 m) |
-| Held-out GICP (20 scans, excluded from the map) | **18/20 accepted (90 %)**, median RMSE **0.1175 m**, p95 0.1296 m |
-| T_map_carla held-out alignment | 0.1084 m (threshold 0.5 m) |
-| Map load | 5.7 s (gate 60 s) |
+| ATE vs ground truth | **0.037 m RMSE** (p95 0.080 m), yaw **0.69 deg RMSE** |
+| Held-out GICP (100 scans, excluded from the map) | **94/100 accepted**, median RMSE **0.120 m**, p95 0.138 m |
+| Loop consistency (52 revisit pairs) | median residual **0.113 m**, p95 0.238 m |
+| T_map_carla held-out alignment | 0.115 m (threshold 0.5 m) |
 
 Artifacts:
 
-- `maps/town05-v2/{map.yaml,manifest.json}`: committed runtime metadata and provenance.
-- `docs/results/map/town05-v2/`: overlay, held-out selection, consistency JSON, coverage.
-- GCS: `gs://brightskies-artifacts-330586358676/maps/town05-v2/` (full bundle, 35 MB).
+- `docs/results/map/town05-v14-pg/`: gate evidence — ATE, held-out selection, loop and
+  map consistency, coverage, plots.
+- GCS: `gs://brightskies-artifacts-330586358676/maps/town05-v14-pg/` (full bundle).
+- `maps/town05-v2/` and `docs/results/map/town05-v2/` keep the superseded
+  GNSS-course-yaw map for the before/after story.
 
 Bundle layout (contract #15): `map.pcd`, `map.yaml`, `map_eval.yaml`, `trajectory.tum`,
 `manifest.json`, `validation/heldout/` (scans + poses), `validation/heldout.yaml`,
@@ -141,8 +144,8 @@ The runtime install deliberately contains only `map.pcd`, `map.yaml`, and
   /ws/brightdrive/scripts/map_run.sh /ws/bags/map_full2 900"'
 
 # 2. build, check held-out scans, verify the bundle
-make map                         # build_map.py --gnss-pose --gnss-yaw --imu-delta
-make map-check                   # production GICP, 20 held-out scans
+make map                         # pose-graph build (KISS-ICP + GNSS + loops)
+make map-check                   # production GICP, held-out scans
 make map-verify                  # hashes + contract metadata
 make map-install                 # copy the runtime subset to /ws/maps/current
 make map-upload                  # push the bundle to GCS
@@ -217,7 +220,7 @@ scripts/map_run.sh              teleport, record a sensor-only bag, drive one lo
 scripts/carla_route_drive.py    pure-pursuit driver with a 1 m precision stop
 scripts/vm-run.sh               deploy HEAD and run commands over IAP
 infra/                          provision, VM lifecycle, idle stop, IAP SSH
-docs/results/map/town05-v2/     mapping evidence
+docs/results/map/town05-v14-pg/  mapping evidence
 ```
 
 ## Known limitations

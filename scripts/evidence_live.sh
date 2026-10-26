@@ -17,7 +17,7 @@ sleep 2
 ros2 launch brightdrive_bringup localization.launch.py >"$OUT/localization.log" 2>&1 &
 LPID=$!
 python3 /ws/brightdrive/scripts/publish_map_cloud.py \
-  --map-dir /ws/maps/current/town05-v2 >"$OUT/map_cloud.log" 2>&1 &
+  --map-dir /ws/maps/current/town05-v14-pg >"$OUT/map_cloud.log" 2>&1 &
 CPID=$!
 python3 /ws/brightdrive/scripts/reliable_clock_relay.py >"$OUT/clock_relay.log" 2>&1 &
 RPID=$!

@@ -145,7 +145,7 @@ wait_message /carla/hero/camera_front/image 60 || fail "no camera sample"
 echo "==> starting estimator stack"
 if [ "${SKIP_ESTIMATOR:-0}" != "1" ]; then
   start_bg estimator ros2 launch brightdrive_bringup localization.launch.py \
-    map_dir:="${MAP_DIR:-/ws/maps/current/town05-v2}" \
+    map_dir:="${MAP_DIR:-/ws/maps/current/town05-v14-pg}" \
     || fail "estimator launch"
 else
   echo "==> reusing estimator"
