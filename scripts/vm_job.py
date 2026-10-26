@@ -66,6 +66,8 @@ def start_vm():
         if r.returncode == 0:
             print("IAP SSH ready", flush=True)
             return
+        print(f"ssh attempt failed (rc={r.returncode}):", flush=True)
+        print((r.stderr or r.stdout or "").strip()[-500:], flush=True)
         time.sleep(10)
     raise SystemExit("timed out waiting for IAP SSH")
 
