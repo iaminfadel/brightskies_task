@@ -41,7 +41,7 @@ Invariants:
 |---|---|---|---|---|
 | 1 | pre-commit hooks (clang-format 14, ruff, shellcheck, hygiene) | laptop | every commit | required (mirrored by CI) |
 | 1 | `ci/lint`: pre-commit over the whole tree | hosted | every PR | **required** |
-| 2 | `ci/build-test`: colcon build + gtest + interface launch test + evaluator self-tests + isolation audit, in pinned deps image | hosted | every PR | **required** |
+| 2 | `ci/build-test`: colcon build + gtest + interface launch test + self-tests (`build_map.py`, `eval_ate.py`, `eval_loops.py`, `eval_kpi.py`) + isolation audit, in pinned deps image | hosted | every PR | **required** |
 | 2 | build/test evidence artifact (14-day retention) | GH | every run, on failure too | live |
 | 3 | `carla-smoke`: merged staging state on the GCP VM; MAP_LOAD, LOCKED, TF tree, health, tripwire KPIs, runtime isolation check; evidence to GCS | VM | push to staging | advisory (ratchet) |
 | 4 | full S1-S4 KPI matrix + regression vs baseline | VM | staging->main PR | pending #10/#11 |

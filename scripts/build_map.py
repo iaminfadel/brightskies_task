@@ -12,6 +12,8 @@ known base->sensor extrinsics, and writes the map bundle consumed by
   map.yaml           anchor, T_map_slam, checksum and provenance
   map_eval.yaml      evaluator-only T_map_carla and spawn metadata
   trajectory.tum     base_link poses in the map frame
+  tiles/             tile_{ix}_{iy}.pcd, the map split on a regular 2D X/Y grid
+  map_index.yaml     tile grid origin, size, Z range and the tile file list
   validation/heldout/scans   held-out scans (map frame) and poses.csv
   validation/heldout.yaml     held-out selection and GICP settings
   validation/coverage.json    coverage and map statistics
@@ -29,6 +31,7 @@ import os
 import shlex
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -41,6 +44,10 @@ from scipy.spatial.transform import Rotation
 LIDAR_TOPIC = "/carla/hero/lidar"
 GNSS_TOPIC = "/carla/hero/gnss"
 IMU_TOPIC = "/carla/hero/imu"
+
+# One map cell per tile; 25 m is a few tiles across the 50 m lidar window, so a
+# windowed map_server loads in single digits (ADR 0003).
+TILE_SIZE_M = 25.0
 
 
 def sha256_file(path):
@@ -407,6 +414,122 @@ def crop_to_trajectory(points, trajectory_xy, radius):
     return points[distances <= radius]
 
 
+def tile_cells(points, origin_xy, tile_size):
+    """O(1) floor division: the grid cell of every point's x/y."""
+    return np.floor((points[:, :2] - origin_xy) / tile_size).astype(np.int64)
+
+
+def tile_lookup(index, x, y):
+    """O(1) floor division against the index origin and tile size; the contract
+    the map_server consumes (ADR 0003)."""
+    return (
+        math.floor((x - float(index["origin"]["x_m"])) / float(index["tile_size_m"])),
+        math.floor((y - float(index["origin"]["y_m"])) / float(index["tile_size_m"])),
+    )
+
+
+def write_tiles(cloud, out_dir, map_id, tile_size):
+    """Split the already voxel-downsampled cloud into a regular 2D X/Y grid of
+    tiles (full Z range, so a windowed consumer needs no second pass). Additive:
+    the full map is written before this and is untouched by it."""
+    tiles_dir = out_dir / "tiles"
+    tiles_dir.mkdir(parents=True, exist_ok=True)
+    # A degenerate map (everything filtered out) gets an empty grid, not a crash.
+    origin_xy = np.asarray([cloud[:, 0].min(), cloud[:, 1].min()]) if len(cloud) else np.zeros(2)
+    z_range = [float(cloud[:, 2].min()), float(cloud[:, 2].max())] if len(cloud) else [0.0, 0.0]
+    cells = tile_cells(cloud, origin_xy, tile_size)
+    index = {
+        "schema_version": 1,
+        "map_id": map_id,
+        "map_frame": "map",
+        "tile_size_m": float(tile_size),
+        "origin": {"x_m": float(origin_xy[0]), "y_m": float(origin_xy[1])},
+        "z_range_m": z_range,
+        "tile_count": 0,
+        "point_count": int(len(cloud)),
+        "files": [],
+    }
+    written = 0
+    for ix, iy in sorted({(int(a), int(b)) for a, b in cells}):
+        points = cloud[(cells[:, 0] == ix) & (cells[:, 1] == iy)]
+        path = tiles_dir / f"tile_{ix}_{iy}.pcd"
+        write_pcd(path, points)
+        index["files"].append(
+            {
+                "path": str(path.relative_to(out_dir)),
+                "ix": ix,
+                "iy": iy,
+                "point_count": int(len(points)),
+            }
+        )
+        written += 1
+    index["tile_count"] = written
+    (out_dir / "map_index.yaml").write_text(json.dumps(index, indent=2), encoding="utf-8")
+    return index
+
+
+def self_check():
+    """Tile lookup and the tile split, checked against hand-computed values."""
+    origin = np.array([-2.5, 0.5])
+    size = 2.5
+    points = np.array(
+        [
+            [-2.5, 0.5],    # the origin itself -> (0, 0)
+            [0.0, 3.0],     # inside cell (1, 1)
+            [0.0, 3.0 - 1e-9],  # just below the cell edge -> (1, 0)
+            [-5.0, -2.0],   # negative cells -> (-1, -1)
+            [2.4999999, 5.4999999],  # upper-right corner of (1, 1)
+        ]
+    )
+    expected = np.array([[0, 0], [1, 1], [1, 0], [-1, -1], [1, 1]])
+    cells = tile_cells(points, origin, size)
+    assert (cells == expected).all(), f"tile_cells wrong: {cells.tolist()} != {expected.tolist()}"
+    index = {"origin": {"x_m": origin[0], "y_m": origin[1]}, "tile_size_m": size}
+    # Every point sits inside the half-open cell the lookup named, the origin
+    # corner belongs to cell (0, 0), and the vectorized tile_cells and the
+    # scalar tile_lookup are two shapes of one contract -- so they cannot drift.
+    lower = origin + cells * size
+    upper = lower + size
+    assert (points >= lower).all() and (points < upper).all(), "lookup outside its cell"
+    assert all(
+        tuple(cells[i]) == tile_lookup(index, *points[i]) for i in range(len(points))
+    ), "tile_cells and tile_lookup disagree"
+
+    # The split: no point lost, none duplicated, and every tile holds only the
+    # points its own lookup names.
+    rng = np.random.default_rng(0)
+    cloud = rng.uniform(-10.0, 10.0, size=(5000, 3))
+    with tempfile.TemporaryDirectory() as tmp:
+        index = write_tiles(cloud, Path(tmp), "self-check", 4.0)
+        origin = np.array([index["origin"]["x_m"], index["origin"]["y_m"]])
+        size = index["tile_size_m"]
+        reloaded = []
+        for entry in index["files"]:
+            ix, iy = entry["ix"], entry["iy"]
+            path = Path(tmp) / entry["path"]
+            header, _, body = path.read_bytes().partition(b"DATA binary\n")
+            count = int(next(
+                line.split()[1] for line in header.decode("ascii").splitlines()
+                if line.startswith("POINTS")
+            ))
+            assert count == entry["point_count"], f"{entry['path']} point count changed"
+            points = np.frombuffer(body, dtype="<f4", count=count * 3).reshape(-1, 3)
+            # Points are stored as float32, so a point sitting on a cell edge can
+            # round into the neighbour; contain it up to that storage noise
+            # instead of demanding exact equality (the lookup itself is exact).
+            slack = 1e-6 * max(1.0, abs(ix) * size, abs(iy) * size)
+            lower = origin + np.array([ix, iy]) * size - slack
+            upper = origin + np.array([ix + 1, iy + 1]) * size + slack
+            assert (points[:, :2] >= lower).all() and (points[:, :2] < upper).all(), \
+                f"{entry['path']} holds points from another cell"
+            reloaded.append(points)
+        merged = np.concatenate(reloaded, axis=0)
+        assert len(merged) == len(cloud), "tiles lost or duplicated points"
+        assert np.allclose(np.sort(merged[:, 0]), np.sort(cloud[:, 0]), atol=1e-5), \
+            "tile points changed"
+    print(f"TILE_SELF_CHECK ok=true tiles={index['tile_count']} points={index['point_count']}")
+
+
 def write_pcd(path, points):
     points = np.asarray(points, dtype=np.float32)
     header = (
@@ -441,10 +564,10 @@ def write_tum(path, stamps, poses):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("bag")
-    parser.add_argument("out")
-    parser.add_argument("--map-id", required=True)
-    parser.add_argument("--spawn", required=True, help="x,y,z,yaw in CARLA world")
+    parser.add_argument("bag", nargs="?")
+    parser.add_argument("out", nargs="?")
+    parser.add_argument("--map-id")
+    parser.add_argument("--spawn", help="x,y,z,yaw in CARLA world")
     parser.add_argument("--voxel", type=float, default=0.25)
     parser.add_argument("--kiss-voxel", type=float, default=0.5)
     parser.add_argument("--max-range", type=float, default=50.0)
@@ -485,7 +608,20 @@ def main():
     parser.add_argument("--sweep-merge", action="store_true",
                         help="merge per-tick lidar fragments into full rotations "
                         "by azimuth span (required for KISS on async bags)")
+    parser.add_argument("--tile-size", type=float, default=TILE_SIZE_M,
+                        help="tile edge length in metres for the tiles/ grid")
+    parser.add_argument("--no-tiles", action="store_true",
+                        help="write the full map only (no tiles/ + map_index.yaml)")
+    parser.add_argument("--self-check", action="store_true",
+                        help="run the tile lookup/split self-check and exit")
     args = parser.parse_args()
+    if args.self_check:
+        self_check()
+        return
+    if not (args.bag and args.out and args.map_id and args.spawn):
+        parser.error("need <bag> <out> --map-id <id> --spawn x,y,z,yaw (or --self-check)")
+    if args.tile_size <= 0.0:
+        parser.error("--tile-size must be positive")
     # Canonical default: the lidar pose graph.
     if not (args.gnss_imu or args.pose_graph or args.pg_load or args.pg_optimized):
         args.pose_graph = True
@@ -687,6 +823,12 @@ def main():
     bounds_max = cloud.max(axis=0).tolist() if point_count else [0.0, 0.0, 0.0]
 
     write_tum(out_dir / "trajectory.tum", scan_stamps, T_map_base_poses)
+
+    tile_index = None
+    if not args.no_tiles:
+        tile_index = write_tiles(cloud, out_dir, args.map_id, args.tile_size)
+        print(f"tiles written: {tile_index['tile_count']} "
+              f"({args.tile_size:g} m grid)", flush=True)
 
     heldout_dir = out_dir / "validation" / "heldout"
     heldout_poses = []
