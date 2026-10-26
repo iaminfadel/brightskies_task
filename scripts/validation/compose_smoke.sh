@@ -9,10 +9,21 @@ set -o pipefail
 source /opt/brightdrive/setup.bash
 source /ws/install/setup.bash 2>/dev/null || true
 
+# A short-lived `ros2 --no-daemon` participant lists an incomplete graph
+# (it returned 4 of 12 nodes right after the bags, and missed
+# /localization_core for the audit). The daemon keeps discovering, so the
+# evidence and the node-info audit use it; message probes still use
+# --no-daemon (they only need their own subscription).
+ros2 daemon start >/dev/null 2>&1 || true
+
 EVIDENCE="${EVIDENCE:-/ws/evidence/compose-smoke}"
 ROOT="${ROOT:-/ws/brightdrive}"
 LOGS="$EVIDENCE/logs"
 mkdir -p "$LOGS" "$EVIDENCE/bags"
+rm -f "$EVIDENCE/validation_status.txt"
+# ros2 bag record refuses to overwrite: a re-run must not fail on the
+# previous run's evidence.
+rm -rf "$EVIDENCE/bags/estimator" "$EVIDENCE/bags/visualization"
 
 fail() {
   echo "SMOKE_FAILED: $*" >&2
@@ -38,7 +49,7 @@ carla_ready=""
 # C++ network thread (observed as a futex hang) and leaks a streaming
 # session that the render/stream ports then miss.
 echo "==> waiting for CARLA RPC"
-rpc_tmp="$EVIDENCE/.carla_rpc_ready.json"
+rpc_tmp="$EVIDENCE/carla_rpc_ready.json"
 rpc_deadline=$(( $(date +%s) + 1800 ))
 while :; do
   if timeout 20 python3 - "$EVIDENCE" >"$LOGS/carla_rpc.log" 2>&1 <<'PY'
@@ -72,7 +83,6 @@ PY
   fi
   sleep 2
 done
-mv "$EVIDENCE/.carla_rpc_ready.json" "$rpc_tmp"
 carla_ready=$(date +%s)
 python3 - "$rpc_tmp" "$carla_ready" "$started_epoch" <<'PY'
 import json
@@ -120,12 +130,23 @@ for pair in "lidar:/carla/hero/lidar" "gnss:/carla/hero/gnss" "imu:/carla/hero/i
 done
 
 # Runtime GT-isolation audit: estimator nodes must not subscribe to the
-# visualization camera (the source-side audit runs in the evaluator).
+# visualization camera (the source-side audit runs in the evaluator). A
+# node that cannot be inspected makes the audit vacuous, so that is a
+# failure, not a warning.
 for node in /kiss_icp_node /ekf_filter_node /localization_core /localization_status; do
   safe_name="${node#/}"
-  ros2 node info --no-daemon "$node" >"$LOGS/node_info_$safe_name.txt" 2>&1 || true
+  info="$LOGS/node_info_$safe_name.txt"
+  inspected=0
+  for _ in $(seq 1 10); do
+    ros2 node info "$node" >"$info" 2>&1 && ! grep -q "Unable to find node" "$info" && {
+      inspected=1
+      break
+    }
+    sleep 2
+  done
+  [ "$inspected" = 1 ] || fail "GT-isolation audit could not inspect $node"
 done
-if grep -R "/carla/hero/camera_front" "$LOGS"/node_info_*.txt; then
+if grep -R "/carla/hero/camera" "$LOGS"/node_info_*.txt; then
   fail "an estimator node subscribes to the visualization camera"
 fi
 
@@ -143,8 +164,8 @@ visualization_bag_pid=$!
 wait "$estimator_bag_pid" 2>/dev/null || true
 wait "$visualization_bag_pid" 2>/dev/null || true
 
-ros2 topic list --no-daemon >"$EVIDENCE/topics.txt" 2>&1 || true
-ros2 node list --no-daemon >"$EVIDENCE/nodes.txt" 2>&1 || true
+ros2 topic list >"$EVIDENCE/topics.txt" 2>&1 || true
+ros2 node list >"$EVIDENCE/nodes.txt" 2>&1 || true
 
 finished_epoch=$(date +%s)
 python3 - "$EVIDENCE" "$started_epoch" "$carla_ready" "$finished_epoch" <<'PY'
@@ -169,5 +190,6 @@ PY
 
 du -sh "$EVIDENCE"/bags/* >"$EVIDENCE/bag_sizes.txt" 2>&1 || true
 date -Is >"$EVIDENCE/READY_FOR_FOXGLOVE"
+echo "SMOKE_OK in $((finished_epoch - started_epoch))s" >>"$EVIDENCE/validation_status.txt"
 echo "SMOKE_OK in $((finished_epoch - started_epoch))s; evidence: $EVIDENCE"
 echo "stack left running for Foxglove; make down tears it down"
