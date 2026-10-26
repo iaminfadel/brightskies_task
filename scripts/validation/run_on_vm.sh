@@ -82,7 +82,7 @@ set -e
 docker logs carla-server >"$EVIDENCE/logs/carla_server.log" 2>&1 || true
 if [ "$rc" -ne 0 ]; then
   echo "validation failed (rc=$rc); tailing logs" >&2
-  for log in bridge spawn kiss ekf foxglove; do
+  for log in bridge spawn estimator foxglove; do
     echo "--- $log ---" >&2
     tail -20 "$EVIDENCE/logs/$log.log" >&2 || true
   done
