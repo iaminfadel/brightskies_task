@@ -148,8 +148,14 @@ services:
         bridge_pid=$$!;
         until timeout 5 ros2 topic echo --no-daemon --once /clock
         >/dev/null 2>&1; do sleep 2; done;
+        if ! python3 /ws/brightdrive/scripts/validation/wait_graph.py
+        --topic /carla/hero/lidar --publisher --timeout 10; then
         ros2 launch carla_spawn_objects carla_spawn_objects.launch.py
-        objects_definition_file:=${OBJECTS_FILE:-/ws/brightdrive/config/validation/objects.json} &
+        objects_definition_file:=${OBJECTS_FILE:-/ws/brightdrive/config/validation/objects.json} & fi;
+        if ! timeout 90 ros2 topic echo --no-daemon --once
+        /carla/hero/camera_front/image >/dev/null 2>&1; then
+        echo "camera produced no frame; restarting the bridge" >&2;
+        kill $$bridge_pid; wait $$bridge_pid; exit 1; fi;
         wait $$bridge_pid
 
   localization:

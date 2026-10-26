@@ -96,24 +96,26 @@ with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2)
     handle.write("\n")
 PY
-mv "$rpc_tmp" "$EVIDENCE/carla_rpc_ready.json"
-echo "CARLA RPC ready on $(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["map"])' "$EVIDENCE/carla_rpc_ready.json")"
+echo "CARLA RPC ready on $(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["map"])' "$rpc_tmp")"
 
 # Sensor surface. Data-level asserts (wait_message) first and camera last:
 # wait_topic passes on subscriber-only topics too, and a camera failure must
-# not mask whether sensor DATA actually crosses containers.
+# not mask whether sensor DATA actually crosses containers. Timeouts are
+# generous because the bridge self-heals (exits) when its first camera
+# stream comes up empty after a CARLA startup crash; one bridge restart is
+# normal on a cold start, and sample probes must outlive it.
 for topic in /carla/hero/lidar /carla/hero/gnss /carla/hero/imu; do
   wait_topic "$topic" 300 || fail "missing $topic"
 done
-wait_message /carla/hero/lidar 60 || fail "no LiDAR sample"
-wait_message /carla/hero/gnss 60 || fail "no GNSS sample"
-wait_message /carla/hero/imu 60 || fail "no IMU sample"
+wait_message /carla/hero/lidar 180 || fail "no LiDAR sample"
+wait_message /carla/hero/gnss 180 || fail "no GNSS sample"
+wait_message /carla/hero/imu 180 || fail "no IMU sample"
 wait_topic /carla/hero/camera_front/image 300 || fail "missing /carla/hero/camera_front/image"
-wait_message /carla/hero/camera_front/image 60 || fail "no camera sample"
+wait_message /carla/hero/camera_front/image 180 || fail "no camera sample"
 
 # Estimator surface.
 for topic in /kiss/odometry /odometry/filtered /localization/status; do
-  wait_topic "$topic" 180 || fail "estimator missing $topic"
+  wait_topic "$topic" 300 || fail "estimator missing $topic"
 done
 
 # Move the hero so odometry and bags are non-trivial.
