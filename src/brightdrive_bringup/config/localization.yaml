@@ -85,7 +85,9 @@ localization_core:
 
     topics:
       lidar: /carla/hero/lidar
-      gnss: /carla/hero/gnss
+      # The profile-driven GNSS relay (#37) republishes the (degraded)
+      # fix on /localization/gnss; the estimator never sees raw GNSS.
+      gnss: /localization/gnss
       imu: /localization/imu
       filtered: /odometry/filtered
       map_cloud: /localization/map_cloud

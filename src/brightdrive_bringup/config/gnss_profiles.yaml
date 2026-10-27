@@ -1,0 +1,40 @@
+# Single source of truth for the scenario GNSS degradation model (#10 §8, #37).
+#
+# Two consumers read this one file and must never disagree:
+#   - gnss_relay.py (test harness): applies the Gaussian noise, constant
+#     bias, and dropout windows to the raw CARLA GNSS on
+#     /carla/hero/gnss -> /localization/gnss. The dropout is *not* announced
+#     to the filter, which is why the health state degrades and recovers.
+#   - localization.launch.py: overrides the estimator's gnss.sigma_xy_m /
+#     gnss.sigma_z_m from the same profile, so the scenario sensor model and
+#     the filter covariance config change together.
+#
+# Units: sigma_* and bias_* are metres (bias east/north in the ENU frame);
+# dropout_windows_s are [start, end] simulation-time seconds; seed feeds a
+# numpy RandomState (combined with the run seed) so runs are reproducible.
+# degrees_per_metre converts the metric offsets to GNSS degrees.
+#
+# A reviewer can change a profile -- or add one -- and re-run a scenario
+# without touching code: select it with GNSS_PROFILE / --profile.
+degrees_per_metre: 1.0e-5
+
+profiles:
+  # S1/S3/S4: low-noise. Noise is real (applied by the relay) and matches
+  # the estimator covariance; no bias, no dropout.
+  nominal:
+    sigma_h_m: 1.5
+    sigma_v_m: 3.0
+    bias_east_m: 0.0
+    bias_north_m: 0.0
+    dropout_windows_s: []
+    seed: 7
+  # S2: noisy GNSS with a constant east/north bias and two 2 s dropouts.
+  # The estimator keeps assuming the nominal 5/10 m sigmas from this same
+  # profile -- the filter is not told about the dropouts.
+  noisy:
+    sigma_h_m: 5.0
+    sigma_v_m: 10.0
+    bias_east_m: 1.2
+    bias_north_m: 1.6
+    dropout_windows_s: [[15, 17], [35, 37]]
+    seed: 7

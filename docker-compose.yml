@@ -172,6 +172,9 @@ services:
       KISS_PARAMS: ${KISS_PARAMS:-}
       EKF_PARAMS: ${EKF_PARAMS:-}
       LOCALIZATION_PARAMS: ${LOCALIZATION_PARAMS:-}
+      # Shared GNSS degradation profile (#37): the estimator covariance and
+      # the scenario relay read the same profile, selected by this one var.
+      GNSS_PROFILE: ${GNSS_PROFILE:-}
     command:
       - /bin/bash
       - -lc
@@ -253,6 +256,39 @@ services:
       - >-
         source /opt/brightdrive/setup.bash;
         exec bash /ws/brightdrive/scripts/validation/compose_smoke.sh
+
+  scenario:
+    # One-shot scenario harness (#37): verifies the pinned ScenarioRunner,
+    # checks route coverage (fail fast), respawns the hero with the scenario
+    # sensor set, records estimator + GT bags, drives the .xosc through the
+    # pinned ScenarioRunner with the open-loop agent, and writes the event
+    # log next to the bags. Reached through `make scenario S=S1`.
+    <<: *ros
+    profiles: [scenario]
+    environment:
+      GNSS_PROFILE: ${GNSS_PROFILE:-}
+      SCENARIO_SEED: ${SCENARIO_SEED:-7}
+    depends_on:
+      carla:
+        condition: service_healthy
+      bridge:
+        condition: service_healthy
+      localization:
+        condition: service_started
+      map-server:
+        condition: service_started
+      foxglove:
+        condition: service_started
+    command:
+      - /bin/bash
+      - -lc
+      - >-
+        source /opt/brightdrive/setup.bash;
+        source /ws/install/setup.bash 2>/dev/null || true;
+        exec python3 /ws/brightdrive/scripts/scenario/run_scenario.py
+        ${SCENARIO:-S1} --seed ${SCENARIO_SEED:-7}
+        --seed-runs ${SCENARIO_SEED_RUNS:-1}
+        --evidence ${SCENARIO_EVIDENCE:-/ws/evidence/scenarios}
 
   evaluator:
     # Post-drive, artifact-consuming: source GT-isolation audit + KPI gate

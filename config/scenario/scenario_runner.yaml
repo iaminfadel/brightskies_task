@@ -1,0 +1,9 @@
+# Pinned ScenarioRunner (#37). The image alone is not the pin: every
+# scenario run verifies the checkout at `path` against the commit below
+# before starting, so the harness version is recorded in the repo and a
+# drifted image fails fast instead of silently executing the wrong harness.
+version: 0.9.15
+tag: v0.9.15
+commit: d12d8bb788201ebf6f03e55b9c5169f9dcb2ea87
+repository: https://github.com/carla-simulator/scenario_runner.git
+path: /opt/scenario_runner

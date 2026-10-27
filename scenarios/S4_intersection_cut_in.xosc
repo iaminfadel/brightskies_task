@@ -1,0 +1,367 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenSCENARIO>
+  <FileHeader revMajor="1" revMinor="0" date="2026-10-27T00:00:00" description="CARLA:BrightDrive S4 signalized intersection with cut-in" author="brightdrive"/>
+  <ParameterDeclarations/>
+  <CatalogLocations/>
+  <RoadNetwork>
+    <LogicFile filepath="Town05"/>
+    <SceneGraphFile filepath=""/>
+  </RoadNetwork>
+  <Entities>
+    <ScenarioObject name="hero">
+      <Vehicle name="vehicle.lincoln.mkz_2017" vehicleCategory="car">
+        <ParameterDeclarations/>
+        <Performance maxSpeed="69.444" maxAcceleration="200" maxDeceleration="10.0"/>
+        <BoundingBox>
+          <Center x="1.5" y="0.0" z="0.9"/>
+          <Dimensions width="2.1" length="4.5" height="1.8"/>
+        </BoundingBox>
+        <Axles>
+          <FrontAxle maxSteering="0.5" wheelDiameter="0.6" trackWidth="1.8" positionX="3.1" positionZ="0.3"/>
+          <RearAxle maxSteering="0.0" wheelDiameter="0.6" trackWidth="1.8" positionX="0.0" positionZ="0.3"/>
+        </Axles>
+        <Properties>
+          <Property name="type" value="ego_vehicle"/>
+          <Property name="role_name" value="hero"/>
+          <Property name="color" value="0,0,255"/>
+        </Properties>
+      </Vehicle>
+    </ScenarioObject>
+    <ScenarioObject name="adversary">
+      <Vehicle name="vehicle.lincoln.mkz_2017" vehicleCategory="car">
+        <ParameterDeclarations/>
+        <Performance maxSpeed="69.444" maxAcceleration="200" maxDeceleration="10.0"/>
+        <BoundingBox>
+          <Center x="1.5" y="0.0" z="0.9"/>
+          <Dimensions width="2.1" length="4.5" height="1.8"/>
+        </BoundingBox>
+        <Axles>
+          <FrontAxle maxSteering="0.5" wheelDiameter="0.6" trackWidth="1.8" positionX="3.1" positionZ="0.3"/>
+          <RearAxle maxSteering="0.0" wheelDiameter="0.6" trackWidth="1.8" positionX="0.0" positionZ="0.3"/>
+        </Axles>
+        <Properties>
+          <Property name="type" value="simulation"/>
+          <Property name="role_name" value="adversary"/>
+          <Property name="color" value="255,0,0"/>
+        </Properties>
+      </Vehicle>
+    </ScenarioObject>
+  </Entities>
+  <Storyboard>
+    <Init>
+      <Actions>
+        <GlobalAction>
+          <EnvironmentAction>
+            <Environment name="BrightDriveClear">
+              <TimeOfDay animation="false" dateTime="2026-10-27T12:00:00"/>
+              <Weather cloudState="free">
+                <Sun intensity="0.85" azimuth="0" elevation="1.31"/>
+                <Fog visualRange="100000.0"/>
+                <Precipitation precipitationType="dry" intensity="0.0"/>
+              </Weather>
+              <RoadCondition frictionScaleFactor="1.0"/>
+            </Environment>
+          </EnvironmentAction>
+        </GlobalAction>
+        <Private entityRef="hero">
+          <PrivateAction>
+            <ControllerAction>
+              <AssignControllerAction>
+                <Controller name="HeroAgent">
+                  <Properties>
+                    <Property name="module" value="carla_ros_scenario_runner.ros_vehicle_control"/>
+                    <Property name="launch-package" value="carla_ad_agent"/>
+                    <Property name="launch" value="carla_ad_agent.launch"/>
+                    <Property name="avoid_risk" value="true"/>
+                  </Properties>
+                </Controller>
+              </AssignControllerAction>
+              <OverrideControllerValueAction>
+                <Throttle value="0" active="false"/>
+                <Brake value="0" active="false"/>
+                <Clutch value="0" active="false"/>
+                <ParkingBrake value="0" active="false"/>
+                <SteeringWheel value="0" active="false"/>
+                <Gear number="0" active="false"/>
+              </OverrideControllerValueAction>
+            </ControllerAction>
+          </PrivateAction>
+          <PrivateAction>
+            <RoutingAction>
+              <AssignRouteAction>
+              <Route name="MappedLoopSegment" closed="false">
+                <ParameterDeclarations/>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="-51.88" y="75.90" z="0.07"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="-53.22" y="72.13" z="0.08"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="-53.94" y="68.19" z="0.05"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="-54.32" y="64.21" z="0.05"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="-54.53" y="60.21" z="0.06"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="-54.64" y="56.21" z="0.06"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="-54.68" y="52.21" z="0.06"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="-54.69" y="48.20" z="0.06"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="-54.69" y="44.20" z="0.06"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="-54.68" y="40.20" z="0.06"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="-54.66" y="36.19" z="0.06"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="-54.63" y="32.19" z="0.06"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="-54.61" y="28.19" z="0.05"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="-54.59" y="24.18" z="0.06"/></Position></Waypoint>
+              </Route>
+              </AssignRouteAction>
+            </RoutingAction>
+          </PrivateAction>
+        </Private>
+      </Actions>
+    </Init>
+  <Story name="IntersectionCutIn">
+    <Act name="CutInAct">
+      <ManeuverGroup name="CutIn" maximumExecutionCount="1">
+        <Actors selectTriggeringEntities="false">
+          <EntityRef entityRef="adversary"/>
+        </Actors>
+        <Maneuver name="CutInManeuver">
+          <Event name="SpawnAdversary" priority="overwrite">
+            <Action name="SpawnAdversaryAction">
+              <GlobalAction>
+                <EntityAction entityRef="adversary">
+                  <AddEntityAction>
+                    <Position>
+                      <RelativeObjectPosition entityRef="hero" dx="40.0" dy="3.2" dz="0.0"/>
+                    </Position>
+                  </AddEntityAction>
+                </EntityAction>
+              </GlobalAction>
+            </Action>
+            <StartTrigger>
+                <ConditionGroup>
+                  <Condition name="EgoMovingOnGreen" delay="0" conditionEdge="rising">
+                    <ByEntityCondition>
+                      <TriggeringEntities triggeringEntitiesRule="any">
+                        <EntityRef entityRef="hero"/>
+                      </TriggeringEntities>
+                      <EntityCondition>
+                        <TraveledDistanceCondition value="8.0"/>
+                      </EntityCondition>
+                    </ByEntityCondition>
+                  </Condition>
+                </ConditionGroup>
+            </StartTrigger>
+          </Event>
+            <Event name="AdversaryMatchesSpeed" priority="overwrite">
+              <Action name="AdversaryMatchesSpeedAction">
+                <PrivateAction>
+                  <LongitudinalAction>
+                    <SpeedAction>
+                      <SpeedActionDynamics dynamicsShape="step" value="1" dynamicsDimension="time"/>
+                      <SpeedActionTarget>
+                        <AbsoluteTargetSpeed value="8.33"/>
+                      </SpeedActionTarget>
+                    </SpeedAction>
+                  </LongitudinalAction>
+                </PrivateAction>
+              </Action>
+              <StartTrigger>
+                <ConditionGroup>
+                  <Condition name="AfterSpawn" delay="0" conditionEdge="rising">
+                    <ByEntityCondition>
+                      <TriggeringEntities triggeringEntitiesRule="any">
+                        <EntityRef entityRef="hero"/>
+                      </TriggeringEntities>
+                      <EntityCondition>
+                        <TraveledDistanceCondition value="10.0"/>
+                      </EntityCondition>
+                    </ByEntityCondition>
+                  </Condition>
+                </ConditionGroup>
+              </StartTrigger>
+            </Event>
+          <Event name="MergeIntoEgoLane" priority="overwrite">
+            <Action name="MergeIntoEgoLaneAction">
+              <PrivateAction>
+                <LateralAction>
+                  <LaneChangeAction>
+                    <LaneChangeActionDynamics dynamicsShape="linear" value="25" dynamicsDimension="distance"/>
+                    <LaneChangeTarget>
+                      <RelativeTargetLane entityRef="hero" value="-1"/>
+                    </LaneChangeTarget>
+                  </LaneChangeAction>
+                </LateralAction>
+              </PrivateAction>
+            </Action>
+            <StartTrigger>
+                <ConditionGroup>
+                  <Condition name="AfterSpeedMatch" delay="0" conditionEdge="rising">
+                    <ByEntityCondition>
+                      <TriggeringEntities triggeringEntitiesRule="any">
+                        <EntityRef entityRef="hero"/>
+                      </TriggeringEntities>
+                      <EntityCondition>
+                        <TraveledDistanceCondition value="18.0"/>
+                      </EntityCondition>
+                    </ByEntityCondition>
+                  </Condition>
+                </ConditionGroup>
+            </StartTrigger>
+          </Event>
+            <Event name="AdversaryDecelerates" priority="overwrite">
+              <Action name="AdversaryDeceleratesAction">
+                <PrivateAction>
+                  <LongitudinalAction>
+                    <SpeedAction>
+                      <SpeedActionDynamics dynamicsShape="step" value="1" dynamicsDimension="time"/>
+                      <SpeedActionTarget>
+                        <AbsoluteTargetSpeed value="3.0"/>
+                      </SpeedActionTarget>
+                    </SpeedAction>
+                  </LongitudinalAction>
+                </PrivateAction>
+              </Action>
+              <StartTrigger>
+                <ConditionGroup>
+                  <Condition name="AfterMergeStart" delay="0" conditionEdge="rising">
+                    <ByEntityCondition>
+                      <TriggeringEntities triggeringEntitiesRule="any">
+                        <EntityRef entityRef="hero"/>
+                      </TriggeringEntities>
+                      <EntityCondition>
+                        <TraveledDistanceCondition value="26.0"/>
+                      </EntityCondition>
+                    </ByEntityCondition>
+                  </Condition>
+                </ConditionGroup>
+              </StartTrigger>
+            </Event>
+        </Maneuver>
+      </ManeuverGroup>
+      <ManeuverGroup name="SignalControl" maximumExecutionCount="1">
+        <Actors selectTriggeringEntities="false">
+          <EntityRef entityRef="hero"/>
+        </Actors>
+        <Maneuver name="SignalizedApproach">
+          <Event name="SetRed" priority="overwrite">
+            <Action name="SetRedAction">
+              <GlobalAction>
+                <InfrastructureAction>
+                  <TrafficSignalAction>
+                    <TrafficSignalStateAction name="id=19" state="red"/>
+                  </TrafficSignalAction>
+                </InfrastructureAction>
+              </GlobalAction>
+            </Action>
+            <StartTrigger>
+                <ConditionGroup>
+                  <Condition name="StartNowRed" delay="0" conditionEdge="rising">
+                    <ByValueCondition>
+                      <SimulationTimeCondition value="0" rule="equalTo"/>
+                    </ByValueCondition>
+                  </Condition>
+                </ConditionGroup>
+            </StartTrigger>
+          </Event>
+          <Event name="SetGreen" priority="overwrite">
+            <Action name="SetGreenAction">
+              <GlobalAction>
+                <InfrastructureAction>
+                  <TrafficSignalAction>
+                    <TrafficSignalStateAction name="id=19" state="green"/>
+                  </TrafficSignalAction>
+                </InfrastructureAction>
+              </GlobalAction>
+            </Action>
+            <StartTrigger>
+              <ConditionGroup>
+                <Condition name="EgoStoppedAtLight" delay="0" conditionEdge="rising">
+                  <ByEntityCondition>
+                    <TriggeringEntities triggeringEntitiesRule="any">
+                      <EntityRef entityRef="hero"/>
+                    </TriggeringEntities>
+                    <EntityCondition>
+                      <StandStillCondition duration="2"/>
+                    </EntityCondition>
+                  </ByEntityCondition>
+                </Condition>
+                <Condition name="MinimumApproachTime" delay="0" conditionEdge="rising">
+                  <ByValueCondition>
+                    <SimulationTimeCondition value="8" rule="greaterThan"/>
+                  </ByValueCondition>
+                </Condition>
+              </ConditionGroup>
+            </StartTrigger>
+          </Event>
+        </Maneuver>
+      </ManeuverGroup>
+      <ManeuverGroup name="HeroSpeed" maximumExecutionCount="1">
+        <Actors selectTriggeringEntities="false">
+          <EntityRef entityRef="hero"/>
+        </Actors>
+        <Maneuver name="ApproachSpeed">
+          <Event name="SetTargetSpeed" priority="overwrite">
+            <Action name="SetTargetSpeedAction">
+              <PrivateAction>
+                <LongitudinalAction>
+                  <SpeedAction>
+                    <SpeedActionDynamics dynamicsShape="step" value="1" dynamicsDimension="time"/>
+                    <SpeedActionTarget>
+                      <AbsoluteTargetSpeed value="8.33"/>
+                    </SpeedActionTarget>
+                  </SpeedAction>
+                </LongitudinalAction>
+              </PrivateAction>
+            </Action>
+            <StartTrigger>
+                <ConditionGroup>
+                  <Condition name="StartNowSpeed" delay="0" conditionEdge="rising">
+                    <ByValueCondition>
+                      <SimulationTimeCondition value="0" rule="equalTo"/>
+                    </ByValueCondition>
+                  </Condition>
+                </ConditionGroup>
+            </StartTrigger>
+          </Event>
+        </Maneuver>
+      </ManeuverGroup>
+      <StartTrigger>
+        <ConditionGroup>
+          <Condition name="ActStart" delay="0" conditionEdge="rising">
+            <ByValueCondition>
+              <SimulationTimeCondition value="0" rule="equalTo"/>
+            </ByValueCondition>
+          </Condition>
+        </ConditionGroup>
+      </StartTrigger>
+      <StopTrigger>
+        <ConditionGroup>
+          <Condition name="CutInResolved" delay="0" conditionEdge="rising">
+            <ByEntityCondition>
+              <TriggeringEntities triggeringEntitiesRule="any">
+                <EntityRef entityRef="hero"/>
+              </TriggeringEntities>
+              <EntityCondition>
+                <TraveledDistanceCondition value="50"/>
+              </EntityCondition>
+            </ByEntityCondition>
+          </Condition>
+          <Condition name="TimeCap" delay="0" conditionEdge="rising">
+            <ByValueCondition>
+              <SimulationTimeCondition value="150" rule="greaterThan"/>
+            </ByValueCondition>
+          </Condition>
+        </ConditionGroup>
+      </StopTrigger>
+    </Act>
+  </Story>
+  <StopTrigger>
+    <ConditionGroup>
+        <Condition name="criteria_CollisionTest" delay="0" conditionEdge="rising">
+          <ByValueCondition>
+            <ParameterCondition parameterRef="" value="" rule="lessThan"/>
+          </ByValueCondition>
+        </Condition>
+        <Condition name="criteria_RunningRedLightTest" delay="0" conditionEdge="rising">
+          <ByValueCondition>
+            <ParameterCondition parameterRef="" value="" rule="lessThan"/>
+          </ByValueCondition>
+        </Condition>
+    </ConditionGroup>
+  </StopTrigger>
+  </Storyboard>
+</OpenSCENARIO>

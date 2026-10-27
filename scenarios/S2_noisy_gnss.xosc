@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenSCENARIO>
+  <FileHeader revMajor="1" revMinor="0" date="2026-10-27T00:00:00" description="CARLA:BrightDrive S2 noisy GNSS urban segment" author="brightdrive"/>
+  <ParameterDeclarations/>
+  <CatalogLocations/>
+  <RoadNetwork>
+    <LogicFile filepath="Town05"/>
+    <SceneGraphFile filepath=""/>
+  </RoadNetwork>
+  <Entities>
+    <ScenarioObject name="hero">
+      <Vehicle name="vehicle.lincoln.mkz_2017" vehicleCategory="car">
+        <ParameterDeclarations/>
+        <Performance maxSpeed="69.444" maxAcceleration="200" maxDeceleration="10.0"/>
+        <BoundingBox>
+          <Center x="1.5" y="0.0" z="0.9"/>
+          <Dimensions width="2.1" length="4.5" height="1.8"/>
+        </BoundingBox>
+        <Axles>
+          <FrontAxle maxSteering="0.5" wheelDiameter="0.6" trackWidth="1.8" positionX="3.1" positionZ="0.3"/>
+          <RearAxle maxSteering="0.0" wheelDiameter="0.6" trackWidth="1.8" positionX="0.0" positionZ="0.3"/>
+        </Axles>
+        <Properties>
+          <Property name="type" value="ego_vehicle"/>
+          <Property name="role_name" value="hero"/>
+          <Property name="color" value="0,0,255"/>
+        </Properties>
+      </Vehicle>
+    </ScenarioObject>
+  </Entities>
+  <Storyboard>
+    <Init>
+      <Actions>
+        <GlobalAction>
+          <EnvironmentAction>
+            <Environment name="BrightDriveClear">
+              <TimeOfDay animation="false" dateTime="2026-10-27T12:00:00"/>
+              <Weather cloudState="free">
+                <Sun intensity="0.85" azimuth="0" elevation="1.31"/>
+                <Fog visualRange="100000.0"/>
+                <Precipitation precipitationType="dry" intensity="0.0"/>
+              </Weather>
+              <RoadCondition frictionScaleFactor="1.0"/>
+            </Environment>
+          </EnvironmentAction>
+        </GlobalAction>
+        <Private entityRef="hero">
+          <PrivateAction>
+            <ControllerAction>
+              <AssignControllerAction>
+                <Controller name="HeroAgent">
+                  <Properties>
+                    <Property name="module" value="carla_ros_scenario_runner.ros_vehicle_control"/>
+                    <Property name="launch-package" value="carla_ad_agent"/>
+                    <Property name="launch" value="carla_ad_agent.launch"/>
+                    <Property name="avoid_risk" value="true"/>
+                  </Properties>
+                </Controller>
+              </AssignControllerAction>
+              <OverrideControllerValueAction>
+                <Throttle value="0" active="false"/>
+                <Brake value="0" active="false"/>
+                <Clutch value="0" active="false"/>
+                <ParkingBrake value="0" active="false"/>
+                <SteeringWheel value="0" active="false"/>
+                <Gear number="0" active="false"/>
+              </OverrideControllerValueAction>
+            </ControllerAction>
+          </PrivateAction>
+          <PrivateAction>
+            <RoutingAction>
+              <AssignRouteAction>
+              <Route name="MappedLoopSegment" closed="false">
+                <ParameterDeclarations/>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="31.49" y="151.42" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="31.39" y="147.41" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="31.28" y="143.41" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="31.16" y="139.41" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="31.06" y="135.41" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="30.95" y="131.41" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="30.85" y="127.40" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="30.74" y="123.40" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="30.64" y="119.40" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="30.55" y="115.40" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="30.43" y="111.40" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="30.33" y="107.39" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="30.22" y="103.39" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="30.12" y="99.39" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="30.00" y="95.39" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="29.90" y="91.39" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="29.79" y="87.39" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="29.68" y="83.38" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="29.57" y="79.38" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="29.44" y="75.38" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="29.34" y="71.38" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="29.23" y="67.38" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="29.13" y="63.37" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="29.02" y="59.37" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.91" y="55.37" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.81" y="51.37" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.70" y="47.37" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.59" y="43.37" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.48" y="39.36" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.37" y="35.36" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.27" y="31.36" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.16" y="27.36" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.07" y="23.36" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.00" y="19.35" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="27.95" y="15.35" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="27.92" y="11.35" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="27.93" y="7.34" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="27.97" y="3.34" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.00" y="-0.66" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.02" y="-4.67" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.05" y="-8.67" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.07" y="-12.67" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.09" y="-16.68" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.09" y="-20.68" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.09" y="-24.68" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.09" y="-28.69" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.10" y="-32.69" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.09" y="-36.69" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.09" y="-40.70" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.09" y="-44.70" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.09" y="-48.70" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.09" y="-52.71" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.09" y="-56.71" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.08" y="-60.71" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.09" y="-64.72" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.08" y="-68.72" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.08" y="-72.72" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.08" y="-76.73" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.08" y="-80.73" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.07" y="-84.73" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.07" y="-88.74" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.07" y="-92.74" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.07" y="-96.74" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.06" y="-100.74" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.07" y="-104.75" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.07" y="-108.75" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.06" y="-112.75" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.06" y="-116.76" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.06" y="-120.76" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.06" y="-124.76" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.06" y="-128.77" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.06" y="-132.77" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.06" y="-136.77" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.05" y="-140.78" z="-0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.05" y="-144.78" z="0.00"/></Position></Waypoint>
+                <Waypoint routeStrategy="fastest"><Position><WorldPosition x="28.05" y="-148.78" z="0.00"/></Position></Waypoint>
+              </Route>
+              </AssignRouteAction>
+            </RoutingAction>
+          </PrivateAction>
+        </Private>
+      </Actions>
+    </Init>
+  <Story name="Drive">
+    <Act name="DriveAct">
+      <ManeuverGroup name="HeroManeuvers" maximumExecutionCount="1">
+        <Actors selectTriggeringEntities="false">
+          <EntityRef entityRef="hero"/>
+        </Actors>
+        <Maneuver name="FollowMappedRoute">
+          <Event name="SetTargetSpeed" priority="overwrite">
+            <Action name="SetTargetSpeedAction">
+              <PrivateAction>
+                <LongitudinalAction>
+                  <SpeedAction>
+                    <SpeedActionDynamics dynamicsShape="step" value="1" dynamicsDimension="time"/>
+                    <SpeedActionTarget>
+                      <AbsoluteTargetSpeed value="8.33"/>
+                    </SpeedActionTarget>
+                  </SpeedAction>
+                </LongitudinalAction>
+              </PrivateAction>
+            </Action>
+            <StartTrigger>
+                <ConditionGroup>
+                  <Condition name="StartNow" delay="0" conditionEdge="rising">
+                    <ByValueCondition>
+                      <SimulationTimeCondition value="0" rule="equalTo"/>
+                    </ByValueCondition>
+                  </Condition>
+                </ConditionGroup>
+            </StartTrigger>
+          </Event>
+        </Maneuver>
+      </ManeuverGroup>
+      <StartTrigger>
+                <ConditionGroup>
+                  <Condition name="ActStart" delay="0" conditionEdge="rising">
+                    <ByValueCondition>
+                      <SimulationTimeCondition value="0" rule="equalTo"/>
+                    </ByValueCondition>
+                  </Condition>
+                </ConditionGroup>
+      </StartTrigger>
+      <StopTrigger>
+        <ConditionGroup>
+          <Condition name="RouteCovered" delay="0" conditionEdge="rising">
+            <ByEntityCondition>
+              <TriggeringEntities triggeringEntitiesRule="any">
+                <EntityRef entityRef="hero"/>
+              </TriggeringEntities>
+              <EntityCondition>
+                <TraveledDistanceCondition value="290.0"/>
+              </EntityCondition>
+            </ByEntityCondition>
+          </Condition>
+          <Condition name="TimeCap" delay="0" conditionEdge="rising">
+            <ByValueCondition>
+              <SimulationTimeCondition value="120" rule="greaterThan"/>
+            </ByValueCondition>
+          </Condition>
+        </ConditionGroup>
+      </StopTrigger>
+    </Act>
+  </Story>
+  <StopTrigger>
+    <ConditionGroup>
+        <Condition name="criteria_CollisionTest" delay="0" conditionEdge="rising">
+          <ByValueCondition>
+            <ParameterCondition parameterRef="" value="" rule="lessThan"/>
+          </ByValueCondition>
+        </Condition>
+    </ConditionGroup>
+  </StopTrigger>
+  </Storyboard>
+</OpenSCENARIO>
