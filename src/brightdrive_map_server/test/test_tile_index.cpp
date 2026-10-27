@@ -53,30 +53,6 @@ TEST(TileIndex, ParsesTheBuilderBundle) {
   std::remove(path.c_str());
 }
 
-TEST(TileIndex, CellLookupIsFloorDivision) {
-  brightdrive::map_server::TileIndex index;
-  index.tile_size_m = 10.0;
-  index.origin_x_m = -5.0;
-  index.origin_y_m = 2.0;
-
-  auto cell = brightdrive::map_server::cell_of(index, 4.9, 11.9);
-  EXPECT_EQ(cell.first, 0);   // (4.9 - -5.0) / 10 = 0.99 -> 0
-  EXPECT_EQ(cell.second, 0);  // (11.9 - 2.0) / 10 = 0.99 -> 0
-
-  cell = brightdrive::map_server::cell_of(index, 5.1, 12.1);
-  EXPECT_EQ(cell.first, 1);
-  EXPECT_EQ(cell.second, 1);
-
-  // Negative cells: the floor, not truncation toward zero.
-  cell = brightdrive::map_server::cell_of(index, -5.1, 1.9);
-  EXPECT_EQ(cell.first, -1);
-  EXPECT_EQ(cell.second, -1);
-
-  cell = brightdrive::map_server::cell_of(index, -14.9, -8.1);
-  EXPECT_EQ(cell.first, -1);
-  EXPECT_EQ(cell.second, -2);
-}
-
 TEST(TileIndex, TileCenter) {
   brightdrive::map_server::TileIndex index;
   index.tile_size_m = 25.0;

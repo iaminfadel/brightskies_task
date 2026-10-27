@@ -29,10 +29,6 @@ struct TileIndex {
   std::vector<TileEntry> tiles;
 };
 
-// The grid cell of a map-coordinate point, O(1) floor division -- the
-// contract the server consumes (build_map.py tile_lookup mirrored in C++).
-std::pair<std::int64_t, std::int64_t> cell_of(const TileIndex& index, double x, double y);
-
 // Centre of a grid cell in map coordinates (the point tile distance is
 // measured against for windowing).
 void tile_center(const TileIndex& index, std::int64_t ix, std::int64_t iy, double& cx, double& cy);

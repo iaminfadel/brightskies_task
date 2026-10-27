@@ -16,7 +16,6 @@ find_package(geometry_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
-find_package(small_gicp REQUIRED)
 find_package(brightdrive_localization REQUIRED)
 
 add_library(brightdrive_map_server_core
