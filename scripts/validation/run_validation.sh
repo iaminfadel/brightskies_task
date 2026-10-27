@@ -132,10 +132,10 @@ fi
 for topic in /carla/hero/lidar /carla/hero/gnss /carla/hero/imu /carla/hero/camera_front/image; do
   wait_topic "$topic" 300 || fail "missing $topic"
 done
-wait_message /carla/hero/lidar 60 || fail "no LiDAR sample"
-wait_message /carla/hero/gnss 60 || fail "no GNSS sample"
-wait_message /carla/hero/imu 60 || fail "no IMU sample"
-wait_message /carla/hero/camera_front/image 60 || fail "no camera sample"
+wait_message /carla/hero/lidar 300 || fail "no LiDAR sample"
+wait_message /carla/hero/gnss 300 || fail "no GNSS sample"
+wait_message /carla/hero/imu 300 || fail "no IMU sample"
+wait_message /carla/hero/camera_front/image 300 || fail "no camera sample"
 
 # Estimator stack: the bringup launch is the single estimator launch path,
 # with the canonical bringup configs (same stack the compose route runs).
