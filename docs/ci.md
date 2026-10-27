@@ -60,7 +60,7 @@ History:
 | Date | Gate | Transition | Evidence |
 |---|---|---|---|
 | 2026-10-24 | ci/lint, ci/build-test on PRs | required, proven green | PR #21 (feature→staging) and #22 (promotion→main), all checks SUCCESS; v0.1 tagged at fa1f765 |
-| pending | carla-smoke on staging | advisory; BLOCKED on WIF: the GCP workload-identity provider's attribute condition only accepts refs/heads/main, so staging pushes fail auth (`unauthorized_client`). Recreate the provider with a condition accepting staging (and dispatch) before this gate can be proven | run 40088184551 |
+| 2026-10-26 | carla-smoke on staging | advisory; WIF blocker cleared: provider recreated as `github-oidc-v2` accepting `refs/heads/main`, `refs/heads/staging`, and `workflow_dispatch` (#42); first green run end-to-end (auth → SSH → deploy → CARLA → validation → evidence), then green from a fully cold VM after sensor-wait + stockout-retry hardening | runs 40408962888, 40530646416; ratchet continues (needs consecutive greens + forced-fail) |
 | pending | full KPI matrix on promotion | requires scenario harness (#10) + evaluator (#11) | promotion run + forced-fail run |
 
 ## Workflows
