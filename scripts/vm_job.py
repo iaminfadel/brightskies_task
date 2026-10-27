@@ -54,7 +54,17 @@ def start_vm():
     if st not in ("RUNNING",):
         if st in ("MISSING",):
             raise SystemExit(f"VM {VM} is MISSING; provision first")
-        gcloud("compute", "instances", "start", VM, "--zone", ZONE, "--quiet")
+        # GCP T4 stockout on start is transient (capacity, not quota); retry.
+        for attempt in range(1, 6):
+            r = gcloud("compute", "instances", "start", VM, "--zone", ZONE,
+                       "--quiet", check=False, capture=True)
+            if r.returncode == 0:
+                break
+            print(f"vm start attempt {attempt} failed:", flush=True)
+            print((r.stderr or "").strip()[-400:], flush=True)
+            if attempt == 5:
+                raise SystemExit(f"gcloud compute instances start failed: {r.stderr}")
+            time.sleep(90)
     # wait IAP SSH
     deadline = time.time() + 600
     while time.time() < deadline:
