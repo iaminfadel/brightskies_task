@@ -2,18 +2,9 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include <cmath>
 #include <stdexcept>
 
 namespace brightdrive::map_server {
-
-std::pair<std::int64_t, std::int64_t> cell_of(const TileIndex& index, double x, double y) {
-  const double size = index.tile_size_m;
-  return {
-      static_cast<std::int64_t>(std::floor((x - index.origin_x_m) / size)),
-      static_cast<std::int64_t>(std::floor((y - index.origin_y_m) / size)),
-  };
-}
 
 void tile_center(const TileIndex& index, std::int64_t ix, std::int64_t iy, double& cx, double& cy) {
   cx = index.origin_x_m + (static_cast<double>(ix) + 0.5) * index.tile_size_m;

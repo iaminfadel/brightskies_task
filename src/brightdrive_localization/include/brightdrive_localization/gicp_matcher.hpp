@@ -71,8 +71,6 @@ class GicpMatcher {
 
   bool healthy() const { return static_cast<bool>(map_cloud_) && static_cast<bool>(map_tree_); }
 
-  const GicpSettings& settings() const { return settings_; }
-
  private:
   GicpSettings settings_;
   small_gicp::PointCloud::ConstPtr map_cloud_;

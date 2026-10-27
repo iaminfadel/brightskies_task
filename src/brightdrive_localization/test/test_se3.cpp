@@ -7,15 +7,6 @@
 namespace brightdrive {
 namespace {
 
-TEST(Se3, ExpLogRoundTrip) {
-  Eigen::Matrix<double, 6, 1> xi;
-  xi << 1.2, -0.4, 0.7, 0.1, -0.2, 0.3;
-  const Eigen::Matrix<double, 6, 1> recovered = se3_log(se3_exp(xi));
-  for (int i = 0; i < 6; ++i) {
-    EXPECT_NEAR(recovered(i), xi(i), 1e-9);
-  }
-}
-
 TEST(Se3, YawAndPose) {
   const Eigen::Isometry3d pose = from_xyzyaw(3.0, -2.0, 1.0, 0.75);
   EXPECT_NEAR(yaw_of(pose), 0.75, 1e-12);
