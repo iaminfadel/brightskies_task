@@ -43,7 +43,6 @@ class HealthMonitor {
   HealthOutput update(const HealthInput& input);
 
   HealthState state() const { return state_; }
-  const std::string& reason() const { return reason_; }
 
   // Test helpers.
   void set_state_for_test(HealthState state, const std::string& reason);

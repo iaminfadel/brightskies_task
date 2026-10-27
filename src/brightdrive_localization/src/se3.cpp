@@ -6,33 +6,6 @@
 
 namespace brightdrive {
 
-Eigen::Matrix<double, 6, 1> se3_log(const Eigen::Isometry3d& transform) {
-  Eigen::Matrix<double, 6, 1> xi;
-  xi.head<3>() = transform.translation();
-
-  const Eigen::AngleAxisd angle_axis(transform.linear());
-  const double angle = angle_axis.angle();
-  if (angle < 1e-12) {
-    xi.tail<3>() = angle_axis.axis() * angle;
-  } else {
-    xi.tail<3>() = angle_axis.axis() * angle;
-  }
-  return xi;
-}
-
-Eigen::Isometry3d se3_exp(const Eigen::Matrix<double, 6, 1>& xi) {
-  Eigen::Isometry3d transform = Eigen::Isometry3d::Identity();
-  const Eigen::Vector3d rotation = xi.tail<3>();
-  const double angle = rotation.norm();
-  if (angle < 1e-12) {
-    transform.linear() = Eigen::Matrix3d::Identity();
-  } else {
-    transform.linear() = Eigen::AngleAxisd(angle, rotation.normalized()).toRotationMatrix();
-  }
-  transform.translation() = xi.head<3>();
-  return transform;
-}
-
 Eigen::Matrix<double, 6, 6> se3_adjoint(const Eigen::Isometry3d& transform) {
   Eigen::Matrix<double, 6, 6> adjoint = Eigen::Matrix<double, 6, 6>::Zero();
   const Eigen::Matrix3d rotation = transform.linear();
