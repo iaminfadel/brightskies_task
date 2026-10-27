@@ -204,13 +204,13 @@
                 <EntityRef entityRef="hero"/>
               </TriggeringEntities>
               <EntityCondition>
-                <TraveledDistanceCondition value="290.0"/>
+                <TraveledDistanceCondition value="300.0"/>
               </EntityCondition>
             </ByEntityCondition>
           </Condition>
           <Condition name="TimeCap" delay="0" conditionEdge="rising">
             <ByValueCondition>
-              <SimulationTimeCondition value="120" rule="greaterThan"/>
+              <SimulationTimeCondition value="90" rule="greaterThan"/>
             </ByValueCondition>
           </Condition>
         </ConditionGroup>

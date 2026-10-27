@@ -83,13 +83,32 @@ def test_relay_profile_loader_and_degradation():
     with pytest.raises(KeyError):
         gnss_relay._load_profile(str(PROFILES_FILE), "does-not-exist")
 
-    # Deterministic seeding: same seed -> same noise sequence.
-    relay_a = gnss_relay.GnssRelay.__new__(gnss_relay.GnssRelay)
-    relay_a._rng = __import__("numpy").random.RandomState(7)
-    relay_b = gnss_relay.GnssRelay.__new__(gnss_relay.GnssRelay)
-    relay_b._rng = __import__("numpy").random.RandomState(7)
-    for _ in range(5):
-        assert relay_a._rng.normal(0, 1) == relay_b._rng.normal(0, 1)
+    # Degradation math: the noisy profile moves the fix by its constant
+    # bias plus seeded noise, deterministically for a given seed.
+    numpy = __import__("numpy")
+    rng_a = numpy.random.RandomState(7)
+    rng_b = numpy.random.RandomState(7)
+    fix_a = gnss_relay.degrade_fix(
+        40.0, -73.0, 5.0, rng=rng_a, sigma_h_m=5.0, sigma_v_m=10.0,
+        bias_east_m=1.2, bias_north_m=1.6, degrees_per_metre=dpm,
+    )
+    fix_b = gnss_relay.degrade_fix(
+        40.0, -73.0, 5.0, rng=rng_b, sigma_h_m=5.0, sigma_v_m=10.0,
+        bias_east_m=1.2, bias_north_m=1.6, degrees_per_metre=dpm,
+    )
+    assert fix_a == fix_b  # same seed replays the same degradation
+    assert fix_a != (40.0, -73.0, 5.0)  # the profile actually moved the fix
+    lat, lon, alt = fix_a
+    # bias 1.6 m + noise sigma 5 m per axis at 1e-5 deg/m: |offset| < 30 m
+    # is beyond five sigmas of the per-axis model.
+    assert abs(lat - 40.0) < 3e-4
+    assert abs(lon + 73.0) < 3e-4
+    assert abs(alt - 5.0) < 60.0  # 10 m sigma, no bias
+
+    # Dropout windows: inside a window the fix is dropped entirely.
+    assert gnss_relay.is_dropped(16.0, [(15.0, 17.0)])
+    assert not gnss_relay.is_dropped(14.99, [(15.0, 17.0)])
+    assert not gnss_relay.is_dropped(17.0, [(15.0, 17.0)])
 
 
 # ------------------------------------------------------------ SR pin

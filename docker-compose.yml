@@ -175,6 +175,10 @@ services:
       # Shared GNSS degradation profile (#37): the estimator covariance and
       # the scenario relay read the same profile, selected by this one var.
       GNSS_PROFILE: ${GNSS_PROFILE:-}
+      # Seeded GNSS noise (#37, #10 §10): the relay samples noise with the
+      # profile seed offset by the run seed, so a stack brought up with a
+      # different SCENARIO_SEED samples different noise.
+      SCENARIO_SEED: ${SCENARIO_SEED:-0}
     command:
       - /bin/bash
       - -lc

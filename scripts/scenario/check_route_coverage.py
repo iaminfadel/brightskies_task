@@ -125,43 +125,25 @@ def run_preflight(scenario_file, map_eval_file, trajectory_file, coverage_m=20.0
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("scenario_file", help="OpenSCENARIO (.xosc) file")
-    parser.add_argument("--map-eval", default=str(REPO / "docs/results/map/town05-v14-pg/map_eval.yaml"),
+    parser.add_argument("--map-eval",
+                        default=str(REPO / "docs/results/map/town05-v14-pg/map_eval.yaml"),
                         help="map_eval.yaml with T_map_carla")
-    parser.add_argument("--trajectory", default=str(REPO / "maps/town05-v14-pg/coverage.tum"),
+    parser.add_argument("--trajectory",
+                        default=str(REPO / "maps/town05-v14-pg/coverage.tum"),
                         help="mapping trajectory (TUM) in the map frame")
     parser.add_argument("--coverage-m", type=float, default=20.0,
                         help="coverage envelope around the mapping trajectory")
     parser.add_argument("--json-out", default=None, help="write a summary JSON here")
     args = parser.parse_args()
 
-    t_map_carla = load_t_map_carla(args.map_eval)
-    trajectory = load_trajectory(args.trajectory)
-
-    positions = osc_world_positions(args.scenario_file)
-    points = [p for _, p in positions]
-    route_map = osc_to_map(points, t_map_carla)
-    distances = coverage_distances(route_map, trajectory)
-
-    kinds = [kind for kind, _ in positions]
-    worst_idx = int(np.argmax(distances))
-    summary = {
-        "scenario_file": str(args.scenario_file),
-        "map_eval": str(args.map_eval),
-        "trajectory": str(args.trajectory),
-        "coverage_m": args.coverage_m,
-        "waypoints": len(distances),
-        "max_distance_m": float(distances[worst_idx]),
-        "mean_distance_m": float(distances.mean()),
-        "worst_waypoint": {"kind": kinds[worst_idx],
-                           "osc": [round(v, 3) for v in points[worst_idx]],
-                           "map": [round(float(v), 3) for v in route_map[worst_idx]]},
-        "inside_coverage": bool(distances.max() <= args.coverage_m),
-    }
+    summary = run_preflight(args.scenario_file, args.map_eval, args.trajectory,
+                            args.coverage_m)
     if args.json_out:
         Path(args.json_out).write_text(json.dumps(summary, indent=2) + "\n")
 
     print(
-        f"coverage: {len(distances)} waypoints, max {summary['max_distance_m']:.2f} m "
+        f"coverage: {summary['waypoints']} waypoints, "
+        f"max {summary['max_distance_m']:.2f} m "
         f"(envelope {args.coverage_m:.0f} m) -> "
         f"{'INSIDE' if summary['inside_coverage'] else 'OUTSIDE'}"
     )

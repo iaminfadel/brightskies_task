@@ -70,7 +70,9 @@ GT_BAG_TOPICS = [
 
 
 def verify_scenario_runner():
-    """The repo pin is the source of truth, not the image (#37)."""
+    """The repo pin is the source of truth, not the image (#37). The pin is
+    the upstream commit PLUS the recorded patch_sr.py adaptations: after
+    patching, the only local change may be scenario_runner.py."""
     pin = yaml.safe_load(SR_PIN.read_text())
     path = pin.get("path", SR_ROOT)
     if not Path(path, "scenario_runner.py").is_file():
@@ -83,7 +85,16 @@ def verify_scenario_runner():
         raise RuntimeError(
             f"ScenarioRunner pin mismatch: repo pins {pin['commit']}, image has {actual}"
         )
-    return pin["tag"], actual
+    status = subprocess.run(
+        ["git", "-C", path, "status", "--porcelain"],
+        capture_output=True, text=True, check=True,
+    ).stdout.splitlines()
+    patched_files = sorted(line[3:] for line in status if line.strip())
+    if patched_files not in ([], ["scenario_runner.py"]):
+        raise RuntimeError(
+            f"ScenarioRunner checkout has unexpected local changes: {patched_files}"
+        )
+    return pin["tag"], actual, bool(patched_files)
 
 
 class EventLog:
@@ -114,6 +125,7 @@ class RuntimeMonitor(Node):
         self.health_state = None
         self.last_gnss_sim = None
         self.dropout_open = False
+        self._light_states = {}
 
         from brightdrive_interfaces.msg import LocalizationStatus
         self.create_subscription(
@@ -124,6 +136,40 @@ class RuntimeMonitor(Node):
             NavSatFix, "/localization/gnss", self._on_gnss, qos_profile_sensor_data
         )
         self.create_subscription(Clock, "/clock", self._on_clock, qos_profile_sensor_data)
+        # S4 event sources (#10 §11): signal state changes and the cut-in
+        # adversary's first appearance in the object list.
+        self.objects_seen = 0
+        try:
+            from carla_msgs.msg import CarlaTrafficLightStatusList
+            self.create_subscription(
+                CarlaTrafficLightStatusList, "/carla/traffic_lights/status",
+                self._on_lights, qos_profile_sensor_data,
+            )
+        except ImportError:
+            pass
+        try:
+            from carla_msgs.msg import CarlaObjectList
+            self.create_subscription(
+                CarlaObjectList, "/carla/hero/objects", self._on_objects,
+                qos_profile_sensor_data,
+            )
+        except ImportError:
+            pass
+
+    def _on_lights(self, msg):
+        states = {light.id: int(light.state) for light in msg.lights}
+        if states != self._light_states:
+            changed = {k: v for k, v in states.items()
+                       if self._light_states.get(k) != v}
+            self._light_states = states
+            self._events.write("signal_state", sim_time=self.sim_time, lights=changed)
+
+    def _on_objects(self, msg):
+        count = len(getattr(msg, "objects", []))
+        if count > self.objects_seen and self.objects_seen <= 1 and count >= 2:
+            self._events.write("adversary_detected", sim_time=self.sim_time,
+                               objects=count)
+        self.objects_seen = count
 
     def _on_clock(self, msg):
         self.sim_time = float(msg.clock.sec) + float(msg.clock.nanosec) * 1e-9
@@ -326,9 +372,16 @@ def scenario_environment():
     return env
 
 
-def run_once(meta, scenario_file, seed, run_dir: Path, profile, events, monitor):
+def run_once(meta, scenario_file, seed, run_dir: Path, profile, events, monitor,
+             relay_seed=0):
     events.write("run_start", sim_time=monitor.sim_time, seed=seed, profile=profile,
-                 scenario_file=str(scenario_file))
+                 scenario_file=str(scenario_file), relay_seed=relay_seed)
+    if relay_seed != seed:
+        events.write(
+            "seed_env_mismatch", sim_time=monitor.sim_time, requested=seed,
+            note="the GNSS relay samples with the stack's SCENARIO_SEED; "
+                 "multi-seed averaging requires one stack per seed",
+        )
     estimator_bag, gt_bag = start_recorders(run_dir, events, monitor)
     try:
         respawn_hero(str(REPO / "config/scenario/objects_scenario.json"), events, monitor,
@@ -460,7 +513,7 @@ def main():
 
     # ---- pre-flight: nothing expensive starts before these pass ----
     stack_preflight()
-    tag, commit = verify_scenario_runner()
+    tag, commit, patched = verify_scenario_runner()
     print(f"scenario_runner pinned: {tag} ({commit})", flush=True)
 
     map_eval = args.map_eval or str(
@@ -481,6 +534,7 @@ def main():
     overall = 0
 
     rclpy.init()
+    relay_seed = int(os.environ.get("SCENARIO_SEED", "0") or 0)
     for run_index in range(args.seed_runs):
         seed = args.seed + 10 * run_index
         os.environ["SCENARIO_SEED"] = str(seed)
@@ -501,7 +555,8 @@ def main():
 
         try:
             verdict, sr_json = run_once(
-                meta, scenario_file, seed, run_dir, profile, events, monitor
+                meta, scenario_file, seed, run_dir, profile, events, monitor,
+                relay_seed,
             )
         except Exception as error:  # noqa: BLE001 - log visibly, fail the run
             events.write("harness_error", sim_time=monitor.sim_time, error=str(error))
@@ -515,7 +570,7 @@ def main():
             "ci_set": meta["ci_set"], "verdict": verdict, "passed": passed,
             "scenario_file": str(scenario_file),
             "map_dir": args.map_dir, "coverage": coverage,
-            "scenario_runner": {"tag": tag, "commit": commit},
+            "scenario_runner": {"tag": tag, "commit": commit, "patched": patched},
             "sr_results": str(sr_json) if sr_json else None,
             "bags": {"estimator": str(run_dir / "bags/estimator"),
                      "gt": str(run_dir / "bags/gt")},

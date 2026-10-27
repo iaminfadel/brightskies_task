@@ -34,6 +34,29 @@ def _load_profile(path, name):
     return doc["degrees_per_metre"], profiles[name]
 
 
+def is_dropped(sim_time, dropout_windows):
+    """True when sim_time falls inside a profile dropout window."""
+    return any(start <= sim_time < end for start, end in dropout_windows)
+
+
+def degrade_fix(lat_deg, lon_deg, alt_m, rng, sigma_h_m, sigma_v_m,
+                bias_east_m, bias_north_m, degrees_per_metre):
+    """Apply the profile to one fix: pure so the tests can exercise it.
+
+    Independent horizontal noise on the two axes (sigma_h is the per-axis
+    model the estimator's sigma_xy_m mirrors), constant east/north bias,
+    Gaussian vertical noise, all in metres -> degrees.
+    """
+    noise_east = float(rng.normal(0.0, sigma_h_m))
+    noise_north = float(rng.normal(0.0, sigma_h_m))
+    noise_alt = float(rng.normal(0.0, sigma_v_m))
+    return (
+        lat_deg + (bias_north_m + noise_north) * degrees_per_metre,
+        lon_deg + (bias_east_m + noise_east) * degrees_per_metre,
+        alt_m + noise_alt,
+    )
+
+
 class GnssRelay(Node):
     def __init__(self):
         super().__init__("gnss_relay")
@@ -72,25 +95,25 @@ class GnssRelay(Node):
         )
 
     def _dropped(self, sim_time):
-        return any(start <= sim_time < end for start, end in self._dropout_windows)
+        return is_dropped(sim_time, self._dropout_windows)
 
     def _on_gnss(self, msg: NavSatFix) -> None:
         sim_time = float(msg.header.stamp.sec) + float(msg.header.stamp.nanosec) * 1e-9
         if self._dropped(sim_time):
             return
 
-        # Independent horizontal noise on the two axes; sigma_h is the
-        # per-axis model the estimator's sigma_xy_m mirrors.
-        noise_east = float(self._rng.normal(0.0, self._sigma_h))
-        noise_north = float(self._rng.normal(0.0, self._sigma_h))
-        noise_alt = float(self._rng.normal(0.0, self._sigma_v))
-
+        lat, lon, alt = degrade_fix(
+            msg.latitude, msg.longitude, msg.altitude,
+            rng=self._rng, sigma_h_m=self._sigma_h, sigma_v_m=self._sigma_v,
+            bias_east_m=self._bias_east_m, bias_north_m=self._bias_north_m,
+            degrees_per_metre=self._degrees_per_metre,
+        )
         out = NavSatFix()
         out.header = msg.header
         out.status = msg.status
-        out.latitude = msg.latitude + (self._bias_north_m + noise_north) * self._degrees_per_metre
-        out.longitude = msg.longitude + (self._bias_east_m + noise_east) * self._degrees_per_metre
-        out.altitude = msg.altitude + noise_alt
+        out.latitude = lat
+        out.longitude = lon
+        out.altitude = alt
         # CARLA ships zero covariance; the estimator's covariance comes from
         # the shared profile (localization.launch.py), not from this message.
         out.position_covariance = msg.position_covariance

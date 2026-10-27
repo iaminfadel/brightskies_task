@@ -26,19 +26,8 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 
 
-def load_t_map_carla(map_eval_file):
-    doc = json.loads(Path(map_eval_file).read_text())
-    return np.asarray(doc["T_map_carla"], dtype=np.float64).reshape(4, 4)
-
-
-def load_trajectory(tum_file):
-    rows = []
-    with open(tum_file, "r", encoding="utf-8") as handle:
-        for line in handle:
-            parts = line.split()
-            if len(parts) >= 8:
-                rows.append([float(v) for v in parts[1:4]])
-    return np.asarray(rows)  # tx ty tz per pose, map frame
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from check_route_coverage import load_t_map_carla, load_trajectory  # noqa: E402
 
 
 def map_to_carla(points_map, t_map_carla):
@@ -161,17 +150,17 @@ def traffic_lights_near(route, max_dist_m=40.0):
     lights = []
     for light in world.get_actors().filter("traffic.traffic_light"):
         loc = light.get_location()
-        dist = float(np.min(np.linalg.norm(route[:, :2] - np.array([loc.x, loc.y]), axis=1)))
+        deltas = route[:, :2] - np.array([loc.x, loc.y])
+        dist = float(np.min(np.linalg.norm(deltas, axis=1)))
         if dist <= max_dist_m:
             lights.append({
                 "id": light.id,
                 "carla": [round(loc.x, 2), round(loc.y, 2), round(loc.z, 2)],
                 "distance_m": round(dist, 2),
                 "pole_index": light.get_pole_index(),
-                "road_id": light.get_group_traffic_lights() and None,
             })
-            lights[-1].pop("road_id")
-    return {"lights": sorted(lights, key=lambda light: light["distance_m"])}
+    lights.sort(key=lambda light: light["distance_m"])
+    return {"lights": lights}
 
 
 def main():
