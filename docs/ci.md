@@ -99,6 +99,14 @@ under the existing lifecycle rules; small reports on GitHub.
   staging merge to narrow suspects; revert in staging; re-promote.
 - **Preempted (exit 44)**: infra failure; vm_job retries once on a fresh VM.
   Never treat a preemption as a test result.
+- **Post-promotion sync (required ritual)**: squash merges never link the
+  staging and main histories, so with "branches must be up to date" enabled
+  the *next* promotion is blocked until staging re-contains main's head.
+  After every promotion merge:
+  `git fetch origin && git checkout -B staging-sync origin/staging &&
+   git merge origin/main && git push origin staging-sync:staging`
+  (trees are identical at that point, so the merge is trivial; if docs
+  conflict, staging's copy wins - it is the newer reviewed version).
 
 ## v0.1 bootstrap
 

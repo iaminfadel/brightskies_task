@@ -11,11 +11,12 @@ CONTEXTS='["ci / lint", "ci / build-test"]'
 
 gh auth status >/dev/null
 
-echo "==> repo merge policy: squash only, auto-delete merged branches"
+echo "==> repo merge policy: squash only, auto-delete merged branches, auto-merge on"
 gh api -X PATCH "repos/$REPO" \
   -f allow_squash_merge=true \
   -f allow_merge_commit=false \
   -f allow_rebase_merge=false \
+  -f allow_auto_merge=true \
   -f delete_branch_on_merge=true >/dev/null
 
 echo "==> staging branch (integration, protected below)"
