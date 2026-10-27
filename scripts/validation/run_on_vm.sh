@@ -12,7 +12,18 @@ fi
 CARLA_IMAGE="${CARLA_IMAGE:-carlasim/carla:0.9.15@sha256:1af47c314443f4a2d0869ac399c5b5eabde138a5bc39dd31dcbb1540e22f5588}"
 DEPS_IMAGE="${DEPS_IMAGE:-ghcr.io/iaminfadel/brightdrive-deps:validation}"
 
+# /ws/evidence persists on the VM disk between runs; stale logs from the
+# previous run otherwise end up mixed into this run's evidence tails.
+rm -rf "$EVIDENCE"
 mkdir -p "$EVIDENCE/logs"
+
+# After a cold boot the job can SSH in before dockerd is accepting commands;
+# without this wait the image checks below misreport "missing image".
+for _ in $(seq 1 60); do
+  docker info >/dev/null 2>&1 && break
+  sleep 5
+done
+docker info >/dev/null 2>&1 || { echo "docker daemon not reachable" >&2; exit 1; }
 
 docker image inspect "$CARLA_IMAGE" >/dev/null 2>&1 || {
   echo "missing CARLA image: $CARLA_IMAGE" >&2

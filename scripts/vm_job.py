@@ -23,8 +23,8 @@ for candidate in (os.path.expanduser("~/google-cloud-sdk/bin"), "/usr/lib/google
 
 PREEMPTED_EXIT = 44
 PROJECT = os.environ.get("PROJECT_ID", "project-e038f785-ff95-4654-ba6")
-ZONE = os.environ.get("ZONE", "europe-west4-c")
-VM = os.environ.get("VM_NAME", "brightskies-vm")
+ZONE = os.environ.get("ZONE", "europe-west4-a")
+VM = os.environ.get("VM_NAME", "brightdrive-vm")
 REPO = Path(__file__).resolve().parents[1]
 INFRA = REPO / "infra"
 
@@ -54,7 +54,17 @@ def start_vm():
     if st not in ("RUNNING",):
         if st in ("MISSING",):
             raise SystemExit(f"VM {VM} is MISSING; provision first")
-        gcloud("compute", "instances", "start", VM, "--zone", ZONE, "--quiet")
+        # GCP T4 stockout on start is transient (capacity, not quota); retry.
+        for attempt in range(1, 6):
+            r = gcloud("compute", "instances", "start", VM, "--zone", ZONE,
+                       "--quiet", check=False, capture=True)
+            if r.returncode == 0:
+                break
+            print(f"vm start attempt {attempt} failed:", flush=True)
+            print((r.stderr or "").strip()[-400:], flush=True)
+            if attempt == 5:
+                raise SystemExit(f"gcloud compute instances start failed: {r.stderr}")
+            time.sleep(90)
     # wait IAP SSH
     deadline = time.time() + 600
     while time.time() < deadline:
@@ -66,6 +76,8 @@ def start_vm():
         if r.returncode == 0:
             print("IAP SSH ready", flush=True)
             return
+        print(f"ssh attempt failed (rc={r.returncode}):", flush=True)
+        print((r.stderr or r.stdout or "").strip()[-500:], flush=True)
         time.sleep(10)
     raise SystemExit("timed out waiting for IAP SSH")
 

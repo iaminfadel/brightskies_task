@@ -64,6 +64,10 @@ for role in roles/compute.instanceAdmin.v1 roles/iap.tunnelResourceAccessor; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:$CI_SA" --role="$role" --condition=None >/dev/null
 done
+# gcloud compute ssh on the VM (instance metadata path) requires acting as the
+# VM's service account.
+gcloud iam service-accounts add-iam-policy-binding "$VM_SA" \
+  --member="serviceAccount:$CI_SA" --role=roles/iam.serviceAccountUser >/dev/null
 for role in roles/logging.logWriter roles/monitoring.metricWriter; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:$VM_SA" --role="$role" --condition=None >/dev/null
@@ -86,7 +90,7 @@ if ! gcloud iam workload-identity-pools providers describe "$WIF_PROVIDER" \
     --display-name="GitHub OIDC" \
     --issuer-uri=https://token.actions.githubusercontent.com \
     --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref" \
-    --attribute-condition="assertion.repository == '${REPO}' && assertion.ref == 'refs/heads/main'"
+    --attribute-condition="assertion.repository == '${REPO}' && (assertion.ref == 'refs/heads/main' || assertion.ref == 'refs/heads/staging')"
 fi
 gcloud iam service-accounts add-iam-policy-binding "$CI_SA" \
   --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$WIF_POOL/attribute.repository/$REPO" \

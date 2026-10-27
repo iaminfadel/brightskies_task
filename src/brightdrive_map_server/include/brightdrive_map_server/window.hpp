@@ -3,7 +3,6 @@
 #pragma once
 
 #include <Eigen/Core>
-
 #include <set>
 #include <string>
 #include <vector>
@@ -21,8 +20,7 @@ struct WindowParams {
 // (x, y) must be served; a tile already in `current` survives until its
 // centre passes R_evict, so boundary noise cannot thrash loads.
 std::set<std::string> serving_set(const TileIndex& index, double x, double y,
-                                  const std::set<std::string>& current,
-                                  const WindowParams& params);
+                                  const std::set<std::string>& current, const WindowParams& params);
 
 // Keys the tile cache and the serving set ("ix_iy", matching the bundle's
 // tile file naming).

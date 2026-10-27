@@ -13,21 +13,19 @@
 //
 // The grid itself is not a serving knob: origin and tile size come from the
 // builder's map_index.yaml (#32); everything else is a YAML parameter.
-#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
-#include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <sensor_msgs/msg/point_field.hpp>
-
 #include <Eigen/Core>
-
 #include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
 #include <cstring>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <mutex>
 #include <optional>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/point_field.hpp>
 #include <set>
 #include <string>
 #include <thread>
