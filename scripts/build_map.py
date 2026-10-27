@@ -256,7 +256,7 @@ def gnss_imu_states(gnss, imu, scan_stamps, lever_m):
     The IMU reports CARLA-frame heading; sign and constant offset are
     resolved against the GNSS course over moving windows."""
     yaws_raw = np.asarray([nearest_imu(imu, stamp)[1] for stamp in scan_stamps])
-    course_yaws, _ = gnss_course_priors(gnss, imu, scan_stamps, lever_m)
+    course_yaws, _ = gnss_course_priors(gnss, imu, scan_stamps)
     moving = np.abs(wrap_angle(course_yaws - np.roll(course_yaws, 20))) > math.radians(5)
     moving[:20] = False
 
@@ -707,7 +707,7 @@ def main():
             # in-graph -- dropping it constrains lidar poses to antenna
             # positions, a systematic 1 m heading-direction error).
             lever = float(base_gnss[0]) - float(base_lidar[0])
-            course, _ = gnss_course_priors(gnss, imu, scan_stamps, lever)
+            course, _ = gnss_course_priors(gnss, imu, scan_stamps)
             moving = np.abs(wrap_angle(course - np.roll(course, 15))) > math.radians(2.0)
             for edge in gnss_edges:
                 edge["lever"] = lever
@@ -735,7 +735,7 @@ def main():
             ]
             lever = float(base_gnss[0]) - float(base_lidar[0])
             east, north, alt = gnss_enu(gnss, scan_stamps)
-            course, _ = gnss_course_priors(gnss, imu, scan_stamps, lever)
+            course, _ = gnss_course_priors(gnss, imu, scan_stamps)
             # GNSS factors: antenna ENU positions with the antenna->lidar
             # lever modeled in-graph (rotates with the state yaw), plus
             # course-over-ground yaw where the course is actually moving
