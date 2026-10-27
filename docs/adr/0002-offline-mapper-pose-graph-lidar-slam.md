@@ -1,7 +1,7 @@
 # ADR 0002: Offline mapper is lidar pose-graph SLAM, GNSS-anchored
 
 - Status: accepted (2026-10-25)
-- Context: BrightDrive task §1 (mapping), `CONTEXT.md`; gates: `docs/handoff-mapping-validation.md`
+- Context: BrightDrive task §1 (mapping), `CONTEXT.md`; gates: `docs/results/map/town05-v14-pg/`
 
 ## Context
 
