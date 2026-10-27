@@ -126,8 +126,6 @@ Artifacts:
 - `docs/results/map/town05-v14-pg/`: gate evidence — ATE, held-out selection, loop and
   map consistency, coverage, plots.
 - GCS: `gs://brightskies-artifacts-330586358676/maps/town05-v14-pg/` (full bundle).
-- `maps/town05-v2/` and `docs/results/map/town05-v2/` keep the superseded
-  GNSS-course-yaw map for the before/after story.
 
 Bundle layout (contract #15): `map.pcd`, `map.yaml`, `map_eval.yaml`, `trajectory.tum`,
 `manifest.json`, `validation/heldout/` (scans + poses), `validation/heldout.yaml`,
