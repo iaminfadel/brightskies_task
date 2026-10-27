@@ -148,7 +148,8 @@ class LocalizationCore : public rclcpp::Node {
     // (ADR 0003's full-map fallback breaks the startup loop). The deadline is
     // deliberately wall-clock: startup must be judged against /clock arriving
     // at all, which sim time cannot express.
-    map_cloud_topic_ = declare_parameter<std::string>("topics.map_cloud", "/localization/map_cloud");
+    map_cloud_topic_ =
+        declare_parameter<std::string>("topics.map_cloud", "/localization/map_cloud");
     rclcpp::QoS map_cloud_qos = rclcpp::QoS(rclcpp::KeepLast(1));
     map_cloud_qos.reliable().transient_local();
     map_cloud_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
@@ -242,15 +243,15 @@ class LocalizationCore : public rclcpp::Node {
     auto preprocessed =
         GicpMatcher::build_map_cloud(points, map_voxel_, 10, gicp_settings_.num_threads);
 
-    matcher_ = std::make_unique<GicpMatcher>(gicp_settings_, preprocessed.first, preprocessed.second);
+    matcher_ =
+        std::make_unique<GicpMatcher>(gicp_settings_, preprocessed.first, preprocessed.second);
     map_ready_ = true;
     // Initialization-failure accounting measures matching capability, not
     // process age: the map may legitimately arrive long after the sensors.
     startup_time_ = now_seconds();
     RCLCPP_INFO(get_logger(), "%s map_id=%s points=%zu map_points=%zu voxel=%.2f wait_ms=%.1f",
                 kMapCloudReady, map_id_.c_str(), points.size(), preprocessed.first->size(),
-                map_voxel_,
-                std::chrono::duration<double, std::milli>(start - node_start_).count());
+                map_voxel_, std::chrono::duration<double, std::milli>(start - node_start_).count());
   }
 
   // Fails loudly (fatal log, non-zero exit) when the map server never
@@ -259,8 +260,9 @@ class LocalizationCore : public rclcpp::Node {
     if (map_ready_ || std::chrono::steady_clock::now() < cloud_deadline_) {
       return;
     }
-    RCLCPP_FATAL(get_logger(), "MAP_CLOUD_TIMEOUT no cloud on %s within %.1fs -- is the "
-                               "map_server up and serving?",
+    RCLCPP_FATAL(get_logger(),
+                 "MAP_CLOUD_TIMEOUT no cloud on %s within %.1fs -- is the "
+                 "map_server up and serving?",
                  map_cloud_topic_.c_str(), cloud_timeout_s_);
     throw std::runtime_error("no map cloud within map.cloud_timeout_s=" +
                              std::to_string(cloud_timeout_s_));
@@ -546,8 +548,8 @@ class LocalizationCore : public rclcpp::Node {
     }
 
     if (!map_ready_) {
-      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
-                           "scan held: no map cloud yet on %s", map_cloud_topic_.c_str());
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "scan held: no map cloud yet on %s",
+                           map_cloud_topic_.c_str());
       return;
     }
 

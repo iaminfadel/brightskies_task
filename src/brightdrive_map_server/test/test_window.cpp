@@ -40,14 +40,14 @@ TEST(ServingSet, LoadsTilesWithinRLoad) {
 TEST(ServingSet, HysteresisKeepsTilesWithinREvict) {
   const brightdrive::map_server::TileIndex index = grid(4, 10.0);
   const brightdrive::map_server::WindowParams params{15.0, 30.0};
-  const std::set<std::string> current = brightdrive::map_server::serving_set(
-      index, 5.0, 5.0, {}, params);
+  const std::set<std::string> current =
+      brightdrive::map_server::serving_set(index, 5.0, 5.0, {}, params);
 
   // Pose moves to (25, 5): tile (0,0) centre is 20 m away -- outside
   // R_load but inside R_evict and already loaded, so it survives (no
   // thrash). (2,0) and (3,0) are now inside R_load and join.
-  const std::set<std::string> next = brightdrive::map_server::serving_set(
-      index, 25.0, 5.0, current, params);
+  const std::set<std::string> next =
+      brightdrive::map_server::serving_set(index, 25.0, 5.0, current, params);
   EXPECT_EQ(next.count("0_0"), 1u);
   EXPECT_EQ(next.count("2_0"), 1u);
   EXPECT_EQ(next.count("3_0"), 1u);
@@ -62,12 +62,12 @@ TEST(ServingSet, HysteresisKeepsTilesWithinREvict) {
 TEST(ServingSet, EvictsBeyondREvict) {
   const brightdrive::map_server::TileIndex index = grid(6, 10.0);
   const brightdrive::map_server::WindowParams params{15.0, 30.0};
-  const std::set<std::string> current = brightdrive::map_server::serving_set(
-      index, 5.0, 5.0, {}, params);
+  const std::set<std::string> current =
+      brightdrive::map_server::serving_set(index, 5.0, 5.0, {}, params);
 
   // Pose jumps to (55, 5): tile (0,0) centre is 55 m away, beyond R_evict.
-  const std::set<std::string> next = brightdrive::map_server::serving_set(
-      index, 55.0, 5.0, current, params);
+  const std::set<std::string> next =
+      brightdrive::map_server::serving_set(index, 55.0, 5.0, current, params);
   EXPECT_EQ(next.count("0_0"), 0u);
   EXPECT_EQ(next.count("4_0"), 1u);  // centre (45, 5), 10 m away
 }
@@ -81,8 +81,9 @@ TEST(ServingSet, EmptyIndexServesNothing) {
 
 TEST(VoxelDownsample, KeepsFirstPointPerVoxel) {
   std::vector<Eigen::Vector3f> points = {
-      {0.1f, 0.1f, 0.1f}, {0.9f, 0.2f, 0.3f},  // same voxel (0,0,0)
-      {1.1f, 0.1f, 0.1f},                      // voxel (1,0,0)
+      {0.1f, 0.1f, 0.1f},
+      {0.9f, 0.2f, 0.3f},  // same voxel (0,0,0)
+      {1.1f, 0.1f, 0.1f},  // voxel (1,0,0)
   };
   const std::vector<Eigen::Vector3f> kept = brightdrive::map_server::voxel_downsample(points, 1.0);
   ASSERT_EQ(kept.size(), 2u);

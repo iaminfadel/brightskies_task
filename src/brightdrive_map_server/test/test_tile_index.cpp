@@ -37,8 +37,7 @@ std::string write_index(const std::string& directory, const std::string& content
 
 TEST(TileIndex, ParsesTheBuilderBundle) {
   const std::string path = write_index("/tmp", kIndexJson);
-  const brightdrive::map_server::TileIndex index =
-      brightdrive::map_server::load_tile_index(path);
+  const brightdrive::map_server::TileIndex index = brightdrive::map_server::load_tile_index(path);
   EXPECT_EQ(index.map_id, "unit-map");
   EXPECT_EQ(index.map_frame, "map");
   EXPECT_DOUBLE_EQ(index.tile_size_m, 10.0);

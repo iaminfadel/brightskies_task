@@ -29,7 +29,6 @@ import launch
 import launch_ros.actions
 import launch_testing
 import launch_testing.actions
-import pytest
 import rclpy
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from rclpy.node import Node
