@@ -1,10 +1,34 @@
 import os
 
+import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+
+def _gnss_profile_params(share):
+    """Estimator GNSS covariance overrides from the shared profile (#37).
+
+    The scenario GNSS degradation model lives in one file
+    (config/gnss_profiles.yaml); the relay applies it to the sensor values
+    and the estimator's sigma parameters come from the same profile, so the
+    scenario and the filter cannot drift apart.
+    """
+    profiles_file = os.environ.get(
+        "GNSS_PROFILES_FILE", os.path.join(share, "config", "gnss_profiles.yaml")
+    )
+    profile_name = os.environ.get("GNSS_PROFILE") or "nominal"
+    with open(profiles_file, "r", encoding="utf-8") as handle:
+        doc = yaml.safe_load(handle)
+    profile = doc["profiles"][profile_name]
+    return {
+        "gnss": {
+            "sigma_xy_m": float(profile["sigma_h_m"]),
+            "sigma_z_m": float(profile["sigma_v_m"]),
+        }
+    }
 
 
 def _launch(context, *args, **kwargs):
@@ -40,6 +64,18 @@ def _launch(context, *args, **kwargs):
             output="screen",
         ),
         Node(
+            package="brightdrive_bringup",
+            executable="gnss_relay.py",
+            name="gnss_relay",
+            parameters=[
+                {
+                    "use_sim_time": use_sim_time,
+                    "profile": os.environ.get("GNSS_PROFILE") or "nominal",
+                }
+            ],
+            output="screen",
+        ),
+        Node(
             package="kiss_icp",
             executable="kiss_icp_node",
             name="kiss_icp_node",
@@ -59,8 +95,10 @@ def _launch(context, *args, **kwargs):
             executable="localization_core",
             name="localization_core",
             # The map arrives by subscription (ADR 0003, #34); the georeference
-            # and map id live in localization.yaml's map.* parameters.
-            parameters=[localization_params, {"use_sim_time": use_sim_time}],
+            # and map id live in localization.yaml's map.* parameters. The
+            # GNSS sigmas are overridden from the shared profile (#37).
+            parameters=[localization_params, _gnss_profile_params(share),
+                        {"use_sim_time": use_sim_time}],
             output="screen",
         ),
     ]

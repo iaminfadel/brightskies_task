@@ -131,6 +131,7 @@ WS_DIR ?= /ws
 export WS_DIR MAP_DIR CARLA_TOWN OBJECTS_FILE BRIDGE_FIXED_DELTA_SECONDS
 export KISS_PARAMS EKF_PARAMS LOCALIZATION_PARAMS EVIDENCE METRICS_FILE
 export MAP_DRIVE_SECONDS MAP_SPAWN MAP_BUILDER_FLAGS
+export GNSS_PROFILE SCENARIO
 
 # Recorder/builder defaults are deliberately NEUTRAL: the recorder deletes
 # MAP_BAG before recording, so the legacy map targets' golden bags are only
@@ -188,3 +189,27 @@ map-compose:
 map-build:
 	MAP_BAG='$(COMPOSE_MAP_BAG)' MAP_ID='$(COMPOSE_MAP_ID)' \
 	  $(COMPOSE) --profile mapping run --rm --no-deps map-builder
+
+# One locked scenario, deterministic by seed (#37). `make scenario S=S2`
+# also selects the noisy GNSS profile for the estimator: the profile is one
+# shared env var (GNSS_PROFILE) and the scenario matrix binds it to the
+# scenario by default, so the sensor model and the filter cannot drift.
+SCENARIO ?= S1
+SCENARIO_SEED ?= 7
+SCENARIO_SEED_RUNS ?= 1
+SCENARIO_EVIDENCE ?= /ws/evidence/scenarios
+export SCENARIO_SEED SCENARIO_SEED_RUNS SCENARIO_EVIDENCE
+
+# S2's noisy profile is part of the locked matrix; set GNSS_PROFILE only to
+# override (it then applies to estimator and relay alike).
+ifeq ($(SCENARIO),S2)
+  GNSS_PROFILE ?= noisy
+endif
+
+# The hero must carry the scenario sensor set (GT odometry for the labelled
+# open-loop agent + the traffic-lights pseudo actor) from bridge boot --
+# respawning under the bridge has crashed CARLA 0.9.15.
+export OBJECTS_FILE ?= /ws/brightdrive/config/scenario/objects_scenario.json
+
+scenario:
+	$(COMPOSE) --profile runtime --profile scenario run --rm scenario

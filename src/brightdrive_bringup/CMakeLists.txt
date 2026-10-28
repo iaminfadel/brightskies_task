@@ -7,7 +7,7 @@ install(DIRECTORY launch urdf config rviz
   DESTINATION share/${PROJECT_NAME}
 )
 
-install(PROGRAMS scripts/imu_contract_covariance.py
+install(PROGRAMS scripts/imu_contract_covariance.py scripts/gnss_relay.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
