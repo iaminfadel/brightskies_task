@@ -37,6 +37,9 @@ PY_ENV="source /opt/brightdrive/setup.bash; source /ws/install/setup.bash; cd /w
 mkdir -p "$STRESS" "$OUT"
 echo -e "level\tstatus\tmedian_rmse_m\taccepted_fraction\theading_p95_deg\tlatency_p95_ms" > "$OUT/summary.tsv"
 
+echo "==> bringing the runtime route up (idempotent)"
+$COMPOSE up -d
+
 # sigma_m -> degrees (1 deg latitude = 111,320 m; Town05 georef is near lat 0)
 patch_objects() {
   local sigma_m=$1 file=$2
