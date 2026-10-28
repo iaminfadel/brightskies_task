@@ -55,7 +55,6 @@ class HealthMonitor {
   HealthParams params_;
   HealthState state_ = HealthState::OK;
   std::string reason_ = "initializing";
-  bool have_scan_state_ = false;
   bool last_scan_good_ = false;
   double good_since_ = 0.0;
   double bad_since_ = 0.0;

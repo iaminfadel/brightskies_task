@@ -1,8 +1,7 @@
 SHELL := /bin/bash
 
 .PHONY: build up down ps logs test scenario eval compose-config \
-        map map-build map-check map-eval map-eval-ate map-install map-upload map-pull eval-kpi \
-        validate-offline \
+        map map-build map-eval map-eval-ate map-install map-upload map-pull eval-kpi \
         vm-provision vm-up vm-down vm-ssh vm-tunnel vm-sync vm-shell vm-job vm-status vm-snapshot \
         ci-lint ci-bootstrap ci-vm-build-test
 
@@ -118,14 +117,11 @@ map-build:
 	MAP_BAG='$(MAP_BAG)' MAP_ID='$(MAP_ID)' \
 	  $(COMPOSE) --profile mapping run --rm --no-deps map-builder
 
-# Map consistency check + ATE gate over the pinned bundle.
-map-check:
-	$(call run-one,ros2 run brightdrive_localization map_check $(MAP_BUILDS)/$(MAP_ID))
-
+# ATE gate over the pinned bundle (ground truth vs the recorded trajectory).
 map-eval-ate:
 	$(call run-one,python3 scripts/eval_ate.py $(MAP_BUILDS)/$(MAP_ID) $(MAP_BAG) $(MAP_EVAL_BAG))
 
-map-eval: map-check map-eval-ate
+map-eval: map-eval-ate
 
 # Runtime install: the three runtime files plus the optional tile grid; the
 # evaluator files never reach the estimator.
@@ -156,23 +152,6 @@ eval-kpi:
 	$(call run-one,python3 scripts/eval_kpi.py $(KPI_EST_BAG) $(KPI_GT_BAG) \
 	  $(KPI_MAP_DIR) --scenario $(KPI_SCENARIO) --out-dir $(KPI_EVIDENCE) && \
 	  python3 scripts/kpi_gate.py $(KPI_EVIDENCE)/metrics.json)
-
-# --- CARLA-free validation ------------------------------------------------
-# Replay a recorded sensor bag through the real runtime (map_server +
-# localization.launch.py) and score it with map_check, eval_ate and
-# eval_kpi + kpi_gate. Same nodes and parameters as `make up`, no CARLA, no
-# VM GPU: the fallback when the CARLA VM is unavailable. OFFLINE_SPEED is
-# sim-time speed (1.0 = the simulator's own pace); the script slows
-# faster-than-real-time recordings down to match.
-OFFLINE_BAG ?= /ws/bags/map_full4
-OFFLINE_GT_BAG ?= $(OFFLINE_BAG)_eval
-OFFLINE_MAP_DIR ?= $(MAP_BUILDS)/$(MAP_ID)
-OFFLINE_EVIDENCE ?= /ws/evidence/offline
-OFFLINE_SPEED ?= 1.0
-
-validate-offline:
-	$(call run-one,bash scripts/validate_offline.sh $(OFFLINE_BAG) \
-	  $(OFFLINE_GT_BAG) $(OFFLINE_MAP_DIR) $(OFFLINE_EVIDENCE) $(OFFLINE_SPEED))
 
 # --- VM lifecycle ---------------------------------------------------------
 

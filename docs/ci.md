@@ -45,7 +45,6 @@ Invariants:
 | 2 | `ci/build-test`: colcon build (4 packages) + gtest + launch tests + self-tests (`build_map.py`, `eval_ate.py`, `eval_kpi.py`) + scenario harness tests + isolation audit, in pinned deps image | hosted | every PR | **required** |
 | 2 | build/test evidence artifact (14-day retention) | GH | every run, on failure too | live |
 | 3 | `carla-smoke`: merged staging state on the GCP VM; MAP_LOAD, LOCKED, TF tree, health, tripwire KPIs, runtime isolation check; evidence to GCS | VM | push to staging | advisory (ratchet) |
-| 3 | `make validate-offline`: recorded sensor bag replayed through the real `map_server` + `localization.launch.py`, scored by `map_check`, `eval_ate` and `eval_kpi` + `kpi_gate` | any host with Docker (no GPU, no CARLA) | manual | map + ATE green, KPI red off-VM (see below) |
 | 4 | full S1-S4 KPI matrix + regression vs baseline | VM | staging->main PR | pending #10/#11 |
 | 4 | forced-fail control (prove gates can fail) | VM | periodic dispatch | script exists, wiring pending |
 
@@ -83,52 +82,15 @@ History:
 Local equivalents: `make ci-lint`, `make ci-vm-build-test` (same colcon
 command as CI, on the VM deps container - the laptop never builds ROS).
 
-## CARLA-free validation
+## Evaluation over recorded bags
 
-The CARLA VM is the flakiest part of the system, so the runtime tier can also
-be exercised without it. `make validate-offline` runs
-`scripts/validate_offline.sh`, which starts the same nodes as `make up`
-(`map_server` + `localization.launch.py`) in a deps container, replays a
-recorded sensor bag, records the estimator topics, and scores
-the result with `map_check` (scan-to-map consistency), `eval_ate.py` (bag vs
-bag, no CARLA) and `eval_kpi.py` + `kpi_gate.py`. It does not cover the CARLA
-bridge or ScenarioRunner; those stay in the tier 3 smoke. Evidence lands in
-`$(OFFLINE_EVIDENCE)`.
-
-On the pinned bundle (`town05-v14-pg`, bag `map_full4`) it reproduces the
-committed evidence: `MAP_CONSISTENCY scans=100 accepted=94 fraction=0.94
-median_rmse_m=0.120`.
-
-Replay without `--clock`. The recorder already stored the bridge's `/clock`
-(sim time), and `ros2 bag play --clock` publishes *bag* time instead - which
-is wall-clock recording time, not simulator time. Two `/clock` sources make
-every `use_sim_time` node jump between clocks: poses come out wall-stamped,
-message ages become nonsense and `kpi_gate` fails on latency. `validate_offline.sh`
-therefore plays the bag as recorded and lets the stored `/clock` drive the
-stack.
-
-Playback is also slowed to match sim time. The bridge free-runs when it is not
-throttled, so the pinned bag packs 627 s of sim time into 268 s of bag time;
-playing it at `-r 1.0` would feed the estimator 2.3x real time and it would
-never lock. The script derives the rate from the bag's own `/clock`
-(`rate = speed * bag_duration / sim_duration`), so `OFFLINE_SPEED=1.0` always
-means "the pace the stack saw live".
-
-**Current state off-VM (2026-10-28).** On the pinned bundle the replay
-reproduces the committed map evidence exactly - `MAP_CONSISTENCY scans=100
-accepted=94 fraction=0.94 median_rmse_m=0.120` and `ATE_SUMMARY poses=6270
-abs_rmse_m=0.037 yaw_rmse_deg=0.69 passed=True` - so the replay is faithful to
-the recording. The KPI tier fails on the laptop, and the numbers say why:
-`heading_rmse` 99.5 deg, `heading_p95` 180 deg, `latency_max` 599.6 ms (with
-`latency_p95` 115 ms and `latency_drift` -87 ms passing). GICP costs ~1.07 s
-per scan on this host (`map_check`: 107 s for 100 scans) against the ~200 ms
-the 5 Hz pipeline is sized for, so `localization_core`'s single-threaded
-executor falls behind: `/localization/status` was published 6 times in 627 s
-instead of at 10 Hz, `gnss_age` reached 135 s, health went OK -> DEGRADED
-(`gnss_timeout`) -> FAILED (`sources_stale`), and the pose held a 180-deg yaw
-flip from t=376 s. Treat the KPI tier as unproven off-VM rather than as a
-regression: it needs the VM's cores and a fresh live run before the thresholds
-mean anything.
+The evaluator is the Python path over recorded bags, never a binary in the ROS
+package: `make map-eval-ate` scores the recorded trajectory against ground
+truth (`eval_ate.py`), and `make eval-kpi` writes `metrics.json` and gates it
+with `kpi_gate.py`. Ground truth is read here only, from the separate GT bag.
+Run both on the VM: GICP costs ~1.07 s/scan on a laptop against the ~200 ms the
+5 Hz pipeline is sized for, so a laptop replay starves the executor and its
+latency numbers mean nothing.
 
 **Deps image pin.** `docker/deps.lock` pins a digest built 2026-10-22, before
 `docker/deps.Dockerfile` started pip-installing `rosbags`/`scipy`; the image

@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace brightdrive {
+namespace brightdrive::map_server {
 
 struct PcdCloud {
   std::vector<Eigen::Vector3f> points;
@@ -20,6 +20,4 @@ PcdCloud read_pcd_xyz(const std::string& path);
 
 void write_pcd_xyz(const std::string& path, const std::vector<Eigen::Vector3f>& points);
 
-bool file_exists(const std::string& path);
-
-}  // namespace brightdrive
+}  // namespace brightdrive::map_server

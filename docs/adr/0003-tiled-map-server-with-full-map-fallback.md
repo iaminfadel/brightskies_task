@@ -5,7 +5,7 @@
 
 ## Decision
 
-`brightdrive_map_server` is a C++ ROS 2 node (ament_cmake) that reuses `brightdrive_localization::read_pcd_xyz` for PCD I/O and serves the saved map on `/localization/map_cloud` (`sensor_msgs/PointCloud2`, transient-local QoS, depth 1). The builder's output is unchanged: `map.pcd` + `map.yaml` for the full map, plus a `tiles/` directory of `tile_{ix}_{iy}.pcd` and a `map_index.yaml` describing a regular 2D X/Y grid (full Z range, voxel-downsampled). Tile lookup is O(1) floor division against the index origin and tile size.
+`brightdrive_map_server` is a C++ ROS 2 node (ament_cmake) that owns the bundle PCD reader (`brightdrive_map_server::read_pcd_xyz`) and serves the saved map on `/localization/map_cloud` (`sensor_msgs/PointCloud2`, transient-local QoS, depth 1). The builder's output is unchanged: `map.pcd` + `map.yaml` for the full map, plus a `tiles/` directory of `tile_{ix}_{iy}.pcd` and a `map_index.yaml` describing a regular 2D X/Y grid (full Z range, voxel-downsampled). Tile lookup is O(1) floor division against the index origin and tile size.
 
 Serving modes, selected by the `serving.mode` parameter (compose-overridable):
 
@@ -21,3 +21,15 @@ The pose source is `/localization/pose` when present, otherwise the seeded pose;
 - Windowed serving is demoable in Foxglove by driving and watching the cloud swap; full-map fallback keeps localization working if tiling stalls.
 - A bundle installed without `tiles/` + `map_index.yaml` (the runtime install only guarantees `map.pcd`, `map.yaml`, `trajectory.tum`) logs a warning and degrades to `full` instead of failing at startup. Rebuild with `make map-build` (tiles are on by default) to get windowed serving.
 - #28 (image publish) and #30 (docs) can proceed once this contract is locked; no new tickets surfaced.
+
+## Amendment (2026-10-28)
+
+`.PCD` I/O originally lived in `brightdrive_localization` because the estimator
+loaded the map in process. Once the estimator subscribed instead, the map
+server became the only reader of `map.pcd`, and the reuse above turned into a
+backwards package dependency (the server linked the whole estimator core for a
+100-line reader). `pcd_io` now lives in `brightdrive_map_server` and that
+package no longer depends on `brightdrive_localization`. The held-out
+consistency checker (`map_check`) was removed with it: verification is the
+evaluator path over recorded bags (`eval_ate.py`, `eval_kpi.py`,
+`kpi_gate.py`), not a binary inside the ROS packages.

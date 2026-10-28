@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Run one command in a throwaway deps container against the shared workspace.
 #
-# This is the one-off path (colcon build, build_map, eval_ate, map_check,
-# map-install, ...). It needs no running stack -- the runtime, scenarios and
+# This is the one-off path (colcon build, build_map, eval_ate,
+# eval_kpi, map-install, ...). It needs no running stack -- the runtime, scenarios and
 # smoke all go through docker compose instead.
 #
 #   scripts/ros_exec.sh 'python3 scripts/eval_ate.py /ws/maps/builds/x'

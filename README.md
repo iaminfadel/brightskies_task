@@ -70,11 +70,10 @@ GT-isolation audit, bags, timings) and writes evidence to `$(EVIDENCE)`.
 `make down` stops the stack; the idle-stop guard stops the VM after 30 minutes without an
 SSH session or heartbeat.
 
-`make validate-offline` is the CARLA-free path: it replays a recorded sensor bag through
-`map_server` + `localization.launch.py` and scores it with `map_check`, `eval_ate.py` and
-`eval_kpi.py` + `kpi_gate.py` — no GPU, no CARLA, no ScenarioRunner. Point it at any bag
-pair with `OFFLINE_BAG=… OFFLINE_GT_BAG=… OFFLINE_MAP_DIR=…`. See `docs/ci.md` for what it
-does and does not cover.
+Verification is the evaluator path, not a binary in the ROS packages: `make map-eval-ate`
+scores a recorded trajectory against ground truth, and `make eval-kpi` writes and gates the
+run KPIs (`eval_ate.py`, `eval_kpi.py`, `kpi_gate.py`). Both consume bags, so they run
+unchanged on a scenario run or a recording.
 
 ## Mapping pipeline
 
@@ -179,8 +178,8 @@ ratchet live in `docs/ci.md` (decision record: `docs/adr/0001-branch-model-and-c
 ## Repository layout
 
 ```
-src/brightdrive_localization/   map loader, GICP matcher, health, geodesy, map_check
-src/brightdrive_map_server/     tiled serving with full-map fallback
+src/brightdrive_localization/   estimator: GICP matcher, health, geodesy, SE(3)
+src/brightdrive_map_server/     map bundle PCD I/O, tiled serving with full-map fallback
 src/brightdrive_bringup/        launch, config, URDF, GNSS/IMU relays
 src/brightdrive_interfaces/     LocalizationStatus message
 scripts/build_map.py            offline mapping (KISS-ICP, GNSS poses, bundle writer)
@@ -190,7 +189,6 @@ scripts/eval_kpi.py             heading / output-age / latency-drift evaluator
 scripts/kpi_gate.py             KPI thresholds and gate
 scripts/scenario/               ScenarioRunner harness, route coverage, GNSS profiles
 scripts/ros_exec.sh             one-off ROS command in a deps container
-scripts/validate_offline.sh     CARLA-free bag replay validation
 scripts/ensure_py_deps.sh       top up rosbags/scipy on the pinned deps image
 scripts/vm-run.sh               deploy HEAD and run commands over IAP
 infra/                          provision, VM lifecycle, idle stop, IAP SSH
@@ -202,17 +200,13 @@ infra/                          provision, VM lifecycle, idle stop, IAP SSH
   the estimator can starve its sim-time freshness gates. KPI runs tick the world at a
   controlled rate.
 - The live stack publishes IMU at ~10 Hz in synchronous mode (contract asks for 100 Hz).
-- `make validate-offline` reproduces both map gates exactly on the laptop but the KPI tier
-  is still red there: heading RMSE 99.5 deg / p95 180 deg (gates 2 / 3 deg) and latency max
-  599.6 ms (gate 400 ms), while latency p95 (115 ms) and drift (-87 ms) pass. Two measured
-  causes. (a) GICP costs ~1.07 s/scan on this host (`map_check`: 107 s for 100 scans)
-  against the ~200 ms the 5 Hz pipeline (`scan_stride: 2`) is sized for, so the
-  single-threaded executor in `localization_core` cannot drain its queue: `/localization/status`
-  went out 6 times in 627 s instead of at 10 Hz, `gnss_age` reached 135 s, and health walked
-  OK -> DEGRADED `gnss_timeout` -> FAILED `sources_stale`. (b) The GNSS bootstrap accepts a
-  180-deg-flipped yaw for stretches (poses hold exactly 180 deg of error from t=376 s) and
-  the matcher keeps that lock instead of rejecting it. Both are throughput/robustness
-  questions for the VM, not the harness: the map and ATE tiers prove replay fidelity.
+- KPI numbers are only meaningful on the VM. GICP costs ~1.07 s/scan on a laptop against the
+  ~200 ms the 5 Hz pipeline (`scan_stride: 2`) is sized for, so a laptop replay starves the
+  single-threaded executor in `localization_core`: `/localization/status` drops well below
+  10 Hz, `gnss_age` grows, and health walks OK -> DEGRADED -> FAILED on CPU starvation rather
+  than on localization quality.
+- The GNSS bootstrap can accept a 180-deg-flipped yaw for stretches and the matcher keeps
+  that lock instead of rejecting it. This is a robustness question for the VM runs.
 - Held-out selection is arc-length stratified (`same_bag_arc_length`), not yet grouped by
   the S1-S4 scenario routes.
 - The full S1-S4 acceptance matrix is not yet a required gate (#38).

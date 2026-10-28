@@ -23,13 +23,8 @@ bool HealthMonitor::bad(const HealthInput& input) const {
   if (input.scan_bad) {
     return true;
   }
-  if (input.have_scan && input.scan_age > params_.scan_stale_s) {
-    return true;
-  }
-  if (!input.have_scan && input.scan_age > params_.scan_stale_s) {
-    return true;
-  }
-  return false;
+  // A stale or absent scan is bad; a missing scan reports scan_age = 1e9.
+  return input.scan_age > params_.scan_stale_s;
 }
 
 bool HealthMonitor::good(const HealthInput& input) const {
@@ -63,7 +58,6 @@ HealthOutput HealthMonitor::update(const HealthInput& input) {
     }
     have_bad_since_ = false;
     last_scan_good_ = true;
-    have_scan_state_ = true;
   } else if (is_bad) {
     if (!have_bad_since_ || last_scan_good_) {
       bad_since_ = input.now;
@@ -71,7 +65,6 @@ HealthOutput HealthMonitor::update(const HealthInput& input) {
     }
     have_good_since_ = false;
     last_scan_good_ = false;
-    have_scan_state_ = true;
   }
 
   const double bad_duration = have_bad_since_ ? input.now - bad_since_ : 0.0;

@@ -7,7 +7,6 @@ localization_core:
       base_link: base_link
       lidar: hero/lidar
       gnss: hero/gnss
-      imu: hero/imu
 
     map:
       # ADR 0003 (#34): the cloud is consumed by subscription on

@@ -21,25 +21,22 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(yaml-cpp REQUIRED)
 find_package(small_gicp REQUIRED)
 
+# Estimator core only: geodesy, the GICP matcher, the health state machine and
+# the SE(3) helpers. Map-bundle I/O lives with the map server, which is the
+# only node that reads map.pcd; nothing installs this library.
 add_library(brightdrive_localization_core
   src/geodesy.cpp
-  src/pcd_io.cpp
-  src/map_loader.cpp
   src/gicp_matcher.cpp
   src/health.cpp
   src/se3.cpp
-  src/hash.cpp
 )
 target_include_directories(brightdrive_localization_core PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 target_link_libraries(brightdrive_localization_core PUBLIC
   Eigen3::Eigen
-  yaml-cpp
   small_gicp::small_gicp
 )
 target_compile_options(brightdrive_localization_core PRIVATE -Wall -Wextra)
@@ -59,24 +56,9 @@ target_link_libraries(localization_core
   tf2_eigen::tf2_eigen
 )
 
-add_executable(map_check src/map_check.cpp)
-target_link_libraries(map_check brightdrive_localization_core)
-
-install(TARGETS localization_core map_check
+install(TARGETS localization_core
   DESTINATION lib/${PROJECT_NAME}
 )
-# brightdrive_localization_core is consumed downstream by
-# brightdrive_map_server (read_pcd_xyz reuse, ADR 0003).
-install(TARGETS brightdrive_localization_core
-  EXPORT export_brightdrive_localization
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib
-)
-install(DIRECTORY include/
-  DESTINATION include
-)
-ament_export_targets(export_brightdrive_localization HAS_LIBRARY_TARGET)
-ament_export_dependencies(Eigen3 yaml-cpp small_gicp)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest QUIET)
@@ -89,9 +71,6 @@ if(BUILD_TESTING)
 
     ament_add_gtest(test_health test/test_health.cpp)
     target_link_libraries(test_health brightdrive_localization_core)
-
-    ament_add_gtest(test_map_loader test/test_map_loader.cpp)
-    target_link_libraries(test_map_loader brightdrive_localization_core)
   else()
     message(WARNING "ament_cmake_gtest not found; unit tests skipped")
   endif()

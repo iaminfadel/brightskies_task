@@ -16,11 +16,11 @@ find_package(geometry_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
-find_package(brightdrive_localization REQUIRED)
 
 add_library(brightdrive_map_server_core
   src/tile_index.cpp
   src/window.cpp
+  src/pcd_io.cpp
 )
 target_include_directories(brightdrive_map_server_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -35,7 +35,6 @@ target_compile_options(brightdrive_map_server_core PRIVATE -Wall -Wextra)
 add_executable(map_server src/map_server.cpp)
 target_link_libraries(map_server
   brightdrive_map_server_core
-  brightdrive_localization::brightdrive_localization_core
   rclcpp::rclcpp
   ${sensor_msgs_TARGETS}
   ${geometry_msgs_TARGETS}
@@ -56,6 +55,9 @@ if(BUILD_TESTING)
 
     ament_add_gtest(test_window test/test_window.cpp)
     target_link_libraries(test_window brightdrive_map_server_core)
+
+    ament_add_gtest(test_pcd_io test/test_pcd_io.cpp)
+    target_link_libraries(test_pcd_io brightdrive_map_server_core)
   else()
     message(WARNING "ament_cmake_gtest not found; unit tests skipped")
   endif()

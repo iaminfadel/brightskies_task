@@ -1,16 +1,11 @@
-#include "brightdrive_localization/pcd_io.hpp"
+#include "brightdrive_map_server/pcd_io.hpp"
 
 #include <cstring>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
 
-namespace brightdrive {
-
-bool file_exists(const std::string& path) {
-  std::ifstream stream(path, std::ios::binary);
-  return stream.good();
-}
+namespace brightdrive::map_server {
 
 PcdCloud read_pcd_xyz(const std::string& path) {
   std::ifstream stream(path, std::ios::binary);
@@ -97,4 +92,4 @@ void write_pcd_xyz(const std::string& path, const std::vector<Eigen::Vector3f>& 
                static_cast<std::streamsize>(points.size() * sizeof(Eigen::Vector3f)));
 }
 
-}  // namespace brightdrive
+}  // namespace brightdrive::map_server
