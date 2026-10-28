@@ -154,7 +154,7 @@ drift from the estimator + GT bags; `scripts/kpi_gate.py` applies the thresholds
 ## GCP runtime
 
 - VM: `brightdrive-vm`, `n1-standard-8` + Tesla T4 Spot, 100 GB disk, 120 s preemption
-  notice. Long jobs refresh `/var/lib/brightskies/heartbeat`; `scripts/vm_job.py` retries
+  notice. Long jobs refresh `/var/lib/brightskies/heartbeat`; `infra/vm_job.py` retries
   once on exit 44.
 - Networking: no public SSH; IAP TCP forwarding only. Foxglove is loopback-only.
 - Cost controls: budget alerts, `--max-run-duration=4h` on CI-started VMs, 30-minute idle
