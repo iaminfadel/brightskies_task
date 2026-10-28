@@ -8,6 +8,8 @@
 //
 // This is a standalone development tool (tools/map_check), not a ROS node: it
 // is built with plain CMake and never installed into the runtime.
+#include <yaml-cpp/yaml.h>
+
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <algorithm>
@@ -20,8 +22,6 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-#include <yaml-cpp/yaml.h>
 
 #include "brightdrive_localization/gicp_matcher.hpp"
 #include "brightdrive_localization/se3.hpp"
@@ -154,8 +154,8 @@ int main(int argc, char** argv) {
     if (pcd.points.empty()) {
       throw std::runtime_error("saved map contains no points");
     }
-    const auto built = brightdrive::GicpMatcher::build_map_cloud(
-        pcd.points, metadata.voxel_size_m, 10, num_threads);
+    const auto built = brightdrive::GicpMatcher::build_map_cloud(pcd.points, metadata.voxel_size_m,
+                                                                 10, num_threads);
     brightdrive::GicpSettings settings;
     brightdrive::GicpMatcher matcher(settings, built.first, built.second);
 

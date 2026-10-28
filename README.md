@@ -180,7 +180,8 @@ ratchet live in `docs/ci.md` (decision record: `docs/adr/0001-branch-model-and-c
 Product code is everything the task delivers and runs. It does not know where
 it executes, so `infra/` is the only tree tied to the VM provider (swap it and
 nothing else moves), and `tools/` holds checks that support development but are
-not part of the runtime.
+not part of the runtime. The rule and its consequences are in
+[ADR 0004](docs/adr/0004-product-vs-infrastructure-layout.md).
 
 ```
 src/brightdrive_localization/   estimator: GICP matcher, health, geodesy, SE(3)
