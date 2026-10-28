@@ -201,8 +201,11 @@ ci-bootstrap:
 	./infra/ci_bootstrap.sh
 
 # Exactly what ci/build-test runs, but on the VM (the laptop never builds ROS).
+# Every colcon verb needs the same build/install base; without them colcon
+# looks in /ws/brightdrive, which only ever holds the deployed archive.
 ci-vm-build-test:
 	./infra/vm-run.sh --fg "bash infra/ros_exec.sh 'colcon build \
 	  --base-paths /ws/brightdrive/src --build-base /ws/build --install-base /ws/install && \
-	  colcon test --packages-select brightdrive_localization brightdrive_map_server && \
-	  colcon test-result --verbose'"
+	  colcon test --build-base /ws/build --install-base /ws/install \
+	    --packages-select brightdrive_localization brightdrive_map_server && \
+	  colcon test-result --test-result-base /ws/build --verbose'"
