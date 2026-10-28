@@ -16,9 +16,9 @@
 #                             (depends_on: service_completed_successfully):
 #                             bag in, map + tiles out.
 #
-# The legacy vm-run.sh path stays valid until this route is green
-# everywhere; the two share host ports 2000/8765 and must not run at once
-# (scripts/validation/stop_stack.sh stops the legacy stack).
+# The compose route is the only runtime: it replaced the earlier
+# single-container docker-run stack, so host ports 2000/8765 belong to
+# compose alone.
 #
 # Every tunable is an environment override (see .env.example); never edit
 # config files in place. Workspace layout on VM and evaluator machines

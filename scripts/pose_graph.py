@@ -29,6 +29,51 @@ LOOP_INFO = np.diag([25.0, 25.0, 150.0, 25.0])
 HUBER_DELTA = 3.0  # in residual sigmas
 
 
+def icp_planar(source, target_tree, init, max_corr, iterations=30):
+    """Planar (yaw + xy) point-to-point ICP; returns (4x4, inlier_ratio).
+
+    The map is accumulated from yaw-only vehicle poses with GNSS altitude.
+    Full 3D point-to-point ICP is unconstrained vertically on tall facades:
+    ground points can slide onto wall points while every correspondence stays
+    within max_corr. Estimating only yaw and xy keeps the residual measuring
+    the horizontal doubled-wall defect it targets.
+    """
+    transform = init.copy()
+    prev_t = None
+    for _ in range(iterations):
+        moved = source @ transform[:3, :3].T + transform[:3, 3]
+        distances, indices = target_tree.query(moved, k=1, workers=-1)
+        mask = distances <= max_corr
+        if mask.sum() < 20:
+            break
+        src_corr = moved[mask][:, :2]
+        dst_corr = target_tree.data[indices[mask]][:, :2]
+        mu_s, mu_d = src_corr.mean(axis=0), dst_corr.mean(axis=0)
+        src_centered = src_corr - mu_s
+        dst_centered = dst_corr - mu_d
+        cross = float(np.sum(
+            src_centered[:, 0] * dst_centered[:, 1]
+            - src_centered[:, 1] * dst_centered[:, 0]
+        ))
+        dot = float(np.sum(
+            src_centered[:, 0] * dst_centered[:, 0]
+            + src_centered[:, 1] * dst_centered[:, 1]
+        ))
+        yaw = math.atan2(cross, dot)
+        c, s = math.cos(yaw), math.sin(yaw)
+        rotation = np.array([[c, -s], [s, c]])
+        delta = np.eye(4)
+        delta[:2, :2] = rotation
+        delta[:2, 3] = mu_d - rotation @ mu_s
+        transform = delta @ transform
+        if prev_t is not None and np.linalg.norm(transform[:3, 3] - prev_t) < 1e-4:
+            break
+        prev_t = transform[:3, 3].copy()
+    moved = source @ transform[:3, :3].T + transform[:3, 3]
+    distances, _ = target_tree.query(moved, k=1, workers=-1)
+    return transform, float(np.mean(distances <= max_corr))
+
+
 def wrap(angle):
     return (angle + np.pi) % (2 * np.pi) - np.pi
 
@@ -217,7 +262,6 @@ def build_loop_edges(scans, states, stamps, submap_half=45, radius=10.0,
 
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from build_map import voxel_downsample
-    from eval_loops import icp_planar
     from scipy.spatial import cKDTree
 
     xy = states[:, :2]

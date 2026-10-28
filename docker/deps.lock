@@ -3,4 +3,7 @@
 # CARLA server image pinned by digest (multi-arch index).
 CARLA_IMAGE=carlasim/carla:0.9.15@sha256:1af47c314443f4a2d0869ac399c5b5eabde138a5bc39dd31dcbb1540e22f5588
 # Deps image built from docker/deps.Dockerfile on 2026-10-22, pushed to GHCR.
+# NOTE: this digest predates the pip-install of rosbags/scipy in the Dockerfile,
+# so those modules are absent from the image. scripts/ensure_py_deps.sh tops
+# them up at runtime (a no-op on a re-pinned image); see docs/ci.md.
 DEPS_IMAGE=ghcr.io/iaminfadel/brightdrive-deps@sha256:263332dd8da9b062726d15953ccddce1a11cb9754779840289e059792cd60c64

@@ -31,8 +31,6 @@ The canonical `make map` path is (b), the pose-graph lidar SLAM:
   yaw) — mis-locks on repeated geometry otherwise drag the solution and hide
   their own residual, and loop σ tighter than GNSS σ lets the loop scaffold
   dominate an exact-GNSS rig.
-- `(a)` stays as `make map-gnss-imu`, a documented diagnostic baseline only.
-
 The loop-consistency gate scores the search-free inter-visit residual (each
 visit's scan held at its recorded pose vs the other visit's submap), not a
 walked ICP correction: on corridor geometry the ICP basin is shallow enough
@@ -52,9 +50,17 @@ consistent map; that failure class is owned by the ATE gate.
   since its GNSS never degrades. The veto threshold (0.3 m) assumes
   revisits within GNSS relative accuracy; with real GNSS it loosens to a
   Mahalanobis test on the combined covariances.
-- Map bundles are pinned artifacts in GCS; the `map-gate` workflow
-  (`.github/workflows/map-gate.yml`) re-runs all three gates against the pin
-  on the VM, advisory per the docs/ci.md ratchet. The localizer consumes only
-  `map.yaml` + `map.pcd`; evaluator files never reach the runtime install.
+- Map bundles are pinned artifacts in GCS, gated from the repository by
+  `make map-check` (held-out GICP) and `make map-eval-ate` (ATE). The
+  localizer consumes only `map.yaml` + `map.pcd`; evaluator files never reach
+  the runtime install.
 - Known ceiling (`ponytail:`): SE(2)+z states and planar loop measurements —
   upgrade to SE(3) if elevation-heavy towns show residual z error.
+
+## Update (2026-10-28)
+
+The GNSS+IMU-only diagnostic baseline (`--gnss-imu`) and the dispatch-only
+`map-gate` workflow were removed when the tree was cut to the shipped demo;
+the loop-consistency gate survives as archived evidence under
+`docs/results/map/town05-v14-pg/`. The decision above (pose-graph lidar SLAM)
+is unchanged.

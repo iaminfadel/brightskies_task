@@ -74,13 +74,21 @@ class MapServerNode : public rclcpp::Node {
     window_.load_radius_m = lidar_range_m_ + margin_m_;
     window_.evict_radius_m = window_.load_radius_m + hysteresis_m_;
 
-    // Full mode needs only map.pcd; the grid is required to window.
+    // Full mode needs only map.pcd; the grid is required to window. A bundle
+    // installed without tiles/ therefore degrades to the full map instead of
+    // failing at startup (ADR 0003's fallback promise).
     if (mode_ != "full") {
-      index_ = load_tile_index(map_dir_ + "/map_index.yaml");
-      RCLCPP_INFO(get_logger(), "tile grid %s: %zu tiles, %.1f m cells", index_->map_id.c_str(),
-                  index_->tiles.size(), index_->tile_size_m);
-      frame_ = index_->map_frame;
-    } else {
+      try {
+        index_ = load_tile_index(map_dir_ + "/map_index.yaml");
+        RCLCPP_INFO(get_logger(), "tile grid %s: %zu tiles, %.1f m cells", index_->map_id.c_str(),
+                    index_->tiles.size(), index_->tile_size_m);
+        frame_ = index_->map_frame;
+      } catch (const std::exception& error) {
+        RCLCPP_WARN(get_logger(), "%s; serving the full map only", error.what());
+        mode_ = "full";
+      }
+    }
+    if (mode_ == "full") {
       frame_ = "map";
     }
 

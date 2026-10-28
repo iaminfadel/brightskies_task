@@ -40,15 +40,15 @@ jobs:
           docker run --rm \
             -v "$GITHUB_WORKSPACE:/ws/brightdrive" \
             ghcr.io/iaminfadel/brightdrive-deps@sha256:263332dd8da9b062726d15953ccddce1a11cb9754779840289e059792cd60c64 \
-            bash -lc 'source /opt/brightdrive/setup.bash; source /ws/install/setup.bash 2>/dev/null || true; cd /ws/brightdrive && colcon build --packages-select brightdrive_interfaces brightdrive_localization brightdrive_bringup && colcon test --packages-select brightdrive_localization && colcon test-result --verbose'
+            bash -lc 'source /opt/brightdrive/setup.bash; source /ws/install/setup.bash 2>/dev/null || true; cd /ws/brightdrive && colcon build --packages-select brightdrive_interfaces brightdrive_localization brightdrive_bringup brightdrive_map_server && colcon test --packages-select brightdrive_localization brightdrive_map_server && colcon test-result --verbose'
       - name: Self-tests
         run: |
-          python3 -m pip install --user numpy scipy rosbags
+          python3 -m pip install --user numpy scipy rosbags pytest
           python3 scripts/build_map.py --self-check
           python3 scripts/eval_ate.py --self-test
-          python3 scripts/eval_loops.py --self-test
           python3 scripts/eval_kpi.py --self-test
           python3 scripts/forced_fail_control.py
+          python3 -m pytest scripts/scenario/tests -q
       - name: Isolation audit
         run: python3 scripts/isolation_audit.py
       # The container writes log/ and build/ as root; hand them back to the

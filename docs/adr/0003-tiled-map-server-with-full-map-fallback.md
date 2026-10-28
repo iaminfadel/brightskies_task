@@ -19,4 +19,5 @@ The pose source is `/localization/pose` when present, otherwise the seeded pose;
 
 - Compose's `map-server` service keeps its name and `/localization/map_cloud` contract; only its command changes from `publish_map_cloud.py` to `ros2 run brightdrive_map_server map_server`.
 - Windowed serving is demoable in Foxglove by driving and watching the cloud swap; full-map fallback keeps localization working if tiling stalls.
+- A bundle installed without `tiles/` + `map_index.yaml` (the runtime install only guarantees `map.pcd`, `map.yaml`, `trajectory.tum`) logs a warning and degrades to `full` instead of failing at startup. Rebuild with `make map-build` (tiles are on by default) to get windowed serving.
 - #28 (image publish) and #30 (docs) can proceed once this contract is locked; no new tickets surfaced.

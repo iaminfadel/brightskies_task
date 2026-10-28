@@ -206,19 +206,6 @@ def read_bag(bag_dir, max_scans=0, sweep_merge=False):
     return scans, np.asarray(scan_stamps), np.asarray(gnss), np.asarray(imu)
 
 
-def gnss_enu_path_length(gnss, stamp_min, stamp_max):
-    window = gnss[(gnss[:, 0] >= stamp_min) & (gnss[:, 0] <= stamp_max)]
-    if len(window) < 2:
-        return 0.0
-    radius = 6378137.0
-    east = np.radians(window[:, 2] - window[0, 2]) * radius * math.cos(
-        math.radians(window[0, 1])
-    )
-    north = np.radians(window[:, 1] - window[0, 1]) * radius
-    steps = np.linalg.norm(np.diff(np.stack([east, north], axis=1), axis=0), axis=1)
-    return float(np.sum(steps))
-
-
 def nearest_imu(imu, stamp):
     index = int(np.argmin(np.abs(imu[:, 0] - stamp)))
     return imu[index]
@@ -288,30 +275,6 @@ def gnss_imu_states(gnss, imu, scan_stamps, lever_m):
         ]
     )
     return np.column_stack([positions[:, 0], positions[:, 1], yaws, positions[:, 2]])
-
-
-def scan_priors(gnss, imu, scan_stamps, lever_m):
-    """LiDAR yaw and position for every scan from GNSS/IMU samples."""
-    yaws = np.asarray([nearest_imu(imu, stamp)[1] for stamp in scan_stamps])
-    positions = np.zeros((len(scan_stamps), 3))
-    lat0 = float(gnss[0, 1])
-    lon0 = float(gnss[0, 2])
-    radius = 6378137.0
-    gnss_index = np.searchsorted(gnss[:, 0], scan_stamps)
-    gnss_index = np.clip(gnss_index, 0, len(gnss) - 1)
-    for i, (stamp, j) in enumerate(zip(scan_stamps, gnss_index)):
-        if j > 0 and abs(gnss[j - 1, 0] - stamp) < abs(gnss[j, 0] - stamp):
-            j -= 1
-        east = math.radians(gnss[j, 2] - lon0) * radius * math.cos(
-            math.radians(lat0)
-        )
-        north = (
-            math.radians(gnss[j, 1] - lat0) * radius
-        )
-        positions[i, 0] = east - lever_m * math.cos(yaws[i])
-        positions[i, 1] = north - lever_m * math.sin(yaws[i])
-        positions[i, 2] = float(gnss[j, 3]) - float(gnss[0, 3]) + 0.4
-    return yaws, positions
 
 
 def gnss_course_priors(gnss, imu, scan_stamps):
@@ -582,11 +545,6 @@ def main():
     parser.add_argument("--min-motion-th", type=float, default=0.1)
     parser.add_argument("--fixed-threshold", type=float, default=None)
     parser.add_argument("--max-scans", type=int, default=0)
-    parser.add_argument("--gnss-imu", action="store_true",
-                        help="diagnostic baseline: pose the map from GNSS "
-                             "antenna positions + IMU yaw (no lidar); passes "
-                             "gates only because CARLA's GNSS/IMU are "
-                             "noise-free -- never the shipping path")
     parser.add_argument("--pose-graph", action="store_true",
                         help="KISS odometry + GNSS factors + GNSS-vetoed ICP "
                              "loop closures, globally optimized (offline "
@@ -623,7 +581,7 @@ def main():
     if args.tile_size <= 0.0:
         parser.error("--tile-size must be positive")
     # Canonical default: the lidar pose graph.
-    if not (args.gnss_imu or args.pose_graph or args.pg_load or args.pg_optimized):
+    if not (args.pose_graph or args.pg_load or args.pg_optimized):
         args.pose_graph = True
 
     out_dir = Path(args.out)
@@ -639,7 +597,7 @@ def main():
     scans, scan_stamps, gnss, imu = read_bag(args.bag, args.max_scans, args.sweep_merge)
     print(f"scans={len(scans)} gnss={len(gnss)} imu={len(imu)}", flush=True)
 
-    if not args.pg_load and not args.pg_optimized and not args.gnss_imu:
+    if not args.pg_load and not args.pg_optimized:
         print("running kiss-icp", flush=True)
         slam_poses = run_kiss(
             scans,
@@ -662,21 +620,7 @@ def main():
     T_map_base = T_map_gnss @ np.linalg.inv(T_base_gnss)
     T_map_slam = T_map_base @ T_base_lidar
 
-    if args.gnss_imu:
-        # CARLA's GNSS is an exact antenna position and the IMU yaw is the
-        # body yaw; together they give a drift-free pose for every scan.  This
-        # is the deterministic map trajectory: no KISS drift, no loop edges.
-        lever = float(base_gnss[0]) - float(base_lidar[0])
-        yaws, positions = scan_priors(gnss, imu, scan_stamps, lever)
-        map_poses = np.asarray([
-            from_xyzyaw(float(position[0]), float(position[1]), float(position[2]),
-                        float(yaw))
-            for position, yaw in zip(positions, yaws)
-        ])
-        slam_poses = np.asarray(
-            [np.linalg.inv(T_map_slam) @ pose for pose in map_poses]
-        )
-    elif args.pg_optimized:
+    if args.pg_optimized:
         # States already solved offline (preemption-resilient workflow): skip
         # the graph entirely and go straight to accumulation.
         import pose_graph as pg
@@ -895,7 +839,6 @@ def main():
         "max_range": float(args.max_range),
         "coverage_radius": float(args.coverage_radius),
         "sweep_merge": bool(args.sweep_merge),
-        "gnss_imu": bool(args.gnss_imu),
         "kiss_icp_version": kiss_version,
     }
     config_sha256 = hashlib.sha256(
@@ -931,11 +874,7 @@ def main():
             "first_stamp": first_stamp,
             "last_stamp": last_stamp,
             "trajectory_length_m": trajectory_length,
-            "pose_source": (
-                "gnss_positions_imu_yaw"
-                if args.gnss_imu
-                else "pose_graph_kiss_gnss_loops"
-            ),
+            "pose_source": "pose_graph_kiss_gnss_loops",
             "built_at": created_at,
         },
         "generation_command": generation_command,
