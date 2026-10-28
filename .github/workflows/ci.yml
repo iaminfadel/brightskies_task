@@ -41,6 +41,12 @@ jobs:
             -v "$GITHUB_WORKSPACE:/ws/brightdrive" \
             ghcr.io/iaminfadel/brightdrive-deps@sha256:263332dd8da9b062726d15953ccddce1a11cb9754779840289e059792cd60c64 \
             bash -lc 'source /opt/brightdrive/setup.bash; source /ws/install/setup.bash 2>/dev/null || true; cd /ws/brightdrive && colcon build --packages-select brightdrive_interfaces brightdrive_localization brightdrive_bringup brightdrive_map_server && colcon test --packages-select brightdrive_localization brightdrive_map_server && colcon test-result --verbose'
+      - name: Build the held-out map checker (dev tool, no ROS)
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/ws/brightdrive" \
+            ghcr.io/iaminfadel/brightdrive-deps@sha256:263332dd8da9b062726d15953ccddce1a11cb9754779840289e059792cd60c64 \
+            bash -lc 'source /opt/brightdrive/setup.bash; cd /ws/brightdrive && cmake -S tools/map_check -B /tmp/map_check -DCMAKE_BUILD_TYPE=Release && cmake --build /tmp/map_check -j"$(nproc)" && /tmp/map_check/map_check --help'
       - name: Self-tests
         run: |
           python3 -m pip install --user numpy scipy rosbags pytest

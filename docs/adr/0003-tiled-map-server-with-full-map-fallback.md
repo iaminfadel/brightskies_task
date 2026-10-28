@@ -29,7 +29,13 @@ loaded the map in process. Once the estimator subscribed instead, the map
 server became the only reader of `map.pcd`, and the reuse above turned into a
 backwards package dependency (the server linked the whole estimator core for a
 100-line reader). `pcd_io` now lives in `brightdrive_map_server` and that
-package no longer depends on `brightdrive_localization`. The held-out
-consistency checker (`map_check`) was removed with it: verification is the
+package no longer depends on `brightdrive_localization`.
+
+The held-out consistency checker (`map_check`) is still part of verification,
+but it is not part of the ROS packages: it lives in `tools/map_check` as a
+plain CMake executable that compiles the production matcher and PCD reader
+directly and installs nothing. Map quality is gated by
+`make map-check` (held-out GICP) alongside `make map-eval-ate`, and the
 evaluator path over recorded bags (`eval_ate.py`, `eval_kpi.py`,
-`kpi_gate.py`), not a binary inside the ROS packages.
+`kpi_gate.py`) scores the running system. Keeping the check out of `src/`
+keeps colcon packages to what the runtime actually launches.

@@ -42,7 +42,7 @@ Invariants:
 |---|---|---|---|---|
 | 1 | pre-commit hooks (clang-format 14, ruff, shellcheck, hygiene) | laptop | every commit | required (mirrored by CI) |
 | 1 | `ci/lint`: pre-commit over the whole tree | hosted | every PR | **required** |
-| 2 | `ci/build-test`: colcon build (4 packages) + gtest + launch tests + self-tests (`build_map.py`, `eval_ate.py`, `eval_kpi.py`) + scenario harness tests + isolation audit, in pinned deps image | hosted | every PR | **required** |
+| 2 | `ci/build-test`: colcon build (4 packages) + gtest + launch tests + `tools/map_check` build + self-tests (`build_map.py`, `eval_ate.py`, `eval_kpi.py`) + scenario harness tests + isolation audit, in pinned deps image | hosted | every PR | **required** |
 | 2 | build/test evidence artifact (14-day retention) | GH | every run, on failure too | live |
 | 3 | `carla-smoke`: merged staging state on the GCP VM; MAP_LOAD, LOCKED, TF tree, health, tripwire KPIs, runtime isolation check; evidence to GCS | VM | push to staging | advisory (ratchet) |
 | 4 | full S1-S4 KPI matrix + regression vs baseline | VM | staging->main PR | pending #10/#11 |
@@ -70,7 +70,7 @@ History:
   Pulls the deps image from GHCR (public; the login step only lifts the
   anonymous rate limit).
 - `.github/workflows/carla-smoke.yml` - tier 3, push to `staging` + manual
-  dispatch. Dispatches via `scripts/vm_job.py`: start on-demand VM, deploy
+  dispatch. Dispatches via `infra/vm_job.py`: start on-demand VM, deploy
   committed staging HEAD (`git archive`, never uncommitted state), then
   `scripts/validation/run_on_vm.sh` builds the workspace and runs the compose
   `test` route (`make test`), collecting `/ws/evidence`, and stops the VM.
@@ -92,11 +92,17 @@ Run both on the VM: GICP costs ~1.07 s/scan on a laptop against the ~200 ms the
 5 Hz pipeline is sized for, so a laptop replay starves the executor and its
 latency numbers mean nothing.
 
+Map quality is scored separately: `make map-check` runs the held-out GICP
+consistency check. It is a standalone tool (`tools/map_check`, plain CMake, no
+ROS package and nothing installed) that compiles the production matcher and
+PCD reader, so the check cannot drift from the estimator while staying out of
+the runtime install.
+
 **Deps image pin.** `docker/deps.lock` pins a digest built 2026-10-22, before
 `docker/deps.Dockerfile` started pip-installing `rosbags`/`scipy`; the image
 therefore lacks them, and the `:validation` tag was never published. Until the
 image is rebuilt and re-pinned (needs a GHCR push), every entry point calls
-`scripts/ensure_py_deps.sh`, which imports what the scripts need and installs
+`infra/ensure_py_deps.sh`, which imports what the scripts need and installs
 only the missing modules. It is a no-op on a correctly pinned image, so
 re-pinning later is a one-line change with no code to revert.
 
@@ -139,4 +145,4 @@ Pro on private repos), squash-merge-only policy, `staging` created from
 `ci / build-test` required (PRs only, no force push, up-to-date branches,
 conversation resolution). First PR #21 → staging and promotion PR #22 → main
 both green; `v0.1` tagged at fa1f765. Re-run anytime with `make ci-bootstrap`
-(`scripts/ci_bootstrap.sh` is idempotent).
+(`infra/ci_bootstrap.sh` is idempotent).

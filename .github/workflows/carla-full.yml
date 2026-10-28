@@ -26,7 +26,7 @@ jobs:
         env:
           BUCKET: brightskies-artifacts-330586358676
         run: |
-          python3 scripts/vm_job.py run \
+          python3 infra/vm_job.py run \
             --command "bash scripts/validation/run_on_vm.sh" \
             --artifact-dir artifacts/full \
             --collect /ws/evidence \

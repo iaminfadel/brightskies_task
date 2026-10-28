@@ -65,7 +65,7 @@ done
 } >"$EVIDENCE/host_info.txt" 2>&1 || true
 
 echo "==> building the workspace"
-bash scripts/ros_exec.sh "colcon build --base-paths /ws/brightdrive/src \
+bash infra/ros_exec.sh "colcon build --base-paths /ws/brightdrive/src \
   --build-base /ws/build --install-base /ws/install"
 
 echo "==> running the compose smoke"

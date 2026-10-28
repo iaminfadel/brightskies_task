@@ -5,13 +5,13 @@
 # eval_kpi, map-install, ...). It needs no running stack -- the runtime, scenarios and
 # smoke all go through docker compose instead.
 #
-#   scripts/ros_exec.sh 'python3 scripts/eval_ate.py /ws/maps/builds/x'
+#   infra/ros_exec.sh 'python3 scripts/eval_ate.py /ws/maps/builds/x'
 #
-# Runs on the VM; from the laptop reach it through scripts/vm-run.sh.
+# Runs on the VM; from the laptop reach it through infra/vm-run.sh.
 set -euo pipefail
 
 if [ $# -ne 1 ]; then
-  echo "usage: scripts/ros_exec.sh '<command>'" >&2
+  echo "usage: infra/ros_exec.sh '<command>'" >&2
   exit 2
 fi
 
@@ -23,4 +23,4 @@ cd "$ROOT"
 
 exec docker run --rm --network host -v "$WS:$WS" "$DEPS_IMAGE" \
   bash -lc "source /opt/brightdrive/setup.bash; source $WS/install/setup.bash 2>/dev/null || true; \
-    bash $ROOT/scripts/ensure_py_deps.sh; cd $ROOT && $1"
+    bash $ROOT/infra/ensure_py_deps.sh; cd $ROOT && $1"

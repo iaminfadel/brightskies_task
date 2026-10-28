@@ -1,21 +1,21 @@
 SHELL := /bin/bash
 
 .PHONY: build up down ps logs test scenario eval compose-config \
-        map map-build map-eval map-eval-ate map-install map-upload map-pull eval-kpi \
+        map map-build map-eval map-eval-ate map-install map-upload map-pull eval-kpi map-check \
         vm-provision vm-up vm-down vm-ssh vm-tunnel vm-sync vm-shell vm-job vm-status vm-snapshot \
         ci-lint ci-bootstrap ci-vm-build-test
 
 # --- layout ---------------------------------------------------------------
 # The VM workspace is ${WS_DIR}:/ws (brightdrive/, install/, maps/, bags/,
 # evidence/). The laptop never builds ROS locally: every `make` target that
-# needs ROS runs on the VM through scripts/vm-run.sh, which deploys committed
+# needs ROS runs on the VM through infra/vm-run.sh, which deploys committed
 # HEAD and runs the command over IAP.
 WS_DIR ?= /ws
 COMPOSE ?= docker compose
 ROOT ?= /ws/brightdrive
 
 # One-off ROS command in a throwaway deps container (no stack needed).
-run-one = ./scripts/vm-run.sh --fg "bash scripts/ros_exec.sh '$(1)'"
+run-one = ./infra/vm-run.sh --fg "bash infra/ros_exec.sh '$(1)'"
 
 # The pinned, gate-passing bundle (ADR 0002); runtime and install agree (#35).
 MAP_ID ?= town05-v14-pg
@@ -72,7 +72,7 @@ compose-config:
 	  --profile mapping --profile scenario config
 
 # Runtime + the one-shot smoke that drives it and writes evidence to
-# $(EVIDENCE). GPU host only; run it on the VM (scripts/vm-run.sh).
+# $(EVIDENCE). GPU host only; run it on the VM (infra/vm-run.sh).
 test:
 	-$(COMPOSE) --profile runtime --profile test down --remove-orphans --timeout 10
 	$(COMPOSE) --profile runtime --profile test run --rm smoke
@@ -123,10 +123,17 @@ map-eval-ate:
 
 map-eval: map-eval-ate
 
+# Held-out GICP consistency gate (tools/map_check): a standalone development
+# tool, built here in the pinned deps image, not a ROS node and never installed.
+map-check:
+	$(call run-one,cmake -S tools/map_check -B /tmp/map_check -DCMAKE_BUILD_TYPE=Release >/dev/null && \
+	  cmake --build /tmp/map_check -j4 >/dev/null && \
+	  /tmp/map_check/map_check $(MAP_BUILDS)/$(MAP_ID))
+
 # Runtime install: the three runtime files plus the optional tile grid; the
 # evaluator files never reach the estimator.
 map-install:
-	./scripts/vm-run.sh --fg "set -e; \
+	./infra/vm-run.sh --fg "set -e; \
 	  rm -rf $(MAP_INSTALL)/$(MAP_ID) && mkdir -p $(MAP_INSTALL)/$(MAP_ID) && \
 	  cp $(MAP_BUILDS)/$(MAP_ID)/map.pcd $(MAP_BUILDS)/$(MAP_ID)/map.yaml \
 	     $(MAP_BUILDS)/$(MAP_ID)/trajectory.tum $(MAP_INSTALL)/$(MAP_ID)/ && \
@@ -139,10 +146,10 @@ map-install:
 	  test ! -e $(MAP_INSTALL)/$(MAP_ID)/validation"
 
 map-upload:
-	./scripts/vm-run.sh --fg "gsutil -m cp -r $(MAP_BUILDS)/$(MAP_ID) $(MAP_BUCKET)/"
+	./infra/vm-run.sh --fg "gsutil -m cp -r $(MAP_BUILDS)/$(MAP_ID) $(MAP_BUCKET)/"
 
 map-pull:
-	./scripts/vm-run.sh --fg "rm -rf $(MAP_BUILDS)/$(MAP_ID) && \
+	./infra/vm-run.sh --fg "rm -rf $(MAP_BUILDS)/$(MAP_ID) && \
 	  mkdir -p $(MAP_BUILDS)/$(MAP_ID) && \
 	  gsutil -m cp -r '$(MAP_BUCKET)/$(MAP_ID)/*' $(MAP_BUILDS)/$(MAP_ID)/"
 
@@ -171,13 +178,13 @@ vm-tunnel:
 	./infra/vm-ssh.sh -N -L 8765:127.0.0.1:8765
 
 vm-sync:
-	./scripts/vm-run.sh --sync-only
+	./infra/vm-run.sh --sync-only
 
 vm-shell:
 	./infra/vm-ssh.sh bash
 
 vm-job:
-	python3 scripts/vm_job.py $(ARGS)
+	python3 infra/vm_job.py $(ARGS)
 
 vm-status:
 	./infra/vm-status.sh
@@ -191,11 +198,11 @@ ci-lint:
 	pre-commit run --all-files
 
 ci-bootstrap:
-	./scripts/ci_bootstrap.sh
+	./infra/ci_bootstrap.sh
 
 # Exactly what ci/build-test runs, but on the VM (the laptop never builds ROS).
 ci-vm-build-test:
-	./scripts/vm-run.sh --fg "bash scripts/ros_exec.sh 'colcon build \
+	./infra/vm-run.sh --fg "bash infra/ros_exec.sh 'colcon build \
 	  --base-paths /ws/brightdrive/src --build-base /ws/build --install-base /ws/install && \
 	  colcon test --packages-select brightdrive_localization brightdrive_map_server && \
 	  colcon test-result --verbose'"

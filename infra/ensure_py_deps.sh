@@ -9,7 +9,7 @@
 # a no-op on a correctly pinned image, and it is safe to call from anywhere
 # inside the container.
 #
-#   bash scripts/ensure_py_deps.sh
+#   bash infra/ensure_py_deps.sh
 set -euo pipefail
 
 # module name == distribution name for all four.

@@ -10,11 +10,11 @@ SSH="$REPO_DIR/infra/vm-ssh.sh"
 
 usage() {
   cat <<'EOF'
-usage: scripts/vm-run.sh [--no-sync] 'command'
-       scripts/vm-run.sh --sync-only
-       scripts/vm-run.sh --fg [--no-sync] 'command'
-       scripts/vm-run.sh --status
-       scripts/vm-run.sh --logs <job-id|/path/to/log>
+usage: infra/vm-run.sh [--no-sync] 'command'
+       infra/vm-run.sh --sync-only
+       infra/vm-run.sh --fg [--no-sync] 'command'
+       infra/vm-run.sh --status
+       infra/vm-run.sh --logs <job-id|/path/to/log>
 
 Deploys the committed git HEAD to the VM and runs commands there over IAP.
 Long commands run detached in /ws/jobs/<job-id>/ with console.log, exit_code,
@@ -100,7 +100,7 @@ run_detached() {
   rm -f "$tmp"
   "$SSH" "cd '$ROOT' && nohup setsid bash '$job_dir/run.sh' > '$job_dir/console.log' 2>&1 < /dev/null & echo \$! > '$job_dir/launcher-pid'"
   echo "$job_id"
-  echo "==> follow: scripts/vm-run.sh --logs $job_id" >&2
+  echo "==> follow: infra/vm-run.sh --logs $job_id" >&2
 }
 
 run_foreground() {

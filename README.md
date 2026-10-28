@@ -24,7 +24,7 @@ Colab dependency.
 laptop (control plane)                  GCP VM europe-west4 (Spot)
 ┌────────────────────┐   IAP SSH   ┌───────────────────────────────────────────┐
 │ make vm-up/down    │ ──────────> │ compose profile "runtime":                │
-│ scripts/vm-run.sh  │             │   carla (Town05, 0.9.15)                  │
+│ infra/vm-run.sh    │             │   carla (Town05, 0.9.15)                  │
 │ git archive HEAD   │             │   bridge (sync, 10 Hz, spawns the hero)   │
 └────────────────────┘             │   /carla/hero/{lidar,gnss,imu}            │
                                    │   KISS-ICP -> /kiss/odometry              │
@@ -36,7 +36,7 @@ laptop (control plane)                  GCP VM europe-west4 (Spot)
 ```
 
 One runtime, `docker-compose.yml`, selected by profiles: `runtime` (`make up`), `test`,
-`scenario`, `eval`, `mapping`. Only committed `HEAD` is deployed: `scripts/vm-run.sh`
+`scenario`, `eval`, `mapping`. Only committed `HEAD` is deployed: `infra/vm-run.sh`
 ships `git archive` to `/ws/brightdrive`; long jobs run detached under
 `/ws/jobs/<job-id>/` and are followed with `--logs`.
 
@@ -177,20 +177,34 @@ ratchet live in `docs/ci.md` (decision record: `docs/adr/0001-branch-model-and-c
 
 ## Repository layout
 
+Product code is everything the task delivers and runs. It does not know where
+it executes, so `infra/` is the only tree tied to the VM provider (swap it and
+nothing else moves), and `tools/` holds checks that support development but are
+not part of the runtime.
+
 ```
 src/brightdrive_localization/   estimator: GICP matcher, health, geodesy, SE(3)
 src/brightdrive_map_server/     map bundle PCD I/O, tiled serving with full-map fallback
 src/brightdrive_bringup/        launch, config, URDF, GNSS/IMU relays
 src/brightdrive_interfaces/     LocalizationStatus message
+
 scripts/build_map.py            offline mapping (KISS-ICP, GNSS poses, bundle writer)
 scripts/pose_graph.py           SE(2)+z pose-graph solver + ICP loop closures
+scripts/map_run.sh              mapping route: recorder, hero spawn, route driver
+scripts/carla_*_drive.py        hero teleport / route driving used by the routes
 scripts/eval_ate.py             ATE ground-truth evaluator
 scripts/eval_kpi.py             heading / output-age / latency-drift evaluator
 scripts/kpi_gate.py             KPI thresholds and gate
 scripts/scenario/               ScenarioRunner harness, route coverage, GNSS profiles
-scripts/ros_exec.sh             one-off ROS command in a deps container
-scripts/ensure_py_deps.sh       top up rosbags/scipy on the pinned deps image
-scripts/vm-run.sh               deploy HEAD and run commands over IAP
+scripts/validation/             compose smoke and the on-VM CI harness
+
+tools/map_check/                held-out GICP consistency check (standalone C++)
+
+infra/vm-run.sh                 deploy HEAD and run commands over IAP
+infra/ros_exec.sh               one-off ROS command in a deps container
+infra/ensure_py_deps.sh         top up rosbags/scipy on the pinned deps image
+infra/vm_job.py                 detached, preemption-aware CI job runner
+infra/ci_bootstrap.sh           one-time CI branch-protection/bootstrap
 infra/                          provision, VM lifecycle, idle stop, IAP SSH
 ```
 
