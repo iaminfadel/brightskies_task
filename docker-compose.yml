@@ -158,13 +158,11 @@ services:
         kill $$bridge_pid; wait $$bridge_pid; exit 1; fi;
         wait $$bridge_pid
 
-  localization:
+  # Estimator bringup shared by the live runtime and the bag replay route:
+  # same image, nodes, and params; only how the sensors arrive differs
+  # (bridge vs recorded bag).
+  x-localization: &localization
     <<: *ros
-    profiles: [runtime]
-    restart: on-failure
-    depends_on:
-      bridge:
-        condition: service_healthy
     environment:
       # Param-file overrides (#26 config-over-code rule): point these at
       # copies outside the repo (e.g. under $(WS_DIR)/config-override/)
@@ -191,6 +189,19 @@ services:
     # service's MAP_DIR, and the georeference must match it (localization.yaml
     # map.anchor_*, override via LOCALIZATION_PARAMS when MAP_DIR changes).
 
+  localization:
+    <<: *localization
+    profiles: [runtime]
+    restart: on-failure
+    depends_on:
+      bridge:
+        condition: service_healthy
+
+  localization-replay:
+    <<: *localization
+    profiles: [replay]
+    restart: on-failure
+
   foxglove:
     <<: *ros
     profiles: [runtime]
@@ -215,7 +226,7 @@ services:
     # serving knobs are YAML parameters (brightdrive_bringup config
     # map_server.yaml) with MAP_SERVER_* env overrides here.
     <<: *ros
-    profiles: [runtime]
+    profiles: [runtime, replay]
     restart: on-failure
     command:
       - /bin/bash
@@ -261,6 +272,28 @@ services:
       - >-
         source /opt/brightdrive/setup.bash;
         exec bash /ws/brightdrive/scripts/validation/compose_smoke.sh
+
+  replay-smoke:
+    # CARLA-free estimator validation: play a recorded sensor bag through
+    # localization-replay + map-server and record the estimator surfaces
+    # (same topic list as the smoke estimator bag). Reached through
+    # `make replay BAG=...`; needs no GPU and no bridge.
+    <<: *ros
+    profiles: [replay]
+    environment:
+      REPLAY_BAG: ${REPLAY_BAG:-}
+      EVIDENCE: ${EVIDENCE:-/ws/evidence/replay}
+    depends_on:
+      map-server:
+        condition: service_started
+      localization-replay:
+        condition: service_started
+    command:
+      - /bin/bash
+      - -lc
+      - >-
+        source /opt/brightdrive/setup.bash;
+        exec bash /ws/brightdrive/scripts/validation/compose_replay.sh
 
   scenario:
     # One-shot scenario harness (#37): verifies the pinned ScenarioRunner,

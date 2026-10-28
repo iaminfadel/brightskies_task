@@ -58,24 +58,31 @@ up:
 
 down:
 	$(COMPOSE) --profile runtime --profile test --profile eval \
-	  --profile mapping --profile scenario down --remove-orphans
+	  --profile mapping --profile scenario --profile replay down --remove-orphans
 
 ps:
 	$(COMPOSE) --profile runtime --profile test --profile eval \
-	  --profile mapping --profile scenario ps
+	  --profile mapping --profile scenario --profile replay ps
 
 logs:
 	$(COMPOSE) logs -f $(SVC)
 
 compose-config:
 	$(COMPOSE) --profile runtime --profile test --profile eval \
-	  --profile mapping --profile scenario config
+	  --profile mapping --profile scenario --profile replay config
 
 # Runtime + the one-shot smoke that drives it and writes evidence to
 # $(EVIDENCE). GPU host only; run it on the VM (infra/vm-run.sh).
 test:
 	-$(COMPOSE) --profile runtime --profile test down --remove-orphans --timeout 10
 	$(COMPOSE) --profile runtime --profile test run --rm smoke
+
+# CARLA-free estimator replay of a recorded sensor bag (VM only: the laptop
+# starves the single-threaded estimator). No GPU, no bridge, no CARLA.
+REPLAY_BAG ?= /ws/bags/map_full4
+replay:
+	-$(COMPOSE) --profile replay down --remove-orphans --timeout 10
+	REPLAY_BAG=$(REPLAY_BAG) $(COMPOSE) --profile replay run --rm replay-smoke
 
 # --- scenario route -------------------------------------------------------
 # One locked scenario, deterministic by seed (#37). GNSS_PROFILE is bound to
