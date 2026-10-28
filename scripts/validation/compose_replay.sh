@@ -18,9 +18,16 @@ meta="$BAG/metadata.yaml"
 [ -f "$meta" ] || { echo "no metadata.yaml under $BAG" >&2; exit 1; }
 
 # Fail fast on a bag missing the sensor surface instead of running silent.
-for topic in /carla/hero/lidar /carla/hero/gnss /carla/hero/imu /clock; do
-  grep -q "  $topic:" "$meta" || { echo "bag lacks $topic" >&2; exit 1; }
-done
+python3 - "$meta" <<'PY'
+import sys, yaml
+meta = yaml.safe_load(open(sys.argv[1]))["rosbag2_bagfile_information"]
+names = {t["topic_metadata"]["name"] for t in meta["topics_with_message_count"]}
+required = {"/carla/hero/lidar", "/carla/hero/gnss", "/carla/hero/imu", "/clock"}
+missing = required - names
+if missing:
+    print("bag lacks " + " ".join(sorted(missing)), file=sys.stderr)
+    sys.exit(1)
+PY
 duration=$(python3 -c "
 import sys, yaml
 info = yaml.safe_load(open(sys.argv[1]))['rosbag2_bagfile_information']
