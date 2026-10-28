@@ -245,6 +245,7 @@ services:
     profiles: [test]
     environment:
       EVIDENCE: ${EVIDENCE:-/ws/evidence/compose-smoke}
+      SMOKE_BAG_S: ${SMOKE_BAG_S:-20}
     depends_on:
       carla:
         condition: service_healthy

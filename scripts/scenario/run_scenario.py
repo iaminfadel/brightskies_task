@@ -56,11 +56,15 @@ SR_ROOT = "/opt/scenario_runner"
 
 # Estimator bag: sensor inputs and estimator outputs, no GT. The raw GNSS is
 # recorded next to the degraded one so the offline evaluator can compare
-# what the estimator consumed against what CARLA emitted. GT bag: the
-# evaluator-only allowlist from the scenario contract (#10 §11).
+# what the estimator consumed against what CARLA emitted. The individual yaw
+# sources the EKF fuses (scan_pose, kiss odometry, GNSS bootstrap pose) ride
+# along so a 180-deg yaw flip in /odometry/filtered can be attributed to its
+# source offline. GT bag: the evaluator-only allowlist from the scenario
+# contract (#10 §11).
 ESTIMATOR_BAG_TOPICS = [
     "/carla/hero/lidar", "/carla/hero/gnss", "/localization/gnss",
     "/localization/imu", "/odometry/filtered", "/localization/status",
+    "/localization/scan_pose", "/kiss/odometry", "/localization/gnss_pose",
     "/tf", "/clock",
 ]
 GT_BAG_TOPICS = [

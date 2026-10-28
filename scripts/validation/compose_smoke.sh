@@ -154,10 +154,15 @@ if grep -R "/carla/hero/camera" "$LOGS"/node_info_*.txt; then
 fi
 
 # Bags: estimator bag without camera; visualization bag with camera only.
+# The estimator bag also carries every yaw source the EKF fuses (scan_pose,
+# kiss odometry, contract IMU, GNSS bootstrap pose) so a 180-deg yaw flip
+# observed in /odometry/filtered can be attributed to its source offline.
+# SMOKE_BAG_S widens the window for diagnostic replays; CI keeps the 20 s.
 echo "==> recording bags"
-timeout --signal=INT 20 ros2 bag record -o "$EVIDENCE/bags/estimator" \
-  /carla/hero/lidar /carla/hero/gnss /carla/hero/imu /clock /tf \
+timeout --signal=INT "${SMOKE_BAG_S:-20}" ros2 bag record -o "$EVIDENCE/bags/estimator" \
+  /carla/hero/lidar /carla/hero/gnss /carla/hero/imu /clock /tf /tf_static \
   /kiss/odometry /odometry/filtered /localization/status \
+  /localization/scan_pose /localization/gnss_pose /localization/imu \
   >"$LOGS/bag_estimator.log" 2>&1 &
 estimator_bag_pid=$!
 timeout --signal=INT 20 ros2 bag record -o "$EVIDENCE/bags/visualization" \
