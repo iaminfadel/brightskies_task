@@ -52,12 +52,21 @@ run_scenario() {
   local profile="nominal"
   [ "$S" = "S2" ] && profile="noisy"
   echo "==> scenario $S (profile=$profile)"
-  docker compose --profile runtime --profile scenario down --remove-orphans --timeout 10 || true
-  GNSS_PROFILE="$profile" SCENARIO="$S" SCENARIO_SEED="${SCENARIO_SEED:-7}" \
-    SCENARIO_SEED_RUNS="${SCENARIO_SEED_RUNS:-1}" \
-    SCENARIO_EVIDENCE="${SCENARIO_EVIDENCE:-/ws/evidence/scenarios}" \
-    OBJECTS_FILE="${OBJECTS_FILE:-/ws/brightdrive/config/scenario/objects_scenario.json}" \
-    docker compose --profile runtime --profile scenario run --rm scenario
+  local attempt
+  for attempt in 1 2 3; do
+    docker compose --profile runtime --profile scenario down --remove-orphans --timeout 10 || true
+    if GNSS_PROFILE="$profile" SCENARIO="$S" SCENARIO_SEED="${SCENARIO_SEED:-7}" \
+         SCENARIO_SEED_RUNS="${SCENARIO_SEED_RUNS:-1}" \
+         SCENARIO_EVIDENCE="${SCENARIO_EVIDENCE:-/ws/evidence/scenarios}" \
+         OBJECTS_FILE="${OBJECTS_FILE:-/ws/brightdrive/config/scenario/objects_scenario.json}" \
+         docker compose --profile runtime --profile scenario run --rm scenario; then
+      return 0
+    fi
+    echo "==> scenario $S attempt $attempt failed; bouncing stack" >&2
+    docker compose --profile runtime --profile scenario down --remove-orphans --timeout 10 || true
+    sleep 15
+  done
+  return 1
 }
 
 run_eval() {
