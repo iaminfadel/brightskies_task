@@ -329,19 +329,29 @@ services:
         --evidence ${SCENARIO_EVIDENCE:-/ws/evidence/scenarios}
 
   evaluator:
-    # Post-drive, artifact-consuming: source GT-isolation audit + KPI gate
-    # over a metrics file. Deliberately no runtime dependency and no carla
-    # -- the evaluator is never co-scheduled with the estimator. ATE,
-    # heading, and latency metrics from bags land here with #29.
+    # Post-drive, artifact-consuming: GT-isolation audit + KPI evaluation
+    # over a recorded scenario run. Runs eval_kpi.py to write metrics.json
+    # from the estimator/GT bags, then gates it. No runtime dependency and
+    # no carla -- never co-scheduled with the estimator.
     <<: *ros
     profiles: [eval]
+    environment:
+      ESTIMATOR_BAG: ${ESTIMATOR_BAG:-/ws/evidence/scenarios/S1/seed_7/bags/estimator}
+      GT_BAG: ${GT_BAG:-/ws/evidence/scenarios/S1/seed_7/bags/gt}
+      MAP_DIR: ${MAP_DIR:-/ws/maps/builds/town05-v14-pg}
+      SCENARIO: ${SCENARIO:-S1}
+      KPI_EVIDENCE: ${KPI_EVIDENCE:-/ws/evidence}
+      METRICS_FILE: ${METRICS_FILE:-/ws/evidence/metrics.json}
     command:
       - /bin/bash
       - -lc
       - >-
         cd /ws/brightdrive;
-        python3 scripts/isolation_audit.py;
-        exec python3 scripts/kpi_gate.py ${METRICS_FILE:-/ws/evidence/metrics.json}
+        python3 scripts/isolation_audit.py &&
+        python3 scripts/eval_kpi.py
+        $$ESTIMATOR_BAG $$GT_BAG $$MAP_DIR
+        --scenario $$SCENARIO --out-dir $$KPI_EVIDENCE;
+        exec python3 scripts/kpi_gate.py $$METRICS_FILE
 
   recorder:
     # Mapping route stage 1: hero with the mapping sensor set

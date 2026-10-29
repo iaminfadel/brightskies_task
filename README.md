@@ -15,7 +15,7 @@ Colab dependency.
 | Saved map `town05-v14-pg` — lidar pose-graph SLAM (2,283,500 points; ATE 0.037 m RMSE / 0.69 deg yaw; held-out 94 %) | **gates PASS** (ADR 0002) |
 | Localization stack (KISS-ICP + GICP + EKF + health) | working; E2E locked on `town05-v14-pg` |
 | Tiled map serving with full-map fallback | working (ADR 0003) |
-| OpenSCENARIO S1-S4 harness, evaluator, KPI gates | working (#37); full matrix pending (#38) |
+| OpenSCENARIO S1-S4 harness, evaluator, KPI gates | working (#38): full S1-S4 matrix with KPI gate |
 | CI (`lint`, `build-test`, `carla-smoke`, WIF) | `lint`+`build-test` required on PRs; `carla-smoke` advisory on `staging` |
 
 ## Architecture

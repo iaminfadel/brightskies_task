@@ -27,7 +27,7 @@ jobs:
           BUCKET: brightskies-artifacts-330586358676
         run: |
           python3 infra/vm_job.py run \
-            --command "bash scripts/validation/run_on_vm.sh" \
+            --command "sudo bash scripts/validation/run_full_matrix.sh" \
             --artifact-dir artifacts/full \
             --collect /ws/evidence \
             --max-retries 1
